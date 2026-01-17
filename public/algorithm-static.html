@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayBank Algorithm - Versión Estática</title>
+    <style>
+        /* Estilos básicos para mantener apariencia consistente */
+        :root {
+            --primary: #3c82f6;
+            --primary-foreground: #ffffff;
+            --background: #ffffff;
+            --foreground: #020817;
+            --card: #ffffff;
+            --card-foreground: #020817;
+            --popover: #ffffff;
+            --popover-foreground: #020817;
+            --secondary: #f1f5f9;
+            --secondary-foreground: #0f172a;
+            --muted: #f1f5f9;
+            --muted-foreground: #64748b;
+            --accent: #f1f5f9;
+            --accent-foreground: #0f172a;
+            --destructive: #ef4444;
+            --destructive-foreground: #f8fafc;
+            --border: #e2e8f0;
+            --input: #e2e8f0;
+            --ring: #94a3b8;
+            --radius: 0.75rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.6;
+        }
+
+        /* Contenedor principal */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: var(--background);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: var(--foreground);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+        }
+
+        /* Encabezado */
+        .header {
+            text-align: center;
+            margin: 3rem 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--foreground);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: var(--muted-foreground);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Tabs */
+        .tabs {
+            margin: 2rem 0;
+        }
+
+        .tabs-list {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .tab-trigger {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            transition: all 0.3s;
+        }
+
+        .tab-trigger[data-state="active"] {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-content[data-state="active"] {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Secciones de contenido */
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: var(--foreground);
+        }
+
+        .section-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .section-text {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .section-image {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .section-image img {
+            max-width: 100%;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Tarjetas */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .card {
+            background-color: var(--card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.75rem;
+            color: var(--foreground);
+        }
+
+        .card-content {
+            color: var(--muted-foreground);
+            font-size: 0.95rem;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: #f8fafc;
+            padding: 3rem 2rem;
+            margin-top: 4rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 3rem;
+        }
+
+        .footer-col h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            color: var(--foreground);
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-col a {
+            color: var(--muted-foreground);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--primary);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--muted-foreground);
+            font-size: 0.9rem;
+        }
+
+        /* Selector de idioma */
+        .language-selector {
+            position: relative;
+            display: inline-block;
+        }
+
+        .language-btn {
+            padding: 0.5rem 1rem;
+            background-color: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .language-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 180px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            display: none;
+        }
+
+        .language-dropdown.open {
+            display: block;
+        }
+
+        .language-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .language-item:hover {
+            background-color: var(--secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .section-content {
+                flex-direction: column;
+            }
+
+            .footer-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">WayBank</div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Inicio</a>
+            <a href="/how-it-works" class="nav-link">Cómo Funciona</a>
+            <a href="/algorithm" class="nav-link">Algoritmo</a>
+            <a href="/dashboard" class="nav-link">Acceder</a>
+            <div class="language-selector">
+                <button class="language-btn" id="language-btn">
+                    <span id="current-language">Español</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                    </svg>
+                </button>
+                <div class="language-dropdown" id="language-dropdown">
+                    <div class="language-item" data-lang="es">Español</div>
+                    <div class="language-item" data-lang="en">English</div>
+                    <div class="language-item" data-lang="fr">Français</div>
+                    <div class="language-item" data-lang="de">Deutsch</div>
+                    <div class="language-item" data-lang="it">Italiano</div>
+                    <div class="language-item" data-lang="pt">Português</div>
+                    <div class="language-item" data-lang="ar">العربية</div>
+                    <div class="language-item" data-lang="hi">हिन्दी</div>
+                    <div class="language-item" data-lang="zh">中文</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container">
+        <header class="header">
+            <h1 id="algo-title">Algoritmo WayBank</h1>
+            <p id="algo-subtitle">Nuestro algoritmo propietario de estratificación de liquidez que optimiza los retornos mientras minimiza los riesgos.</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tabs-list">
+                <button class="tab-trigger" data-state="active" data-tab="overview" id="tab-overview">Descripción General</button>
+                <button class="tab-trigger" data-tab="poolStrategy" id="tab-poolStrategy">Estrategia de Pools</button>
+                <button class="tab-trigger" data-tab="permanentLoss" id="tab-permanentLoss">Pérdida Permanente</button>
+                <button class="tab-trigger" data-tab="nftIntegration" id="tab-nftIntegration">Integración NFT</button>
+            </div>
+
+            <!-- Tab content: Overview -->
+            <div class="tab-content" data-state="active" id="content-overview">
+                <section class="section">
+                    <h2 class="section-title" id="overview-title">¿Qué es el algoritmo WayBank?</h2>
+                    <div class="section-content">
+                        <div class="section-text">
+                            <p id="overview-text">El algoritmo de WayBank es una tecnología avanzada de gestión de liquidez para los pools de Uniswap v3 que estratifica las posiciones de liquidez para optimizar los rendimientos mientras protege contra los riesgos de mercado.</p>
+                            <p class="mt-4" id="overview-text-2">Nuestro algoritmo analiza constantemente las condiciones del mercado y ajusta dinámicamente las posiciones para maximizar las tarifas de transacción ganadas, manteniendo al mismo tiempo una exposición controlada a la volatilidad del precio.</p>
+                        </div>
+                        <div class="section-image">
+                            <img src="/images/algorithm/algorithm-overview.png" alt="WayBank Algorithm Overview" id="overview-img" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title" id="benefits-title">Beneficios Clave</h2>
+                    <div class="card-grid">
+                        <div class="card">
+                            <div class="card-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2v20"/>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title" id="benefit-capital">Eficiencia de Capital</h3>
+                            <p class="card-content" id="benefit-capital-desc">Optimiza la asignación de capital al concentrar la liquidez donde genera las mayores recompensas.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1"/>
+                                    <path d="M15 3h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1"/>
+                                    <line x1="12" y1="3" x2="12" y2="17"/>
+                                    <path d="m8 13 4 6 4-6"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title" id="benefit-risk">Mitigación de Riesgos</h3>
+                            <p class="card-content" id="benefit-risk-desc">Reduce la pérdida impermanente a través de múltiples estrategias de cobertura integradas.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2v4"/>
+                                    <path d="M12 18v4"/>
+                                    <path d="M4.93 4.93l2.83 2.83"/>
+                                    <path d="M16.24 16.24l2.83 2.83"/>
+                                    <path d="M2 12h4"/>
+                                    <path d="M18 12h4"/>
+                                    <path d="M4.93 19.07l2.83-2.83"/>
+                                    <path d="M16.24 7.76l2.83-2.83"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title" id="benefit-yield">Rendimientos Mejorados</h3>
+                            <p class="card-content" id="benefit-yield-desc">Captura mayores tarifas de negociación a través de un posicionamiento de liquidez preciso en todo el rango de precios.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                                    <path d="M12 12h.01"/>
+                                    <path d="M17 12h.01"/>
+                                    <path d="M7 12h.01"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title" id="benefit-automation">Automatización Completa</h3>
+                            <p class="card-content" id="benefit-automation-desc">Funciona de forma autónoma, ajustando las posiciones según sea necesario sin intervención manual requerida.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab content: Pool Strategy -->
+            <div class="tab-content" id="content-poolStrategy">
+                <section class="section">
+                    <h2 class="section-title" id="pool-strategy-title">Estrategia de Pools Avanzada</h2>
+                    <div class="section-content">
+                        <div class="section-text">
+                            <p id="pool-strategy-desc">El algoritmo WayBank implementa una estrategia de provisión de liquidez multi-nivel en Uniswap V3, colocando capital en múltiples rangos de precios estratégicamente seleccionados.</p>
+                            <p class="mt-4" id="pool-strategy-desc-2">A diferencia de las estrategias estáticas, nuestro algoritmo reevalúa constantemente la volatilidad del mercado, los volúmenes de operaciones y las tendencias de precios para redistribuir la liquidez de forma óptima.</p>
+                        </div>
+                        <div class="section-image">
+                            <img src="/images/algorithm/pool-strategy.png" alt="Pool Strategy" id="pool-strategy-img" />
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab content: Permanent Loss -->
+            <div class="tab-content" id="content-permanentLoss">
+                <section class="section">
+                    <h2 class="section-title" id="permanent-loss-title">Prevención de Pérdida Permanente</h2>
+                    <div class="section-content">
+                        <div class="section-text">
+                            <p id="permanent-loss-desc">La pérdida impermanente es uno de los mayores desafíos para los proveedores de liquidez. El algoritmo WayBank utiliza múltiples técnicas para mitigar este riesgo.</p>
+                            <p class="mt-4" id="permanent-loss-desc-2">Mediante la combinación de posiciones en diferentes rangos de precios y el reequilibrio dinámico basado en indicadores técnicos, nuestro sistema puede reducir significativamente el impacto de la pérdida impermanente.</p>
+                        </div>
+                        <div class="section-image">
+                            <img src="/images/algorithm/permanent-loss.png" alt="Permanent Loss Prevention" id="permanent-loss-img" />
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab content: NFT Integration -->
+            <div class="tab-content" id="content-nftIntegration">
+                <section class="section">
+                    <h2 class="section-title" id="nft-integration-title">Integración de NFTs de Uniswap</h2>
+                    <div class="section-content">
+                        <div class="section-text">
+                            <p id="nft-integration-desc">WayBank aprovecha al máximo los NFTs de posición de Uniswap V3, que representan posiciones de liquidez en rangos específicos de precios.</p>
+                            <p class="mt-4" id="nft-integration-desc-2">Nuestro algoritmo gestiona estos NFTs programáticamente, ajustando los rangos de precios y las cantidades para optimizar los rendimientos.</p>
+                        </div>
+                        <div class="section-image">
+                            <img src="/images/algorithm/uniswap-nft.png" alt="Uniswap NFT Integration" id="nft-integration-img" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title" id="nft-features-title">Características de los NFTs</h2>
+                    <p id="nft-features-desc">Cada NFT de Uniswap V3 representa una posición única con características específicas que nuestro algoritmo gestiona:</p>
+                    
+                    <div class="card-grid">
+                        <div class="card">
+                            <h3 class="card-title" id="nft-feature-1">Rangos de Precios</h3>
+                            <p class="card-content" id="nft-feature-1-desc">Cada NFT define límites mínimos y máximos que determinan dónde se concentra la liquidez.</p>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-title" id="nft-feature-2">Tarifas Acumuladas</h3>
+                            <p class="card-content" id="nft-feature-2-desc">Los NFTs rastrean y acumulan tarifas de transacción ganadas mientras proporcionan liquidez.</p>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-title" id="nft-feature-3">Composición de Activos</h3>
+                            <p class="card-content" id="nft-feature-3-desc">La proporción de cada token en la posición cambia continuamente a medida que el precio se mueve dentro del rango.</p>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-title" id="nft-feature-4">Transferibilidad</h3>
+                            <p class="card-content" id="nft-feature-4-desc">Las posiciones pueden ser transferidas o vendidas como NFTs estándar en cualquier mercado compatible con ERC-721.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-col">
+                <h3 id="footer-tagline">WayBank</h3>
+                <p id="footer-desc">La plataforma avanzada de gestión de liquidez para DeFi.</p>
+            </div>
+            <div class="footer-col">
+                <h3 id="footer-platform">Plataforma</h3>
+                <ul>
+                    <li><a href="/dashboard" id="footer-dashboard">Dashboard</a></li>
+                    <li><a href="/positions" id="footer-positions">Posiciones</a></li>
+                    <li><a href="/analytics" id="footer-analytics">Analíticas</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3 id="footer-resources">Recursos</h3>
+                <ul>
+                    <li><a href="/documentation" id="footer-documentation">Documentación</a></li>
+                    <li><a href="/support" id="footer-support">Soporte</a></li>
+                    <li><a href="https://discord.gg/waybank" id="footer-community">Comunidad</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3 id="footer-legal">Legal</h3>
+                <ul>
+                    <li><a href="/terms-of-use" id="footer-terms">Términos de Uso</a></li>
+                    <li><a href="/privacy-policy" id="footer-privacy">Política de Privacidad</a></li>
+                    <li><a href="/disclaimer" id="footer-disclaimer">Aviso Legal</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p id="footer-copyright">© 2025 WayBank. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Traducciones
+        const translations = {
+            es: {
+                // Navbar
+                "howItWorks": "Cómo Funciona",
+                "algorithm": "Algoritmo",
+                "dashboard": "Acceder",
+
+                // Language selector
+                "currentLanguage": "Español",
+
+                // Header
+                "algo-title": "Algoritmo WayBank",
+                "algo-subtitle": "Nuestro algoritmo propietario de estratificación de liquidez que optimiza los retornos mientras minimiza los riesgos.",
+
+                // Tabs
+                "tab-overview": "Descripción General",
+                "tab-poolStrategy": "Estrategia de Pools",
+                "tab-permanentLoss": "Pérdida Permanente",
+                "tab-nftIntegration": "Integración NFT",
+
+                // Overview
+                "overview-title": "¿Qué es el algoritmo WayBank?",
+                "overview-text": "El algoritmo de WayBank es una tecnología avanzada de gestión de liquidez para los pools de Uniswap v3 que estratifica las posiciones de liquidez para optimizar los rendimientos mientras protege contra los riesgos de mercado.",
+                "overview-text-2": "Nuestro algoritmo analiza constantemente las condiciones del mercado y ajusta dinámicamente las posiciones para maximizar las tarifas de transacción ganadas, manteniendo al mismo tiempo una exposición controlada a la volatilidad del precio.",
+
+                // Benefits
+                "benefits-title": "Beneficios Clave",
+                "benefit-capital": "Eficiencia de Capital",
+                "benefit-capital-desc": "Optimiza la asignación de capital al concentrar la liquidez donde genera las mayores recompensas.",
+                "benefit-risk": "Mitigación de Riesgos",
+                "benefit-risk-desc": "Reduce la pérdida impermanente a través de múltiples estrategias de cobertura integradas.",
+                "benefit-yield": "Rendimientos Mejorados",
+                "benefit-yield-desc": "Captura mayores tarifas de negociación a través de un posicionamiento de liquidez preciso en todo el rango de precios.",
+                "benefit-automation": "Automatización Completa",
+                "benefit-automation-desc": "Funciona de forma autónoma, ajustando las posiciones según sea necesario sin intervención manual requerida.",
+
+                // Pool Strategy
+                "pool-strategy-title": "Estrategia de Pools Avanzada",
+                "pool-strategy-desc": "El algoritmo WayBank implementa una estrategia de provisión de liquidez multi-nivel en Uniswap V3, colocando capital en múltiples rangos de precios estratégicamente seleccionados.",
+                "pool-strategy-desc-2": "A diferencia de las estrategias estáticas, nuestro algoritmo reevalúa constantemente la volatilidad del mercado, los volúmenes de operaciones y las tendencias de precios para redistribuir la liquidez de forma óptima.",
+
+                // Permanent Loss
+                "permanent-loss-title": "Prevención de Pérdida Permanente",
+                "permanent-loss-desc": "La pérdida impermanente es uno de los mayores desafíos para los proveedores de liquidez. El algoritmo WayBank utiliza múltiples técnicas para mitigar este riesgo.",
+                "permanent-loss-desc-2": "Mediante la combinación de posiciones en diferentes rangos de precios y el reequilibrio dinámico basado en indicadores técnicos, nuestro sistema puede reducir significativamente el impacto de la pérdida impermanente.",
+
+                // NFT Integration
+                "nft-integration-title": "Integración de NFTs de Uniswap",
+                "nft-integration-desc": "WayBank aprovecha al máximo los NFTs de posición de Uniswap V3, que representan posiciones de liquidez en rangos específicos de precios.",
+                "nft-integration-desc-2": "Nuestro algoritmo gestiona estos NFTs programáticamente, ajustando los rangos de precios y las cantidades para optimizar los rendimientos.",
+                
+                "nft-features-title": "Características de los NFTs",
+                "nft-features-desc": "Cada NFT de Uniswap V3 representa una posición única con características específicas que nuestro algoritmo gestiona:",
+                "nft-feature-1": "Rangos de Precios",
+                "nft-feature-1-desc": "Cada NFT define límites mínimos y máximos que determinan dónde se concentra la liquidez.",
+                "nft-feature-2": "Tarifas Acumuladas",
+                "nft-feature-2-desc": "Los NFTs rastrean y acumulan tarifas de transacción ganadas mientras proporcionan liquidez.",
+                "nft-feature-3": "Composición de Activos",
+                "nft-feature-3-desc": "La proporción de cada token en la posición cambia continuamente a medida que el precio se mueve dentro del rango.",
+                "nft-feature-4": "Transferibilidad",
+                "nft-feature-4-desc": "Las posiciones pueden ser transferidas o vendidas como NFTs estándar en cualquier mercado compatible con ERC-721.",
+
+                // Footer
+                "footer-tagline": "WayBank",
+                "footer-desc": "La plataforma avanzada de gestión de liquidez para DeFi.",
+                "footer-platform": "Plataforma",
+                "footer-dashboard": "Dashboard",
+                "footer-positions": "Posiciones",
+                "footer-analytics": "Analíticas",
+                "footer-resources": "Recursos",
+                "footer-documentation": "Documentación",
+                "footer-support": "Soporte",
+                "footer-community": "Comunidad",
+                "footer-legal": "Legal",
+                "footer-terms": "Términos de Uso",
+                "footer-privacy": "Política de Privacidad",
+                "footer-disclaimer": "Aviso Legal",
+                "footer-copyright": "© 2025 WayBank. Todos los derechos reservados."
+            },
+            en: {
+                // Navbar
+                "howItWorks": "How It Works",
+                "algorithm": "Algorithm",
+                "dashboard": "Access",
+
+                // Language selector
+                "currentLanguage": "English",
+
+                // Header
+                "algo-title": "WayBank Algorithm",
+                "algo-subtitle": "Our proprietary liquidity stratification algorithm that optimizes returns while minimizing risks.",
+
+                // Tabs
+                "tab-overview": "Overview",
+                "tab-poolStrategy": "Pool Strategy",
+                "tab-permanentLoss": "Permanent Loss",
+                "tab-nftIntegration": "NFT Integration",
+
+                // Overview
+                "overview-title": "What is the WayBank Algorithm?",
+                "overview-text": "The WayBank algorithm is an advanced liquidity management technology for Uniswap v3 pools that stratifies liquidity positions to optimize yields while protecting against market risks.",
+                "overview-text-2": "Our algorithm constantly analyzes market conditions and dynamically adjusts positions to maximize transaction fees earned while maintaining controlled exposure to price volatility.",
+
+                // Benefits
+                "benefits-title": "Key Benefits",
+                "benefit-capital": "Capital Efficiency",
+                "benefit-capital-desc": "Optimizes capital allocation by concentrating liquidity where it generates the highest rewards.",
+                "benefit-risk": "Risk Mitigation",
+                "benefit-risk-desc": "Reduces impermanent loss through multiple integrated hedging strategies.",
+                "benefit-yield": "Enhanced Yields",
+                "benefit-yield-desc": "Captures higher trading fees through precise liquidity positioning across the price range.",
+                "benefit-automation": "Complete Automation",
+                "benefit-automation-desc": "Works autonomously, adjusting positions as needed without manual intervention required.",
+
+                // Pool Strategy
+                "pool-strategy-title": "Advanced Pool Strategy",
+                "pool-strategy-desc": "The WayBank algorithm implements a multi-tier liquidity provision strategy in Uniswap V3, placing capital across strategically selected price ranges.",
+                "pool-strategy-desc-2": "Unlike static strategies, our algorithm constantly reassesses market volatility, trading volumes, and price trends to optimally redistribute liquidity.",
+
+                // Permanent Loss
+                "permanent-loss-title": "Permanent Loss Prevention",
+                "permanent-loss-desc": "Impermanent loss is one of the biggest challenges for liquidity providers. The WayBank algorithm uses multiple techniques to mitigate this risk.",
+                "permanent-loss-desc-2": "By combining positions across different price ranges and dynamic rebalancing based on technical indicators, our system can significantly reduce the impact of impermanent loss.",
+
+                // NFT Integration
+                "nft-integration-title": "Uniswap NFT Integration",
+                "nft-integration-desc": "WayBank leverages Uniswap V3 position NFTs to their fullest potential, which represent liquidity positions in specific price ranges.",
+                "nft-integration-desc-2": "Our algorithm manages these NFTs programmatically, adjusting price ranges and amounts to optimize yields.",
+                
+                "nft-features-title": "NFT Features",
+                "nft-features-desc": "Each Uniswap V3 NFT represents a unique position with specific characteristics that our algorithm manages:",
+                "nft-feature-1": "Price Ranges",
+                "nft-feature-1-desc": "Each NFT defines minimum and maximum bounds that determine where liquidity is concentrated.",
+                "nft-feature-2": "Accumulated Fees",
+                "nft-feature-2-desc": "NFTs track and accumulate transaction fees earned while providing liquidity.",
+                "nft-feature-3": "Asset Composition",
+                "nft-feature-3-desc": "The proportion of each token in the position continuously changes as the price moves within the range.",
+                "nft-feature-4": "Transferability",
+                "nft-feature-4-desc": "Positions can be transferred or sold as standard NFTs on any ERC-721 compatible marketplace.",
+
+                // Footer
+                "footer-tagline": "WayBank",
+                "footer-desc": "The advanced liquidity management platform for DeFi.",
+                "footer-platform": "Platform",
+                "footer-dashboard": "Dashboard",
+                "footer-positions": "Positions",
+                "footer-analytics": "Analytics",
+                "footer-resources": "Resources",
+                "footer-documentation": "Documentation",
+                "footer-support": "Support",
+                "footer-community": "Community",
+                "footer-legal": "Legal",
+                "footer-terms": "Terms of Use",
+                "footer-privacy": "Privacy Policy",
+                "footer-disclaimer": "Disclaimer",
+                "footer-copyright": "© 2025 WayBank. All rights reserved."
+            },
+            fr: {
+                // Contenido en francés (versión resumida para ejemplo)
+                "currentLanguage": "Français",
+                "algo-title": "Algorithme WayBank",
+                "algo-subtitle": "Notre algorithme propriétaire de stratification de liquidité qui optimise les rendements tout en minimisant les risques.",
+                "tab-overview": "Vue d'ensemble",
+                "tab-poolStrategy": "Stratégie de Pool",
+                "tab-permanentLoss": "Perte Permanente",
+                "tab-nftIntegration": "Intégration NFT",
+                // Resto de traducciones...
+            }
+            // Otros idiomas (ar, de, it, pt, hi, zh) seguirían el mismo patrón
+        };
+
+        // Por defecto, usamos español
+        let currentLanguage = 'es';
+
+        // Funciones para manipular tabs
+        function setupTabs() {
+            const tabTriggers = document.querySelectorAll('.tab-trigger');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabTriggers.forEach(trigger => {
+                trigger.addEventListener('click', () => {
+                    const tab = trigger.getAttribute('data-tab');
+                    
+                    // Actualizar estado de los triggers
+                    tabTriggers.forEach(t => t.setAttribute('data-state', 'inactive'));
+                    trigger.setAttribute('data-state', 'active');
+                    
+                    // Actualizar contenido visible
+                    tabContents.forEach(content => content.setAttribute('data-state', 'inactive'));
+                    document.getElementById(`content-${tab}`).setAttribute('data-state', 'active');
+                });
+            });
+        }
+
+        // Configurar selector de idioma
+        function setupLanguageSelector() {
+            const languageBtn = document.getElementById('language-btn');
+            const languageDropdown = document.getElementById('language-dropdown');
+            const languageItems = document.querySelectorAll('.language-item');
+            
+            // Mostrar/ocultar dropdown
+            languageBtn.addEventListener('click', () => {
+                languageDropdown.classList.toggle('open');
+            });
+            
+            // Cerrar dropdown al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!languageBtn.contains(e.target) && !languageDropdown.contains(e.target)) {
+                    languageDropdown.classList.remove('open');
+                }
+            });
+            
+            // Cambiar idioma al seleccionar
+            languageItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const lang = item.getAttribute('data-lang');
+                    changeLanguage(lang);
+                    languageDropdown.classList.remove('open');
+                });
+            });
+        }
+
+        // Función para cambiar el idioma
+        function changeLanguage(lang) {
+            if (!translations[lang]) {
+                console.warn(`No se encontraron traducciones para el idioma: ${lang}`);
+                return;
+            }
+            
+            currentLanguage = lang;
+            
+            // Actualizar todos los textos traducibles
+            const trans = translations[lang];
+            document.getElementById('current-language').textContent = trans.currentLanguage;
+            
+            // Iterar sobre todas las claves de traducción
+            Object.keys(trans).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.textContent = trans[key];
+                }
+            });
+            
+            // Cambiar dirección del texto para árabe
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        }
+
+        // Inicializar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            setupLanguageSelector();
+            
+            // Detectar idioma del navegador
+            const userLang = navigator.language || navigator.userLanguage;
+            const browserLang = userLang.split('-')[0];
+            
+            // Cambiar al idioma del navegador si tenemos traducción
+            if (translations[browserLang]) {
+                changeLanguage(browserLang);
+            }
+        });
+    </script>
+</body>
+</html>

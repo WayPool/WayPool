@@ -1,0 +1,76 @@
+/**
+ * Ajustes específicos para el espaciado del dashboard en móvil
+ * Asegura que el contenido quede por debajo de la barra de navegación gris
+ */
+
+/* Estilos globales para corregir el espaciado vertical en móvil */
+@media (max-width: 767px) {
+  /* No añadimos padding al body ya que está gestionado por fix-header-logo.css */
+  
+  /* Contenedor principal del dashboard (con clase dashboard-page) */
+  .dashboard-page {
+    padding-top: 0.5rem !important; /* Mínimo espaciado desde borde superior */
+    margin-top: 0 !important; /* Sin margen adicional */
+  }
+  
+  /* Ajuste para la sección con el título del dashboard */
+  .dashboard-page > div:first-child {
+    margin-top: 0 !important; /* Sin margen en el primer elemento */
+  }
+  
+  /* Para el contenedor que contiene el título Dashboard */
+  .dashboard-page div:first-child h1 {
+    padding-top: 0 !important; 
+    margin-top: 5px !important; /* Mínimo margen */
+  }
+  
+  /* Ajuste para todos los encabezados h1 en el dashboard */
+  .dashboard-page h1 {
+    margin-top: 5px !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  /* Clase específica para el div que muestra la conexión de wallet */
+  .dashboard-page > div > .flex.flex-col.items-center,
+  .dashboard-page .md\\:hidden.flex.flex-col {
+    margin-top: 0.5rem !important;
+  }
+  
+  /* Ajustes específicos para contenedores anidados */
+  .dashboard-page > div > div:first-child {
+    padding-top: 0 !important;
+  }
+  
+  /* Margen superior específico para la sección de Connect Wallet */
+  .dashboard-page div.md\\:hidden.flex.flex-col.items-center {
+    margin-top: 0.5rem !important;
+  }
+  
+  /* Corrección para la sección del wallet */
+  .dashboard-page div.md\\:hidden.flex.flex-col.items-center.justify-center {
+    padding-top: 0 !important;
+  }
+  
+  /* Ajustes para el título y subtítulo específicamente */
+  .dashboard-page h1.text-2xl.font-bold {
+    margin-top: 0.25rem !important;
+    padding-top: 0 !important;
+  }
+  
+  .dashboard-page p.text-slate-500.dark\\:text-slate-400 {
+    margin-top: 0 !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  /* Ajuste específico para el primer elemento del dashboard */
+  .dashboard-page .mb-6.flex.flex-col.md\\:flex-row {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  
+  /* Ajustar el texto "Dashboard" para que tenga buena apariencia */
+  .dashboard-page h1.text-2xl.font-bold {
+    line-height: 1.25 !important;
+    font-size: 1.5rem !important;
+  }
+}

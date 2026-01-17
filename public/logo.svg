@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#ffffff" rx="20" ry="20" />
+  
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338ca" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#4338ca" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#logoGradient)" rx="20" ry="20" />
+  
+  <!-- Decorative elements -->
+  <circle cx="40" cy="40" r="12" fill="#4338ca" opacity="0.1" />
+  <circle cx="160" cy="40" r="12" fill="#4338ca" opacity="0.1" />
+  <circle cx="40" cy="160" r="12" fill="#4338ca" opacity="0.1" />
+  <circle cx="160" cy="160" r="12" fill="#4338ca" opacity="0.1" />
+  
+  <!-- Logo text -->
+  <g transform="translate(40, 105)">
+    <text font-family="Arial, sans-serif" font-size="36" font-weight="bold">
+      <tspan x="0" y="0" fill="#1e293b">Way</tspan>
+      <tspan x="70" y="0" fill="#4338ca">Bank</tspan>
+    </text>
+  </g>
+  
+  <!-- Subtle underline -->
+  <rect x="40" y="115" width="120" height="4" fill="#4338ca" opacity="0.3" rx="2" ry="2" />
+</svg>

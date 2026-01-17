@@ -1,0 +1,546 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('./lib/hide-replit-watermark.css');
+@import url('./styles/public-pages-mobile.css');
+@import url('./styles/critical-mobile-fix.css');
+@import url('./styles/legal-dialog-mobile-fix.css');
+@import url('./styles/mobile-fix.css');
+@import url('./styles/radix-theme-fix.css'); /* Solución definitiva para problema de fondo negro en selectores */
+@import url('./styles/no-borders.css'); /* Eliminar todos los bordes en la interfaz móvil */
+@import url('./styles/no-borders-extreme.css'); /* Solución extrema para eliminar todos los bordes */
+@import url('./styles/remove-gray-backgrounds.css'); /* Eliminar fondos grises en párrafos de texto */
+@import url('./styles/dashboard-mobile-fix.css'); /* Eliminar fondos grises en textos del dashboard */
+@import url('./styles/hero-specific-fix.css'); /* Corrección específica para el texto del héroe */
+@import url('./styles/mobile-header-fix.css'); /* Ajuste para el encabezado móvil y el logo */
+@import url('./styles/remove-logo-outline.css'); /* Eliminar contornos y bordes del logo */
+@import url('./styles/fix-header-logo.css'); /* Solución para logo cortado en barra superior */
+@import url('./styles/dashboard-spacing-fix.css'); /* Espaciado correcto para el dashboard en móvil */
+
+/* Estilos para el panel de administración */
+.user-positions-card {
+  margin-bottom: 0;
+}
+
+/* Corregir scroll en paneles de administración */
+.admin-content {
+  max-height: 75vh;
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+}
+
+/* NUEVO DISEÑO PROFESIONAL DEL MENÚ DE ADMINISTRACIÓN */
+.admin-navigation-container {
+  position: relative;
+  z-index: 10;
+}
+
+.admin-nav-button {
+  @apply flex flex-col items-center justify-center;
+  @apply p-4 rounded-xl transition-all duration-300 ease-out;
+  @apply bg-gradient-to-br from-slate-50 to-white;
+  @apply border border-slate-200/60 shadow-sm hover:shadow-md;
+  @apply text-slate-600 hover:text-slate-900;
+  @apply transform hover:scale-105 hover:-translate-y-1;
+  @apply relative overflow-hidden;
+  min-height: 88px;
+  cursor: pointer;
+}
+
+.admin-nav-button::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5;
+  @apply opacity-0 transition-opacity duration-300;
+  border-radius: inherit;
+}
+
+.admin-nav-button:hover::before {
+  @apply opacity-100;
+}
+
+.admin-nav-button.active {
+  @apply bg-gradient-to-br from-blue-500 to-purple-600;
+  @apply text-white shadow-lg shadow-blue-500/25;
+  @apply border-blue-400/50;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.admin-nav-button.active::before {
+  @apply opacity-0;
+}
+
+.admin-nav-icon {
+  @apply flex items-center justify-center mb-2;
+  @apply w-10 h-10 rounded-lg;
+  @apply bg-white/50 transition-all duration-300;
+  @apply shadow-sm;
+}
+
+.admin-nav-button:hover .admin-nav-icon {
+  @apply bg-white/70 shadow-md;
+}
+
+.admin-nav-button.active .admin-nav-icon {
+  @apply bg-white/20 text-white;
+  @apply shadow-lg shadow-white/10;
+}
+
+.admin-nav-text {
+  @apply text-xs font-medium text-center leading-tight;
+  @apply transition-all duration-300;
+}
+
+.admin-nav-button:hover .admin-nav-text {
+  @apply font-semibold;
+}
+
+.admin-nav-button.active .admin-nav-text {
+  @apply text-white font-semibold;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .admin-navigation-container .grid {
+    @apply grid-cols-4 gap-2;
+  }
+  
+  .admin-nav-button {
+    @apply p-3;
+    min-height: 76px;
+  }
+  
+  .admin-nav-icon {
+    @apply w-8 h-8 mb-1;
+  }
+  
+  .admin-nav-text {
+    @apply text-xs;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-navigation-container {
+    @apply hidden;
+  }
+}
+
+/* Efectos adicionales para una apariencia premium */
+.admin-navigation-container .grid {
+  @apply gap-4;
+}
+
+/* Sombras dinámicas */
+.admin-nav-button {
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.admin-nav-button:hover {
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.1),
+    0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+.admin-nav-button.active {
+  box-shadow: 
+    0 10px 25px rgba(59, 130, 246, 0.25),
+    0 4px 6px rgba(59, 130, 246, 0.15);
+}
+
+/* Animación de carga */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-navigation-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.admin-nav-button {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.admin-nav-button:nth-child(1) { animation-delay: 0ms; }
+.admin-nav-button:nth-child(2) { animation-delay: 50ms; }
+.admin-nav-button:nth-child(3) { animation-delay: 100ms; }
+.admin-nav-button:nth-child(4) { animation-delay: 150ms; }
+.admin-nav-button:nth-child(5) { animation-delay: 200ms; }
+.admin-nav-button:nth-child(6) { animation-delay: 250ms; }
+.admin-nav-button:nth-child(7) { animation-delay: 300ms; }
+.admin-nav-button:nth-child(8) { animation-delay: 350ms; }
+.admin-nav-button:nth-child(9) { animation-delay: 400ms; }
+.admin-nav-button:nth-child(10) { animation-delay: 450ms; }
+.admin-nav-button:nth-child(11) { animation-delay: 500ms; }
+.admin-nav-button:nth-child(12) { animation-delay: 550ms; }
+
+/* CORRECCIÓN COLORES MODO OSCURO - GLOBAL - AGRESIVA */
+@media (max-width: 767px) {
+  .dark body, 
+  .dark main, 
+  .dark div#root,
+  .dark section {
+    background-color: rgb(9, 14, 33) !important; /* Negro azulado profundo */
+  }
+  
+  /* Todas las tarjetas */
+  .dark .bg-card,
+  .dark [class*="bg-card"],
+  .dark [class*="border"],
+  .dark [class*="shadow"],
+  .dark .dark-feature-card {
+    background-color: rgb(19, 24, 54) !important; /* Azul oscuro naval */
+    border-color: rgb(39, 46, 79) !important;
+  }
+  
+  /* Secciones */
+  .dark section[class*="bg-muted"],
+  .dark .bg-muted,
+  .dark footer {
+    background-color: rgb(29, 35, 67) !important; /* Azul medio */
+  }
+  
+  /* CORRECCIÓN ESPECÍFICA PARA FONDOS GRISES CLAROS */
+  .dark div > span,
+  .dark span.px-4,
+  .dark span.rounded-lg,
+  .dark span.bg-slate-700,
+  .dark span.px-4.py-2 {
+    background-color: rgb(19, 24, 54) !important; /* Azul oscuro naval */
+    border: 1px solid rgb(39, 46, 79) !important;
+    color: white !important;
+  }
+  
+  /* Excluir los fondos de los pares de monedas del fondo oscuro */
+  .dark td div.text-sm.font-medium,
+  .dark .overflow-x-auto table tbody td div.text-sm.font-medium {
+    background-color: transparent !important;
+    border: none !important;
+    color: inherit !important;
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes gradient-y {
+  0%, 100% {
+    background-position: 50% 0%;
+  }
+  50% {
+    background-position: 50% 100%;
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
+  background-size: 200% 200%;
+}
+
+.animate-gradient-y {
+  animation: gradient-y 15s ease infinite;
+  background-size: 200% 200%;
+}
+
+/* Soporte para dirección RTL */
+html[dir="rtl"] * {
+  text-align: right;
+}
+
+html[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+html[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+html[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+html[dir="rtl"] .left-0 {
+  left: auto;
+  right: 0;
+}
+
+html[dir="rtl"] .right-0 {
+  right: auto;
+  left: 0;
+}
+
+/* Ocultar "Made with Replit" */
+div[style*="font-family: system-ui"],
+div[style*="z-index: 100000"],
+div[style*="bottom: 8px"],
+div[style*="right: 8px"] {
+  display: none !important;
+}
+
+@layer base {
+  :root {
+    --background: 210 50% 98%;
+    --foreground: 215 25% 27%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 80% 95%;
+    --secondary-foreground: 270 70% 40%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 152 75% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 239 84% 67%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 239 84% 97%;
+    --sidebar-accent-foreground: 239 84% 50%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 239 84% 67%;
+    --chart-1: 239 84% 67%;
+    --chart-2: 270 80% 65%;
+    --chart-3: 152 75% 40%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 35 92% 65%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 12%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 12%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 73% 18%;
+    --secondary-foreground: 270 80% 85%;
+    --muted: 223 47% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 152 75% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 239 84% 67%;
+    --sidebar-background: 224 71% 12%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 239 73% 18%;
+    --sidebar-accent-foreground: 239 84% 85%;
+    --sidebar-border: 216 34% 17%;
+    --sidebar-ring: 239 84% 67%;
+  }
+  
+  /* Forzar colores oscuros en móviles para evitar problemas con media queries */
+  @media (max-width: 767px) {
+    .dark {
+      --background: 224 71% 4% !important;
+      --card: 224 71% 12% !important;
+      --muted: 223 47% 18% !important;
+      --primary: 239 84% 67% !important;
+      --border: transparent !important;
+    }
+    
+    /* Sobreescribir cualquier estilo que pueda estar causando el problema */
+    .dark section,
+    .dark div,
+    .dark footer,
+    .dark main,
+    .dark body {
+      background-color: var(--background) !important;
+    }
+    
+    .dark .bg-card,
+    .dark div[class*="bg-card"],
+    .dark div[class*="rounded-lg"],
+    .dark div[class*="p-6"],
+    .dark div[class*="flex-col"] {
+      background-color: var(--card) !important;
+      border: none !important;
+    }
+    
+    .dark section[class*="bg-muted"],
+    .dark div[class*="bg-muted"],
+    .dark footer {
+      background-color: var(--muted) !important;
+    }
+    
+    /* Eliminar todos los bordes SOLO en modo móvil */
+    @media (max-width: 767px) {
+      .dark *, .dark *::before, .dark *::after {
+        border-color: transparent !important;
+      }
+    }
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden; /* Elimina el scroll en el nivel superior (excepto en páginas públicas) */
+    margin: 0;
+    padding: 0;
+    @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Permitimos scroll en el contenedor principal para las páginas públicas */
+  .public-page {
+    overflow-y: auto !important;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-100 dark:bg-slate-800;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-600 rounded-md;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-500;
+  }
+
+  /* Custom range input styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    @apply h-2 bg-slate-200 dark:bg-slate-700 rounded-full outline-none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    @apply w-5 h-5 rounded-full bg-primary cursor-pointer;
+  }
+  
+  /* Estilos mejorados para Panel Admin */
+  .admin-tabs {
+    @apply overflow-visible;
+  }
+  
+  .admin-tabs [data-state="active"] {
+    @apply overflow-visible pb-12;
+  }
+  
+  /* Estilos personalizados para pestañas de administración */
+  .admin-tabs .TabsList {
+    @apply p-1 mb-4 flex gap-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700;
+    /* Solución para eliminar el scroll indeseado */
+    min-height: 50px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    
+    /* Responsive: convertir a scroll horizontal en pantallas pequeñas y medianas */
+    @apply overflow-x-auto whitespace-nowrap;
+  }
+  
+  /* Contenedor hamburguesa para pantallas muy pequeñas */
+  .admin-tabs .mobile-menu-container {
+    @apply hidden;
+  }
+  
+  /* Vista móvil: cambiamos a menú desplegable en pantallas muy pequeñas */
+  @media (max-width: 640px) {
+    .admin-tabs .TabsList {
+      @apply hidden; /* Ocultamos las pestañas normales */
+    }
+    
+    .admin-tabs .mobile-menu-container {
+      @apply flex items-center justify-between p-2 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700;
+    }
+    
+    .admin-tabs .mobile-menu-trigger {
+      @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-slate-700 shadow-sm font-medium text-sm text-primary dark:text-primary-foreground;
+    }
+    
+    .admin-tabs .mobile-menu {
+      @apply absolute top-full left-0 right-0 mt-1 z-50 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg;
+      @apply py-2 hidden;
+    }
+    
+    .admin-tabs .mobile-menu.open {
+      @apply block;
+    }
+    
+    .admin-tabs .mobile-menu-item {
+      @apply px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 block w-full text-left;
+    }
+    
+    .admin-tabs .mobile-menu-item[data-state="active"] {
+      @apply bg-slate-100 dark:bg-slate-700 text-primary dark:text-primary-foreground font-semibold;
+    }
+  }
+  
+  /* Estilo para tablets y escritorio */
+  @media (min-width: 641px) {
+    .admin-tabs .TabsList {
+      @apply flex-wrap;
+    }
+  }
+  
+  .admin-tabs .TabsTrigger {
+    @apply px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-transparent
+    text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 hover:dark:bg-slate-700/70 
+    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 
+    data-[state=active]:text-primary dark:data-[state=active]:text-primary-foreground
+    data-[state=active]:shadow-sm data-[state=active]:font-semibold relative z-10 outline-none
+    focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary/50;
+    white-space: nowrap; /* Evita saltos de línea en el texto */
+  }
+  
+  .admin-tabs .TabsTrigger::after {
+    content: "";
+    @apply absolute bottom-0 left-0 right-0 h-0.5 bg-primary scale-x-0 transition-transform duration-300 ease-in-out rounded-full;
+    transform-origin: center;
+  }
+  
+  .admin-tabs .TabsTrigger[data-state="active"]::after {
+    @apply scale-x-75;
+  }
+  
+  /* Estilos para contenedores de página */
+  .page-container {
+    height: 100%;
+    width: 100%;
+  }
+}

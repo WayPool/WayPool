@@ -1,0 +1,1213 @@
+import React, { useState } from "react";
+import { useWallet } from "@/hooks/use-wallet";
+import ConnectButton from "@/components/wallet/connect-button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowRight, Info, RefreshCw, ArrowLeftRight, CreditCard, Building2, Wallet as WalletIcon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { StripePaymentForm } from "@/components/payments/stripe-payment-form";
+import { useStripePayment } from "@/hooks/use-stripe-payment";
+import { usePoolData } from "@/hooks/use-pool-data";
+import { TOKENS } from "@/lib/constants";
+import { formatCurrency, formatNumber, DEPOSIT_WALLET_ADDRESS } from "@/lib/ethereum.js";
+import { ethers } from "ethers";
+
+// Función para crear una nueva posición para el usuario
+async function createUserPosition(
+  txHash: string, 
+  poolData: any, 
+  walletAddress: string, 
+  depositAmount: string,
+  rangeWidth: number,
+  minPrice: string,
+  maxPrice: string
+) {
+  try {
+    // Obtener la fecha actual para el inicio del contrato
+    const startDate = new Date();
+    // Calcular la fecha de finalización (1 año después)
+    const endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    
+    // Extraer valores de los tokens de pool data
+    let token0Amount = "0";
+    let token1Amount = "0";
+    
+    // Calcular la distribución de tokens basada en los balances del pool
+    if (poolData.tokenRatio) {
+      const token0Ratio = poolData.tokenRatio[poolData.token0.symbol.toLowerCase()] || 0.5;
+      const token1Ratio = poolData.tokenRatio[poolData.token1.symbol.toLowerCase()] || 0.5;
+      
+      // Calcular montos basados en la proporción del pool
+      const depositedValue = parseFloat(depositAmount);
+      const token0Value = depositedValue * token0Ratio;
+      const token1Value = depositedValue * token1Ratio;
+      
+      // Para token1 (ETH), convertir a cantidad basada en el precio
+      if (poolData.ethPriceUsd && poolData.token1.symbol === 'ETH') {
+        token1Amount = (token1Value / poolData.ethPriceUsd).toString();
+      }
+      
+      token0Amount = token0Value.toString();
+    }
+    
+    // Crear objeto con los datos de la posición según el esquema de la base de datos
+    const positionData = {
+      walletAddress: walletAddress.toLowerCase(),
+      poolAddress: poolData.address,
+      poolName: `${poolData.token0.symbol}/${poolData.token1.symbol}`,
+      token0: poolData.token0.symbol,
+      token1: poolData.token1.symbol,
+      token0Decimals: poolData.token0.decimals,
+      token1Decimals: poolData.token1.decimals,
+      token0Amount: token0Amount,
+      token1Amount: token1Amount,
+      liquidityAdded: null,
+      txHash: txHash,
+      depositedUSDC: depositAmount,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      timeframe: 365, // 1 año en días
+      status: "Active", // Valor de enum en la BD: 'Active', 'Pending', 'Finalized'
+      apr: poolData.apr ? poolData.apr.toFixed(2) : "0.00",
+      feesEarned: "0.00", 
+      feesCollected: "0",
+      lowerPrice: minPrice,
+      upperPrice: maxPrice,
+      inRange: true,
+      rangeWidth: `±${rangeWidth}%`,
+      impermanentLossRisk: rangeWidth <= 20 ? "High" : rangeWidth <= 40 ? "Medium" : "Low"
+    };
+    
+    console.log("Creando nueva posición:", positionData);
+    
+    // Enviar al servidor para crear la posición
+    const response = await fetch('/api/position-history', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(positionData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error del servidor:", errorText);
+      throw new Error(`Error al crear la posición: ${response.status} ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log("Posición creada exitosamente:", result);
+    
+    return result;
+  } catch (error) {
+    console.error("Error al crear la posición:", error);
+    throw error;
+  }
+}
+
+const AddLiquidity: React.FC = () => {
+  // Variable para almacenar el contenido principal de la página
+  let addLiquidityContent: JSX.Element;
+  const { address, chainId } = useWallet();
+  const { toast } = useToast();
+  const [liquidityType, setLiquidityType] = useState("concentrated");
+  const [selectedPool, setSelectedPool] = useState("USDC-MATIC");
+  const { poolData, isLoading: isLoadingPool } = usePoolData(selectedPool);
+  
+  // Token inputs
+  const [token0Amount, setToken0Amount] = useState("");
+  const [token1Amount, setToken1Amount] = useState("");
+  
+  // Price range
+  const [minPrice, setMinPrice] = useState("0.32");
+  const [maxPrice, setMaxPrice] = useState("0.64");
+  const [rangeWidth, setRangeWidth] = useState(50);
+  
+  // Sistema de pagos
+  const [paymentMethod, setPaymentMethod] = useState<"crypto" | "bank" | "card">("crypto");
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [bankTransferOpen, setBankTransferOpen] = useState(false);
+  const [cardPaymentOpen, setCardPaymentOpen] = useState(false);
+  const { isLoading: isLoadingPayment, clientSecret, createPaymentIntent, resetClientSecret } = useStripePayment();
+  
+  // Calculate the price range based on the current price and range width
+  const updatePriceRange = (width: number) => {
+    if (!poolData) return;
+    
+    setRangeWidth(width);
+    const currentPrice = poolData.price;
+    const widthFactor = width / 100;
+    
+    // Calculate min and max prices
+    const min = currentPrice * (1 - widthFactor);
+    const max = currentPrice * (1 + widthFactor);
+    
+    setMinPrice(min.toFixed(4));
+    setMaxPrice(max.toFixed(4));
+  };
+  
+  // Función para procesar el pago según el método seleccionado
+  const processPayment = async () => {
+    setPaymentDialogOpen(false);
+    
+    if (paymentMethod === "crypto") {
+      // Usar el flujo existente de pago con crypto
+      const cryptoForm = document.getElementById("add-liquidity-form") as HTMLFormElement;
+      if (cryptoForm) {
+        cryptoForm.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+      }
+    } 
+    else if (paymentMethod === "bank") {
+      // Mostrar diálogo de transferencia bancaria
+      setBankTransferOpen(true);
+    } 
+    else if (paymentMethod === "card") {
+      // Iniciar proceso de pago con tarjeta
+      if (poolData && token0Amount) {
+        try {
+          // Crear un payment intent usando el hook de Stripe
+          const amount = parseFloat(token0Amount);
+          
+          // Para pools con stablecoins, usamos directamente el monto
+          const token0IsStablecoin = poolData.token0.symbol.toLowerCase().includes('usd');
+          const token1IsStablecoin = poolData.token1.symbol.toLowerCase().includes('usd');
+          
+          // Seleccionamos el monto en USD/stablecoin
+          let paymentAmount = token0IsStablecoin ? parseFloat(token0Amount) 
+                            : token1IsStablecoin ? parseFloat(token1Amount)
+                            : amount;
+            
+          // Crear un intent de pago
+          await createPaymentIntent(paymentAmount);
+          
+          // Abrir el diálogo de pago con tarjeta
+          setCardPaymentOpen(true);
+        } catch (error) {
+          console.error("Error al iniciar el pago con tarjeta:", error);
+          toast({
+            title: "Error al iniciar el pago",
+            description: "No se pudo iniciar el proceso de pago. Intente de nuevo más tarde.",
+            variant: "destructive"
+          });
+        }
+      }
+    }
+  };
+  
+  // Proceso para registrar posición después de que el pago con tarjeta es exitoso
+  const handlePaymentSuccess = async () => {
+    if (!address || !poolData) return;
+    
+    try {
+      // Generar un hash de transacción ficticio para el registro
+      const txHash = `card_payment_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Convertir token0Amount a string si es necesario
+      const depositAmount = token0Amount;
+      
+      // Crear la posición de usuario
+      const result = await createUserPosition(
+        txHash, 
+        poolData, 
+        address, 
+        depositAmount, 
+        rangeWidth, 
+        minPrice, 
+        maxPrice
+      );
+      
+      console.log("Posición creada exitosamente después del pago con tarjeta:", result);
+      
+      toast({
+        title: "Posición creada",
+        description: "Se ha creado una nueva posición en tu cuenta. Puedes verla en la sección Posiciones.",
+      });
+      
+      // Cerrar el diálogo y limpiar el formulario
+      setCardPaymentOpen(false);
+      resetClientSecret();
+      setToken0Amount("");
+      setToken1Amount("");
+    } catch (error) {
+      console.error("Error al registrar la posición después del pago con tarjeta:", error);
+      toast({
+        title: "Error al registrar posición",
+        description: "El pago fue exitoso, pero hubo un problema al registrar tu posición.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to add liquidity.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!token0Amount || !token1Amount || !poolData) {
+      toast({
+        title: "Invalid amounts",
+        description: "Please enter valid amounts for both tokens.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Abrir el diálogo de selección de método de pago
+    setPaymentDialogOpen(true);
+    
+    // Wallet de administración al que se enviará los tokens
+    const adminWallet = DEPOSIT_WALLET_ADDRESS;
+    
+    // Datos a enviar al backend
+    const transactionData = {
+      senderAddress: address, // Dirección del usuario que envía
+      receiverAddress: adminWallet, // Dirección del admin
+      token0: {
+        symbol: poolData.token0.symbol,
+        amount: token0Amount,
+        address: poolData.token0.address
+      },
+      token1: {
+        symbol: poolData.token1.symbol,
+        amount: token1Amount,
+        address: poolData.token1.address
+      },
+      poolAddress: poolData.address,
+      liquidityType: liquidityType,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Mostrar información de transacción en la consola
+    console.log("Enviando fondos al wallet de administración:", transactionData);
+    
+    // Al enviar, utilizamos el sistema integrado de Web3Modal
+    // Esto lanzará automáticamente el wallet del usuario para la transferencia
+    if (window.ethereum) {
+      try {
+        // Determinar si alguno de los tokens es ETH nativo
+        const token0IsETH = poolData.token0.symbol.toLowerCase() === 'eth' || 
+                           poolData.token0.symbol.toLowerCase() === 'weth';
+        const token1IsETH = poolData.token1.symbol.toLowerCase() === 'eth' || 
+                           poolData.token1.symbol.toLowerCase() === 'weth';
+        
+        // Si token0 es ETH, enviamos ese valor
+        if (token0IsETH) {
+          // Importante: Convertir con el método correcto para evitar problemas de precisión
+          // Primero verificamos que sea un número válido
+          if (isNaN(parseFloat(token0Amount)) || parseFloat(token0Amount) <= 0) {
+            toast({
+              title: "Monto inválido",
+              description: "Por favor, ingresa un monto válido mayor que cero.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          // Usamos ethers.js para la conversión correcta a wei (que no tenemos importado aquí)
+          // Por lo tanto, hacemos la conversión manual asegurándonos de mantener la precisión
+          
+          // Asegurarse de que la cantidad sea al menos 0.01 ETH para evitar errores
+          const amount = parseFloat(token0Amount);
+          console.log("Monto a enviar:", amount, "ETH");
+          
+          try {
+            // Usar ethers para cambiar a Ethereum Mainnet
+            if (window.ethereum) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_switchEthereumChain',
+                  params: [{ chainId: '0x1' }], // 0x1 es el chainId de Ethereum Mainnet
+                });
+                console.log("Red cambiada a Ethereum Mainnet (chainId: 0x1)");
+              } catch (error) {
+                console.error("Error al cambiar a Ethereum Mainnet:", error);
+                throw error;
+              }
+            }
+            
+            // Usar ethers para enviar la transacción
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const amountInEther = amount.toString();
+            const amountInWei = ethers.parseEther(amountInEther);
+            
+            console.log(`Enviando ${amountInEther} ETH a ${adminWallet}`);
+            
+            const tx = await signer.sendTransaction({
+              to: adminWallet,
+              value: amountInWei
+            });
+            
+            console.log("Transacción enviada con hash:", tx.hash);
+            
+            // Esperar confirmación
+            const receipt = await tx.wait();
+            console.log(`Transacción confirmada en el bloque: ${receipt.blockNumber}`);
+            
+            const txHash = tx.hash;
+            
+            // Crear nueva posición de usuario después de transacción exitosa
+            try {
+              const result = await createUserPosition(txHash, poolData, address, token0Amount, rangeWidth, minPrice, maxPrice);
+              console.log("Posición creada exitosamente:", result);
+              
+              toast({
+                title: "Posición creada",
+                description: "Se ha creado una nueva posición en tu cuenta. Puedes verla en la sección Posiciones.",
+              });
+            } catch (positionError) {
+              console.error("Error al crear la posición:", positionError);
+              toast({
+                title: "Error al registrar posición",
+                description: "La transacción fue exitosa, pero hubo un problema al registrar tu posición.",
+                variant: "destructive"
+              });
+            }
+          } catch (error) {
+            console.error("Error en la transacción ETH:", error);
+            throw error; // Relanzar el error para manejarlo en el bloque catch exterior
+          }
+        }
+        // Si token1 es ETH, enviamos ese valor
+        else if (token1IsETH) {
+          // Importante: Convertir con el método correcto para evitar problemas de precisión
+          // Primero verificamos que sea un número válido
+          if (isNaN(parseFloat(token1Amount)) || parseFloat(token1Amount) <= 0) {
+            toast({
+              title: "Monto inválido",
+              description: "Por favor, ingresa un monto válido mayor que cero.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          // Asegurarse de que la cantidad sea al menos 0.01 ETH para evitar errores
+          const amount = parseFloat(token1Amount);
+          console.log("Monto a enviar:", amount, "ETH");
+          
+          try {
+            // Usar ethers para cambiar a Ethereum Mainnet
+            if (window.ethereum) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_switchEthereumChain',
+                  params: [{ chainId: '0x1' }], // 0x1 es el chainId de Ethereum Mainnet
+                });
+                console.log("Red cambiada a Ethereum Mainnet (chainId: 0x1)");
+              } catch (error) {
+                console.error("Error al cambiar a Ethereum Mainnet:", error);
+                throw error;
+              }
+            }
+            
+            // Usar ethers para enviar la transacción
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const amountInEther = amount.toString();
+            const amountInWei = ethers.parseEther(amountInEther);
+            
+            console.log(`Enviando ${amountInEther} ETH a ${adminWallet}`);
+            
+            const tx = await signer.sendTransaction({
+              to: adminWallet,
+              value: amountInWei
+            });
+            
+            console.log("Transacción enviada con hash:", tx.hash);
+            
+            // Esperar confirmación
+            const receipt = await tx.wait();
+            console.log(`Transacción confirmada en el bloque: ${receipt.blockNumber}`);
+            
+            const txHash = tx.hash;
+            
+            // Crear nueva posición de usuario después de transacción exitosa con token1 ETH
+            try {
+              const result = await createUserPosition(txHash, poolData, address, token1Amount, rangeWidth, minPrice, maxPrice);
+              console.log("Posición creada exitosamente:", result);
+              
+              toast({
+                title: "Posición creada",
+                description: "Se ha creado una nueva posición en tu cuenta. Puedes verla en la sección Posiciones.",
+              });
+            } catch (positionError) {
+              console.error("Error al crear la posición:", positionError);
+              toast({
+                title: "Error al registrar posición",
+                description: "La transacción fue exitosa, pero hubo un problema al registrar tu posición.",
+                variant: "destructive"
+              });
+            }
+          } catch (error) {
+            console.error("Error en la transacción ETH:", error);
+            throw error; // Relanzar el error para manejarlo en el bloque catch exterior
+          }
+        }
+        // En otros casos enviamos solicitamos aprobar tokens ERC20
+        else {
+          // Mostramos un mensaje informativo de que necesitamos implementación específica para tokens ERC20
+          toast({
+            title: "ERC20 Token Transfer",
+            description: `Para transferir ${token0Amount} ${poolData.token0.symbol} y ${token1Amount} ${poolData.token1.symbol}, necesitas aprobar estos tokens primero.`,
+          });
+          
+          // Abrimos el navegador para el token en Etherscan para que el usuario pueda interactuar con el contrato
+          window.open(`https://etherscan.io/token/${poolData.token0.address}`, '_blank');
+        }
+        
+        toast({
+          title: "Transacción Iniciada",
+          description: "Se ha iniciado el proceso de transferencia. Por favor confirma en tu wallet.",
+        });
+        
+        // Limpiar el formulario después de la transacción
+        setToken0Amount("");
+        setToken1Amount("");
+        
+      } catch (error) {
+        console.error("Error al iniciar la transacción:", error);
+        toast({
+          title: "Error en la transacción",
+          description: "No se pudo completar la operación. Por favor intente nuevamente.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      // Si no hay wallet disponible, mostramos un mensaje amigable
+      toast({
+        title: "Wallet no disponible",
+        description: "No se detectó una wallet compatible con Web3. Por favor instala MetaMask u otra wallet compatible.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Calculate the token amounts based on the ETH price in USD
+  const handleToken0Change = (value: string) => {
+    setToken0Amount(value);
+    if (poolData && value) {
+      // Obtener precio de ETH directamente del API sin redondear
+      const ethPriceUsd = poolData.ethPriceUsd || 1900;
+      
+      // Caso para pools con USDC o ETH
+      const token0IsETH = poolData.token0.symbol.toLowerCase().includes('eth');
+      const token0IsUSDC = poolData.token0.symbol.toLowerCase().includes('usd');
+      const token1IsETH = poolData.token1.symbol.toLowerCase().includes('eth');
+      const token1IsUSDC = poolData.token1.symbol.toLowerCase().includes('usd');
+      
+      if (token0IsUSDC && token1IsETH) {
+        // USDC → ETH: Dividir por precio de ETH
+        const usdcAmount = parseFloat(value);
+        const ethAmount = usdcAmount / ethPriceUsd;
+        console.log(`Conversión directa: ${usdcAmount} USDC = ${ethAmount} ETH (precio ETH: $${ethPriceUsd})`);
+        // No redondear para ETH
+        setToken1Amount(String(ethAmount));
+      } 
+      else if (token0IsETH && token1IsUSDC) {
+        // ETH → USDC: Multiplicar por precio de ETH
+        const ethAmount = parseFloat(value);
+        const usdcAmount = ethAmount * ethPriceUsd;
+        console.log(`Conversión directa: ${ethAmount} ETH = ${usdcAmount} USDC (precio ETH: $${ethPriceUsd})`);
+        // No redondear para USDC
+        setToken1Amount(String(usdcAmount));
+      }
+      else {
+        // Para otros pares que puedan incluir ETH o stablecoins
+        if (token0IsETH) {
+          // Si token0 es ETH, calculamos su valor en USD
+          const valueInUsd = parseFloat(value) * ethPriceUsd;
+          // Si token1 es un stablecoin, usamos el valor directo, de lo contrario convertimos
+          const token1Amount = token1IsUSDC ? valueInUsd : valueInUsd / poolData.price;
+          // No redondear
+          setToken1Amount(String(token1Amount));
+        } else if (token0IsUSDC && token1IsETH) {
+          // USDC a ETH a través de precio directo
+          const usdAmount = parseFloat(value);
+          const ethAmount = usdAmount / ethPriceUsd;
+          // No redondear
+          setToken1Amount(String(ethAmount));
+        } else {
+          // Para otros pares sin ETH o stablecoin
+          const amount = parseFloat(value) / poolData.price;
+          // No redondear
+          setToken1Amount(String(amount));
+        }
+      }
+    } else {
+      setToken1Amount("");
+    }
+  };
+  
+  const handleToken1Change = (value: string) => {
+    setToken1Amount(value);
+    if (poolData && value) {
+      // Obtener precio de ETH directamente del API sin redondear
+      const ethPriceUsd = poolData.ethPriceUsd || 1900;
+      
+      // Caso para pools con USDC o ETH
+      const token0IsETH = poolData.token0.symbol.toLowerCase().includes('eth');
+      const token0IsUSDC = poolData.token0.symbol.toLowerCase().includes('usd');
+      const token1IsETH = poolData.token1.symbol.toLowerCase().includes('eth');
+      const token1IsUSDC = poolData.token1.symbol.toLowerCase().includes('usd');
+      
+      if (token0IsUSDC && token1IsETH) {
+        // ETH → USDC: Multiplicar por precio de ETH
+        const ethAmount = parseFloat(value);
+        const usdcAmount = ethAmount * ethPriceUsd;
+        console.log(`Conversión directa: ${ethAmount} ETH = ${usdcAmount} USDC (precio ETH: $${ethPriceUsd})`);
+        // No redondear para USDC/stablecoin
+        setToken0Amount(String(usdcAmount));
+      } 
+      else if (token0IsETH && token1IsUSDC) {
+        // USDC → ETH: Dividir por precio de ETH
+        const usdcAmount = parseFloat(value);
+        const ethAmount = usdcAmount / ethPriceUsd;
+        console.log(`Conversión directa: ${usdcAmount} USDC = ${ethAmount} ETH (precio ETH: $${ethPriceUsd})`);
+        // No redondear para ETH
+        setToken0Amount(String(ethAmount));
+      }
+      else {
+        // Para otros pares que puedan incluir ETH o stablecoins
+        if (token1IsETH) {
+          // Si token1 es ETH, calculamos su valor en USD
+          const valueInUsd = parseFloat(value) * ethPriceUsd;
+          // Si token0 es un stablecoin, usamos el valor directo, de lo contrario convertimos
+          const token0Amount = token0IsUSDC ? valueInUsd : valueInUsd / poolData.price;
+          // No redondear
+          setToken0Amount(String(token0Amount));
+        } else if (token1IsUSDC && token0IsETH) {
+          // USDC a ETH a través de precio directo
+          const usdAmount = parseFloat(value);
+          const ethAmount = usdAmount / ethPriceUsd;
+          // No redondear
+          setToken0Amount(String(ethAmount));
+        } else {
+          // Para otros pares sin ETH o stablecoin
+          const amount = parseFloat(value) * poolData.price;
+          // No redondear
+          setToken0Amount(String(amount));
+        }
+      }
+    } else {
+      setToken0Amount("");
+    }
+  };
+  
+  // Network tokens - Forzar Ethereum para todos los casos
+  const networkTokens = TOKENS.ETHEREUM;
+  
+  // Define la interfaz principal como una variable
+  addLiquidityContent = (
+    <div className="mb-6">
+      {/* Header with Wallet Connection */}
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Add Liquidity</h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            Provide liquidity to earn fees and rewards
+          </p>
+        </div>
+        <div className="w-full md:w-auto">
+          <ConnectButton />
+        </div>
+      </div>
+
+      {!address ? (
+        <Card className="mt-8">
+          <CardContent className="pt-6 text-center">
+            <h2 className="text-xl font-bold mb-4">Connect Your Wallet</h2>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
+              Please connect your wallet to add liquidity to Uniswap v4 pools.
+            </p>
+            <Button onClick={() => document.getElementById("connect-wallet-btn")?.click()}>
+              Connect Wallet
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Liquidity</CardTitle>
+                <CardDescription>
+                  Create a new position to earn fees and rewards
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs
+                  value={liquidityType}
+                  onValueChange={setLiquidityType}
+                  className="mb-6"
+                >
+                  <TabsList className="grid grid-cols-2">
+                    <TabsTrigger value="concentrated">Concentrated Liquidity</TabsTrigger>
+                    <TabsTrigger value="full-range">Full Range</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <form id="add-liquidity-form" onSubmit={handleSubmit}>
+                  {/* Pool Selection */}
+                  <div className="mb-6">
+                    <Label htmlFor="pool-select">Select Pool</Label>
+                    <Select
+                      value={selectedPool}
+                      onValueChange={setSelectedPool}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select a pool" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USDC-MATIC">USDC / MATIC (0.30%)</SelectItem>
+                        <SelectItem value="ETH-USDC">ETH / USDC (0.05%)</SelectItem>
+                        <SelectItem value="WBTC-ETH">WBTC / ETH (0.30%)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Token Inputs */}
+                  <div className="space-y-4 mb-6">
+                    {/* Token 0 Input */}
+                    <div>
+                      <Label>
+                        {poolData ? poolData.token0.symbol : 'Token A'} Amount
+                      </Label>
+                      <div className="relative mt-2">
+                        <Input
+                          type="text"
+                          placeholder="0.00"
+                          value={token0Amount}
+                          onChange={(e) => handleToken0Change(e.target.value)}
+                          className="pr-20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Token 1 Input */}
+                    <div>
+                      <Label>
+                        {poolData ? poolData.token1.symbol : 'Token B'} Amount
+                      </Label>
+                      <div className="relative mt-2">
+                        <Input
+                          type="text"
+                          placeholder="0.00"
+                          value={token1Amount}
+                          onChange={(e) => handleToken1Change(e.target.value)}
+                          className="pr-20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Range - Solo para liquidez concentrada */}
+                  {liquidityType === "concentrated" && (
+                    <div className="mb-6 space-y-4">
+                      <Label>Price Range</Label>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+                        <div className="flex justify-between mb-4">
+                          <div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400 block">
+                              Min Price
+                            </span>
+                            <span className="font-medium">{minPrice} {poolData?.token0.symbol}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm text-slate-500 dark:text-slate-400 block">
+                              Max Price
+                            </span>
+                            <span className="font-medium">{maxPrice} {poolData?.token0.symbol}</span>
+                          </div>
+                        </div>
+                        
+                        <Slider
+                          defaultValue={[50]}
+                          max={100}
+                          step={1}
+                          value={[rangeWidth]}
+                          onValueChange={(values) => updatePriceRange(values[0])}
+                          className="mb-4"
+                        />
+                        
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                          <span>Narrow Range (Higher Risk/Reward)</span>
+                          <span>Wide Range (Lower Risk/Reward)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      className="w-full sm:w-auto"
+                      disabled={!address || !token0Amount || !token1Amount || !poolData}
+                    >
+                      Add Liquidity
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  
+  return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Liquidity</CardTitle>
+                <CardDescription>
+                  Create a new position to earn fees and rewards
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs
+                  value={liquidityType}
+                  onValueChange={setLiquidityType}
+                  className="mb-6"
+                >
+                  <TabsList className="grid grid-cols-2">
+                    <TabsTrigger value="concentrated">Concentrated Liquidity</TabsTrigger>
+                    <TabsTrigger value="full-range">Full Range</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <form id="add-liquidity-form" onSubmit={handleSubmit}>
+                  {/* Pool Selection */}
+                  <div className="mb-6">
+                    <Label htmlFor="pool-select">Select Pool</Label>
+                    <Select
+                      value={selectedPool}
+                      onValueChange={setSelectedPool}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select a pool" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USDC-MATIC">USDC / MATIC (0.30%)</SelectItem>
+                        <SelectItem value="ETH-USDC">ETH / USDC (0.05%)</SelectItem>
+                        <SelectItem value="WBTC-ETH">WBTC / ETH (0.30%)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Pool Details */}
+                  {poolData && (
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 mb-6">
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">Current Price</span>
+                        <span className="font-medium">
+                          1 {poolData.token1.symbol} = {poolData.price} {poolData.token0.symbol}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">ETH Price</span>
+                        <span className="font-medium text-blue-500">
+                          1 ETH = ${typeof poolData.ethPriceUsd === 'number' ? 
+                            (Math.floor(poolData.ethPriceUsd * 100) / 100).toFixed(2) : 
+                            '0.00'} USD
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">APR (est.)</span>
+                        <span className="font-medium text-green-500">{poolData.apr}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Token Inputs */}
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <Label htmlFor="token0">
+                        {poolData ? poolData.token0.symbol : "Token 0"} Amount
+                      </Label>
+                      <div className="relative mt-2">
+                        <Input
+                          id="token0"
+                          type="number"
+                          placeholder="0.0"
+                          value={token0Amount}
+                          onChange={(e) => handleToken0Change(e.target.value)}
+                          className="pr-20"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          {poolData && <span className="text-sm font-medium">{poolData.token0.symbol}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full"
+                        onClick={() => {
+                          const temp = token0Amount;
+                          handleToken0Change(token1Amount);
+                          handleToken1Change(temp);
+                        }}
+                      >
+                        <ArrowLeftRight className="h-5 w-5" />
+                      </Button>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="token1">
+                        {poolData ? poolData.token1.symbol : "Token 1"} Amount
+                      </Label>
+                      <div className="relative mt-2">
+                        <Input
+                          id="token1"
+                          type="number"
+                          placeholder="0.0"
+                          value={token1Amount}
+                          onChange={(e) => handleToken1Change(e.target.value)}
+                          className="pr-20"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          {poolData && <span className="text-sm font-medium">{poolData.token1.symbol}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Range (for Concentrated Liquidity) */}
+                  {liquidityType === "concentrated" && (
+                    <div className="mb-6">
+                      <div className="flex justify-between mb-2">
+                        <Label>Price Range</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => updatePriceRange(rangeWidth)}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Reset
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <Label htmlFor="min-price" className="text-xs">
+                            Min Price
+                          </Label>
+                          <Input
+                            id="min-price"
+                            type="number"
+                            value={minPrice}
+                            onChange={(e) => setMinPrice(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="max-price" className="text-xs">
+                            Max Price
+                          </Label>
+                          <Input
+                            id="max-price"
+                            type="number"
+                            value={maxPrice}
+                            onChange={(e) => setMaxPrice(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      <Label className="mb-2 block">Range Width</Label>
+                      <Slider
+                        value={[rangeWidth]}
+                        min={10}
+                        max={100}
+                        step={5}
+                        onValueChange={(value) => updatePriceRange(value[0])}
+                      />
+                      <div className="flex justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <span>Narrow (Higher APR)</span>
+                        <span>Wide (Lower APR)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <Button type="submit" className="w-full" disabled={!address || !token0Amount || !token1Amount}>
+                    {!address
+                      ? "Connect Wallet"
+                      : !token0Amount || !token1Amount
+                      ? "Enter Token Amounts"
+                      : "Add Liquidity"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Info Card */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Position Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {poolData ? (
+                  <>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">Pool</span>
+                        <span className="font-medium">
+                          {poolData.token0.symbol}/{poolData.token1.symbol}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">Fee Tier</span>
+                        <span className="font-medium">{poolData.feeTier / 10000}%</span>
+                      </div>
+                      <div className="border-t border-slate-200 dark:border-slate-700 my-4"></div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{poolData.token0.symbol} Deposited</span>
+                        <span className="font-medium">
+                          {token0Amount ? parseFloat(token0Amount).toLocaleString() : "0"} {poolData.token0.symbol}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{poolData.token1.symbol} Deposited</span>
+                        <span className="font-medium">
+                          {token1Amount ? parseFloat(token1Amount).toLocaleString() : "0"} {poolData.token1.symbol}
+                        </span>
+                      </div>
+                      {liquidityType === "concentrated" && (
+                        <>
+                          <div className="border-t border-slate-200 dark:border-slate-700 my-4"></div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">Price Range</span>
+                            <span className="font-medium">
+                              {minPrice} - {maxPrice}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">Est. APR</span>
+                            <span className="font-medium text-green-500">
+                              {(poolData.apr * (1 + (100 - rangeWidth) / 100)).toFixed(2)}%
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mt-6">
+                      <div className="flex">
+                        <Info className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
+                        <div className="text-xs text-amber-800 dark:text-amber-300">
+                          <p className="font-medium mb-1">Liquidity Provider Notice</p>
+                          <p>
+                            By adding liquidity, you'll receive a Uniswap v4 NFT representing your position.
+                            Fees are collected automatically and can be claimed anytime.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center p-4">
+                    <p className="text-slate-500 dark:text-slate-400">
+                      Select a pool and enter amounts to see position details
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </>
+  );
+  
+  // Diálogo de selección de método de pago
+  return (
+    <>
+      {/* Contenido principal de la página */}
+      {addLiquidityContent}
+      
+      {/* Diálogo de selección de método de pago */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Seleccione método de pago</DialogTitle>
+            <DialogDescription>
+              Elija cómo desea realizar el pago para su posición de liquidez.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6">
+            <RadioGroup 
+              value={paymentMethod} 
+              onValueChange={(value) => setPaymentMethod(value as "crypto" | "bank" | "card")}
+              className="space-y-4"
+            >
+              <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                <RadioGroupItem value="crypto" id="crypto" className="ml-1" />
+                <Label htmlFor="crypto" className="flex items-center cursor-pointer flex-1">
+                  <WalletIcon className="h-5 w-5 mr-3 text-blue-500" />
+                  <div>
+                    <div className="font-medium">Criptomonedas</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">Pagar directamente desde su wallet</div>
+                  </div>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                <RadioGroupItem value="bank" id="bank" className="ml-1" />
+                <Label htmlFor="bank" className="flex items-center cursor-pointer flex-1">
+                  <Building2 className="h-5 w-5 mr-3 text-green-600" />
+                  <div>
+                    <div className="font-medium">Transferencia bancaria</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">Transferencia desde su cuenta bancaria</div>
+                  </div>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                <RadioGroupItem value="card" id="card" className="ml-1" />
+                <Label htmlFor="card" className="flex items-center cursor-pointer flex-1">
+                  <CreditCard className="h-5 w-5 mr-3 text-purple-600" />
+                  <div>
+                    <div className="font-medium">Tarjeta de crédito/débito</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">Pago seguro con Stripe</div>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPaymentDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={processPayment}>
+              Continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de pago con tarjeta */}
+      <Dialog open={cardPaymentOpen} onOpenChange={setCardPaymentOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pago con tarjeta</DialogTitle>
+            <DialogDescription>
+              Complete su pago utilizando su tarjeta de crédito o débito.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6">
+            {clientSecret ? (
+              <StripePaymentForm
+                clientSecret={clientSecret}
+                onPaymentSuccess={handlePaymentSuccess}
+                onCancel={() => {
+                  setCardPaymentOpen(false);
+                  resetClientSecret();
+                }}
+              />
+            ) : (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de transferencia bancaria */}
+      <Dialog open={bankTransferOpen} onOpenChange={setBankTransferOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transferencia bancaria</DialogTitle>
+            <DialogDescription>
+              Realice una transferencia a la siguiente cuenta bancaria.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6 space-y-4">
+            <div className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-800">
+              <p className="text-sm font-medium mb-1">Datos bancarios:</p>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <span className="text-slate-500 dark:text-slate-400">Banco:</span>
+                <span className="col-span-2 font-medium">Banco Santander</span>
+                
+                <span className="text-slate-500 dark:text-slate-400">Titular:</span>
+                <span className="col-span-2 font-medium">Elysium Media FZCO</span>
+                
+                <span className="text-slate-500 dark:text-slate-400">IBAN:</span>
+                <span className="col-span-2 font-medium">AE123456789012345678</span>
+                
+                <span className="text-slate-500 dark:text-slate-400">BIC/SWIFT:</span>
+                <span className="col-span-2 font-medium">SANTAEADXXX</span>
+                
+                <span className="text-slate-500 dark:text-slate-400">Concepto:</span>
+                <span className="col-span-2 font-medium">WayBank-{address ? address.substring(0, 8) : ""}</span>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <div className="flex">
+                <Info className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
+                <div className="text-xs text-amber-800 dark:text-amber-300">
+                  <p>
+                    Una vez realizada la transferencia, envíe el comprobante a <span className="font-medium">support@waybank.finance</span>. 
+                    Su posición se activará en 24-48h hábiles tras la confirmación.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBankTransferOpen(false)}
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export default AddLiquidity;

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#f8fafc" />
+  <rect width="1200" height="630" fill="#f8fafc" />
+  <rect x="0" y="0" width="1200" height="630" fill="#1e293b" />
+  
+  <!-- Background pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1" fill="#4338ca" opacity="0.15" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)" />
+  
+  <!-- Gradient overlay -->
+  <rect width="1200" height="630" fill="url(#gradient)" opacity="0.8" />
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338ca" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Logo and text -->
+  <g transform="translate(150, 200)">
+    <text font-family="Arial, sans-serif" font-size="72" font-weight="bold">
+      <tspan x="0" y="0" fill="#ffffff">Way</tspan>
+      <tspan x="145" y="0" fill="#4338ca">Bank</tspan>
+    </text>
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="36" fill="#94a3b8">
+      The #1 Liquidity Optimization Platform for Uniswap V4
+    </text>
+    <rect x="0" y="120" width="150" height="8" fill="#4338ca" rx="4" />
+  </g>
+  
+  <!-- Decorative elements -->
+  <g transform="translate(800, 250)">
+    <circle cx="0" cy="0" r="100" fill="none" stroke="#4338ca" stroke-width="2" />
+    <circle cx="0" cy="0" r="60" fill="none" stroke="#4338ca" stroke-width="2" />
+    <circle cx="0" cy="0" r="20" fill="#4338ca" opacity="0.5" />
+  </g>
+  
+  <!-- Bottom information -->
+  <text x="150" y="580" font-family="Arial, sans-serif" font-size="24" fill="#94a3b8">
+    www.waybank.info
+  </text>
+</svg>

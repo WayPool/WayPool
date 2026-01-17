@@ -1,0 +1,103 @@
+/* Estilos específicos para mejorar el scroll en páginas públicas en dispositivos móviles */
+
+/* Estos estilos solo afectarán a las páginas públicas */
+.public-page {
+  /* Anulamos la regla global que deshabilita el scroll */
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important; /* Para mejor soporte en iOS */
+  height: 100%;
+  width: 100%;
+  position: absolute !important; /* Importante para que funcione el scroll */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* También anular el overflow: hidden para el HTML y BODY en páginas públicas */
+/* Aplicamos esto globalmente cuando existe una página pública */
+.public-page-active html,
+.public-page-active body,
+.public-page-active #root {
+  overflow: auto !important;
+  overscroll-behavior-y: auto !important;
+  height: auto !important;
+}
+
+/* Mejoras para dispositivos móviles específicamente */
+@media (max-width: 767px) {
+  .public-page {
+    /* Asegura que el contenido ocupe toda la altura disponible */
+    min-height: 100vh;
+    /* Mejora la experiencia táctil */
+    touch-action: pan-y;
+  }
+  
+  /* Evita problemas de desbordamiento horizontal */
+  .public-page-container {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  
+  /* Añadir margen inferior para evitar que el contenido quede pegado al final de la pantalla */
+  .public-page-container {
+    padding-bottom: 2rem;
+  }
+  
+  /* Ajusta el padding para una mejor experiencia en móvil */
+  .public-page-section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Mejoras para el logo */
+  .logo-container, .logo-container img {
+    max-height: 40px;
+    object-fit: contain;
+  }
+  
+  /* Fondos para tema oscuro en móvil */
+  .dark body, 
+  .dark main {
+    background-color: rgb(9, 14, 33);
+  }
+  
+  /* Tarjetas y bloques de contenido */
+  .dark .dark-feature-card,
+  .dark div.rounded-lg.shadow-sm.border {
+    background-color: rgb(19, 24, 54);
+    border-color: rgb(39, 46, 79);
+  }
+  
+  /* Iconos con contenedores y fondos grises persistentes */
+  .dark div.rounded-full,
+  .dark div.p-3.rounded-full,
+  .dark div > span.px-4.py-2,
+  .dark div > span.rounded-lg,
+  .dark h3 > span,
+  .dark span.px-4 {
+    background-color: rgb(19, 24, 54) !important;
+    border: 1px solid rgb(39, 46, 79) !important;
+  }
+  
+  /* Textos */
+  .dark h3 {
+    color: #ffffff;
+  }
+  
+  .dark p.text-muted-foreground {
+    color: rgb(186, 195, 218);
+  }
+  
+  /* Color primario */
+  .dark .text-primary {
+    color: rgb(99, 102, 241);
+  }
+  
+  /* Secciones alternativas */
+  .dark section#how-it-works,
+  .dark section#risk-return,
+  .dark footer {
+    background-color: rgb(29, 35, 67);
+  }
+}

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512px" height="128px" viewBox="0 0 512 128" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="linearGradient-1">
+      <stop stop-color="#6366F1" offset="0%"></stop>
+      <stop stop-color="#4F46E5" offset="100%"></stop>
+    </linearGradient>
+    <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="linearGradient-2">
+      <stop stop-color="#10B981" offset="0%"></stop>
+      <stop stop-color="#059669" offset="100%"></stop>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Shield Icon -->
+  <g transform="translate(10, 8)">
+    <path d="M64,20 L108,39 L108,67 C108,87 95,106 64,112 C33,106 20,87 20,67 L20,39 L64,20 Z" 
+          fill="none" 
+          stroke="url(#linearGradient-2)" 
+          stroke-width="4" 
+          filter="url(#glow)">
+    </path>
+    <text x="64" y="75" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#linearGradient-2)" text-anchor="middle" filter="url(#glow)">E2E</text>
+  </g>
+  
+  <!-- Verified Icon -->
+  <g transform="translate(138, 8)">
+    <circle cx="64" cy="64" r="44" fill="none" stroke="url(#linearGradient-2)" stroke-width="4" filter="url(#glow)"></circle>
+    <path d="M45,64 L58,77 L83,52" stroke="url(#linearGradient-2)" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"></path>
+  </g>
+  
+  <!-- Lock Icon -->
+  <g transform="translate(266, 8)">
+    <rect x="44" y="58" width="40" height="34" rx="4" fill="url(#linearGradient-1)" filter="url(#glow)"></rect>
+    <path d="M56,58 L56,46 C56,39 59,32 64,32 C69,32 72,39 72,46 L72,58" fill="none" stroke="url(#linearGradient-1)" stroke-width="4" filter="url(#glow)"></path>
+    <circle cx="64" cy="75" r="6" fill="#FFFFFF" opacity="0.8"></circle>
+  </g>
+  
+  <!-- Blockchain Icon -->
+  <g transform="translate(394, 8)">
+    <circle cx="64" cy="40" r="12" fill="url(#linearGradient-1)" filter="url(#glow)"></circle>
+    <circle cx="40" cy="76" r="12" fill="url(#linearGradient-1)" filter="url(#glow)"></circle>
+    <circle cx="88" cy="76" r="12" fill="url(#linearGradient-1)" filter="url(#glow)"></circle>
+    
+    <line x1="64" y1="40" x2="40" y2="76" stroke="url(#linearGradient-1)" stroke-width="3" opacity="0.8"></line>
+    <line x1="64" y1="40" x2="88" y2="76" stroke="url(#linearGradient-1)" stroke-width="3" opacity="0.8"></line>
+    <line x1="40" y1="76" x2="88" y2="76" stroke="url(#linearGradient-1)" stroke-width="3" opacity="0.8"></line>
+  </g>
+</svg>

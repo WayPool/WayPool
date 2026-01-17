@@ -1,0 +1,32 @@
+/* Estilos para ocultar la marca de agua de Replit */
+#replitWatermark,
+.replit-ui-theme-root,
+.jsx-3334212749,
+div[class*="watermark-container"],
+div[class*="watermarkContainer"],
+div:has(> a[href*="replit.com"]) {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  z-index: -9999 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+/* Eliminar marca de agua de Replit */
+[aria-label="Made with Replit"],
+[title="Made with Replit"],
+a[href*="replit.app"] {
+  display: none !important;
+}
+
+/* Ocultar botón de marca de agua flotante */
+.floating-watermark-button,
+button:has(> img[alt*="Replit"]),
+button:has(> span:contains("Replit")) {
+  display: none !important;
+}

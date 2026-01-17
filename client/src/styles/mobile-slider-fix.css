@@ -1,0 +1,44 @@
+/**
+ * Estilos personalizados para el slider en versión móvil
+ * Hace que el thumb del slider sea un círculo lila con punto negro siempre
+ */
+
+@media (max-width: 768px) {
+  /* Ajustes para el track del slider */
+  .mobile-calculator [data-orientation=horizontal] {
+    height: 6px !important;
+    background-color: rgba(138, 43, 226, 0.2) !important; /* Fondo lila muy suave */
+  }
+  
+  /* Estilo para el track activo (la parte llena) */
+  .mobile-calculator [data-orientation=horizontal] > span {
+    background: linear-gradient(to right, #8a2be2, #9d4edd) !important;
+    height: 6px !important;
+  }
+  
+  /* Selector para el thumb del slider */
+  .mobile-calculator [data-orientation=horizontal] [role="slider"] {
+    background: #8a2be2 !important; /* Color lila (#8a2be2) */
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important; /* Forma circular */
+    border: none !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+    margin-top: -3px !important;
+    z-index: 5 !important;
+  }
+
+  /* Añade el punto negro en el centro del thumb */
+  .mobile-calculator [data-orientation=horizontal] [role="slider"]::after {
+    content: '' !important;
+    position: absolute !important;
+    width: 6px !important;
+    height: 6px !important;
+    background-color: #000 !important;
+    border-radius: 50% !important;
+  }
+}

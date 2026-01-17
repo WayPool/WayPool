@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40">
+  <g>
+    <!-- Logo mark -->
+    <g transform="translate(0, 8)">
+      <!-- Black squares -->
+      <rect x="0" y="0" width="8" height="8" fill="#000" />
+      <rect x="8" y="0" width="8" height="8" fill="#000" />
+      <rect x="0" y="8" width="8" height="8" fill="#000" />
+      <rect x="16" y="8" width="8" height="8" fill="#000" />
+      <rect x="0" y="16" width="8" height="8" fill="#000" />
+      <rect x="8" y="16" width="8" height="8" fill="#000" />
+      
+      <!-- Purple squares -->
+      <rect x="16" y="0" width="8" height="8" fill="#6366F1" />
+      <rect x="8" y="8" width="8" height="8" fill="#818CF8" />
+      <rect x="16" y="16" width="8" height="8" fill="#A5B4FC" />
+    </g>
+    
+    <!-- Text "Elysium" -->
+    <text x="32" y="24" font-family="Arial, sans-serif" font-weight="bold" font-size="18" fill="#000">
+      Elysium
+    </text>
+  </g>
+</svg>

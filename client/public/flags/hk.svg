@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#ff0000"/>
+  <g transform="translate(450, 300)">
+    <path d="M -130,0 C -130,70 -70,130 0,130 C 70,130 130,70 130,0 C 130,-70 70,-130 0,-130 C -70,-130 -130,-70 -130,0 Z" fill="#fff"/>
+    <g fill="#ff0000">
+      <path d="M 10,0 L 50,-25 L 40,20 L 65,-45 L 75,5 Z"/>
+      <path d="M 40,-75 L 75,-60 L 30,-35 L 80,-20 L 35,0 Z"/>
+      <path d="M -30,-10 L 5,-15 L -15,15 L 20,-5 L 0,25 Z"/>
+      <path d="M -75,-60 L -35,-75 L -35,-35 L 0,-60 L -10,-20 Z"/>
+      <path d="M -75,30 L -35,0 L -55,45 L -15,10 L -35,55 Z"/>
+    </g>
+  </g>
+</svg>

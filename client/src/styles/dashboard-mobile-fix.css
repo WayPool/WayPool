@@ -1,0 +1,47 @@
+/**
+ * Corrección específica para el dashboard móvil
+ * Elimina todos los fondos grises en textos y párrafos
+ */
+
+@media (max-width: 767px) {
+  /* Texto y párrafos en el dashboard */
+  .dark div.rounded-xl p,
+  .dark div.p-6 p,
+  .dark div.border-b p,
+  .dark div.flex-1 p,
+  .dark div.ml-12 p,
+  .dark div.px-4 p,
+  .dark div.py-2 p {
+    background-color: transparent !important;
+    background: none !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Específicamente para los textos en la sección de conexión segura */
+  .dark div.flex.items-start.gap-3 div,
+  .dark div.flex.items-start.gap-4 div {
+    background-color: transparent !important;
+  }
+  
+  /* Eliminar fondos grises de los textos en military-grade security */
+  .dark div.flex.items-start.gap-3 div p,
+  .dark div.text-xs.text-\[\#8a9fc0\],
+  .dark p.text-xs.text-\[\#8a9fc0\],
+  .dark p.text-sm.text-\[\#8a9fc0\],
+  .dark div.text-sm.text-\[\#8a9fc0\] {
+    background-color: transparent !important;
+    background: none !important;
+    border: none !important;
+  }
+  
+  /* Override agresivo para asegurar que los párrafos no tengan fondo */
+  .dark .bg-\[\#0b101e\] div div div div p,
+  .dark .ml-12 div h4 + p,
+  .dark div.flex.items-start.gap-3 div h4 + p {
+    background-color: transparent !important;
+    background: none !important;
+    color: #8a9fc0 !important;
+  }
+}

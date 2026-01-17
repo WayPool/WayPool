@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="300" fill="#0038a8"/>
+  <rect width="900" height="300" fill="#ce1126" y="300"/>
+  <polygon points="0,0 0,600 450,300" fill="#fff"/>
+  <g transform="translate(120, 300)">
+    <circle cx="0" cy="0" r="80" fill="#fcd116"/>
+    <g id="ray" fill="#fcd116">
+      <polygon points="0,0 0,-150 15,-120 0,-130 -15,-120"/>
+    </g>
+    <use href="#ray" transform="rotate(45)"/>
+    <use href="#ray" transform="rotate(90)"/>
+    <use href="#ray" transform="rotate(135)"/>
+    <use href="#ray" transform="rotate(180)"/>
+    <use href="#ray" transform="rotate(225)"/>
+    <use href="#ray" transform="rotate(270)"/>
+    <use href="#ray" transform="rotate(315)"/>
+    <g transform="translate(0, -45)">
+      <polygon points="-20,0 0,-20 20,0 0,20" fill="#fcd116"/>
+    </g>
+    <g transform="translate(-45, 0)">
+      <polygon points="-20,0 0,-20 20,0 0,20" fill="#fcd116"/>
+    </g>
+    <g transform="translate(45, 0)">
+      <polygon points="-20,0 0,-20 20,0 0,20" fill="#fcd116"/>
+    </g>
+  </g>
+</svg>

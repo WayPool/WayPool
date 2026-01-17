@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="200" fill="#ff9933"/>
+  <rect width="900" height="200" fill="#ffffff" y="200"/>
+  <rect width="900" height="200" fill="#138808" y="400"/>
+  <circle cx="450" cy="300" r="60" fill="#000080"/>
+  <circle cx="450" cy="300" r="55" fill="#ffffff"/>
+  <circle cx="450" cy="300" r="16" fill="#000080"/>
+  <g id="spokes" fill="#000080">
+    <circle cx="450" cy="245" r="5"/>
+    <rect width="3" height="50" x="448.5" y="245"/>
+  </g>
+  <use href="#spokes" transform="rotate(15,450,300)"/>
+  <use href="#spokes" transform="rotate(30,450,300)"/>
+  <use href="#spokes" transform="rotate(45,450,300)"/>
+  <use href="#spokes" transform="rotate(60,450,300)"/>
+  <use href="#spokes" transform="rotate(75,450,300)"/>
+  <use href="#spokes" transform="rotate(90,450,300)"/>
+  <use href="#spokes" transform="rotate(105,450,300)"/>
+  <use href="#spokes" transform="rotate(120,450,300)"/>
+  <use href="#spokes" transform="rotate(135,450,300)"/>
+  <use href="#spokes" transform="rotate(150,450,300)"/>
+  <use href="#spokes" transform="rotate(165,450,300)"/>
+  <use href="#spokes" transform="rotate(180,450,300)"/>
+  <use href="#spokes" transform="rotate(195,450,300)"/>
+  <use href="#spokes" transform="rotate(210,450,300)"/>
+  <use href="#spokes" transform="rotate(225,450,300)"/>
+  <use href="#spokes" transform="rotate(240,450,300)"/>
+  <use href="#spokes" transform="rotate(255,450,300)"/>
+  <use href="#spokes" transform="rotate(270,450,300)"/>
+  <use href="#spokes" transform="rotate(285,450,300)"/>
+  <use href="#spokes" transform="rotate(300,450,300)"/>
+  <use href="#spokes" transform="rotate(315,450,300)"/>
+  <use href="#spokes" transform="rotate(330,450,300)"/>
+  <use href="#spokes" transform="rotate(345,450,300)"/>
+</svg>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#f00"/>
+  <rect width="360" height="600" fill="#060" x="0"/>
+  <g transform="translate(360, 300)">
+    <circle r="90" fill="#ff0"/>
+    <circle r="80" fill="#f00" stroke="#fff" stroke-width="1.5"/>
+    <g id="castles" fill="#ff0">
+      <path d="M -70,0 L -40,0 L -40,-30 L -70,-30 Z M -70,-40 L -40,-40 L -40,-45 L -70,-45 Z M -65,-30 L -65,-40 M -60,-30 L -60,-40 M -50,-30 L -50,-40 M -45,-30 L -45,-40"/>
+    </g>
+    <use href="#castles" transform="scale(-1, 1)"/>
+  </g>
+</svg>

@@ -1,0 +1,83 @@
+/**
+ * Modal Fix CSS
+ * 
+ * Este archivo contiene estilos para asegurar que al abrir modales, selectores u otros
+ * elementos que usan portales, no se cambie el fondo de la página completa a negro.
+ */
+
+/* Forzar colores de fondo en el DOM principal */
+html, body, #root {
+  transition: background-color 0.3s ease-in-out;
+}
+
+/* Tema oscuro - Forzado */
+html.dark, 
+html.dark body, 
+html.dark #root {
+  background-color: rgb(9, 14, 33) !important;
+  color-scheme: dark !important;
+}
+
+/* Tema claro - Forzado */
+html.light, 
+html.light body, 
+html.light #root {
+  background-color: #ffffff !important;
+  color-scheme: light !important;
+}
+
+/* Prevenir que portales cambien el tema */
+[data-radix-portal],
+[data-radix-popper-content-wrapper],
+.radix-portal {
+  background-color: transparent !important;
+}
+
+/* Backdrop para portales */
+.portal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -9999;
+}
+
+/* Colores del backdrop según tema */
+html.dark .portal-backdrop {
+  background-color: rgb(9, 14, 33) !important;
+}
+
+html.light .portal-backdrop {
+  background-color: #ffffff !important;
+}
+
+/* Solución agresiva para selectores */
+.portal-open {
+  /* Cuando un portal está abierto, asegurarse que el fondo permanezca igual */
+  overflow: hidden;
+  height: 100vh;
+}
+
+html.dark .portal-open::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgb(9, 14, 33) !important;
+  z-index: -1;
+}
+
+html.light .portal-open::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ffffff !important;
+  z-index: -1;
+}

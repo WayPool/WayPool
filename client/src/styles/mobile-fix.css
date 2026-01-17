@@ -1,0 +1,44 @@
+/* Corrige fondos grises en versión móvil */
+@media (max-width: 768px) {
+  /* Elimina todos los fondos gris claro de elementos en las páginas públicas */
+  .bg-muted, 
+  .bg-muted\/50,
+  .bg-background\/50,
+  .bg-background\/90,
+  .bg-background\/95,
+  .bg-slate-100,
+  .bg-slate-200,
+  .bg-slate-300,
+  .bg-gray-100,
+  .bg-gray-200 {
+    background-color: transparent !important;
+  }
+
+  /* Asegura que todos los encabezados y textos tengan fondo oscuro */
+  h1, h2, h3, h4, h5, h6,
+  .card,
+  .tabs-content,
+  .form-section,
+  .text-section {
+    background-color: #0a0f1f !important; /* Fondo azul oscuro */
+  }
+
+  /* Asegura que los elementos con fondo primario mantengan su aspecto */
+  .bg-primary,
+  .bg-primary\/10 {
+    background-color: rgba(var(--primary), 0.1) !important;
+  }
+
+  /* Tarjetas con fondo oscuro en móvil */
+  .card, 
+  .rounded-xl,
+  .bg-card {
+    background-color: #0a0f1f !important;
+  }
+
+  /* Formularios con fondo oscuro */
+  form,
+  .form-container {
+    background-color: #0a0f1f !important;
+  }
+}

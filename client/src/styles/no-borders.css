@@ -1,0 +1,59 @@
+/* Archivo para eliminar todos los bordes en la interfaz móvil */
+
+/* IMPORTANTE: Estos estilos SOLO afectan a pantallas móviles */
+@media (max-width: 767px) {
+  /* Selector específico para la sección de resultados estimados */
+  .dark div.bg-indigo-900\/10,
+  .dark div[class*="bg-indigo-900"],
+  .dark div[class*="rounded-md"],
+  .dark div[class*="grid-cols-2"],
+  .dark div[class*="gap-3"],
+  .dark div[class*="mb-4"],
+  .dark div[class*="bg-slate-900"],
+  .dark div[class*="mt-6"],
+  .dark div[class*="pt-5"],
+  .dark div[class*="border-t"] {
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-color: transparent !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* Selector SUPER agresivo para eliminar todos los bordes visibles en interfaz móvil */
+  .dark *[class*="border"],
+  .dark [class*="border-"],
+  .dark div,
+  .dark span,
+  .dark p {
+    border: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+  }
+  
+  /* Eliminar específicamente los bordes de la sección de resultados */
+  .dark div.bg-indigo-900\/10 div,
+  .dark div.bg-indigo-900\/10 span,
+  .dark div.bg-indigo-900\/10 * {
+    border: none !important;
+    outline: none !important;
+  }
+
+  /* Selector para inputs y botones en modo mobile */
+  .dark input,
+  .dark button,
+  .dark select,
+  .dark [class*="SelectTrigger"],
+  .dark [class*="SelectContent"] {
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  /* Asegurar que no haya bordes en los divs contenedores principales */
+  .dark div[class*="p-6"] {
+    border: none !important;
+  }
+}

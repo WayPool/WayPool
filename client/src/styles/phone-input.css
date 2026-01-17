@@ -1,0 +1,107 @@
+/* Estilos para el componente PhoneInput */
+
+.phone-input-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.phone-input-label {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.phone-input-wrapper {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: center;
+}
+
+.phone-country-selector {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.phone-number-input {
+  flex: 1;
+}
+
+/* Estilos para estados especiales */
+.phone-input-wrapper.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.phone-input-wrapper.error .phone-number-input,
+.phone-input-wrapper.error .toggle-country-dropdown {
+  border-color: hsl(var(--destructive));
+}
+
+/* Estilos responsivos */
+@media (max-width: 640px) {
+  .phone-input-wrapper {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .phone-country-selector,
+  .phone-number-input {
+    width: 100%;
+  }
+}
+
+/* Estilos para el modo oscuro */
+[data-theme="dark"] .phone-input-label {
+  color: hsl(var(--foreground));
+}
+
+/* Estilos de tooltip para validación de formato */
+.phone-format-tooltip {
+  position: absolute;
+  bottom: -40px;
+  left: 0;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  z-index: 10;
+  width: 100%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.phone-number-input:focus + .phone-format-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Estilos para el indicador de país */
+.selected-country {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+.country-flag-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Animación para cambio de país */
+.country-change-animation {
+  transition: transform 0.2s;
+}
+
+.country-change-animation:active {
+  transform: scale(0.95);
+}

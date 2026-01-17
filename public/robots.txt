@@ -1,0 +1,10 @@
+# WayBank Robots.txt
+# Configuración para waybank.info y waybank.finance (permisivo)
+User-agent: *
+Allow: /
+
+# Host canónico
+Host: waybank.finance
+
+# Sitemap
+Sitemap: https://waybank.finance/sitemap.xml

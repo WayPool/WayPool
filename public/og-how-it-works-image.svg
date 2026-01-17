@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#1e293b" />
+  
+  <!-- Gradient background -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bgGradient)" />
+  
+  <!-- Step-by-step visualization -->
+  <g transform="translate(650, 315)">
+    <!-- Process flow diagram -->
+    <rect x="-300" y="-150" width="600" height="300" rx="20" fill="none" stroke="#4338ca" stroke-width="2" opacity="0.3" />
+    
+    <!-- Step 1 -->
+    <g transform="translate(-200, 0)">
+      <circle cx="0" cy="0" r="40" fill="#4338ca" opacity="0.2" stroke="#4338ca" stroke-width="2" />
+      <text x="0" y="5" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle">1</text>
+    </g>
+    
+    <!-- Step 2 -->
+    <g transform="translate(0, -80)">
+      <circle cx="0" cy="0" r="40" fill="#4338ca" opacity="0.2" stroke="#4338ca" stroke-width="2" />
+      <text x="0" y="5" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle">2</text>
+    </g>
+    
+    <!-- Step 3 -->
+    <g transform="translate(200, 0)">
+      <circle cx="0" cy="0" r="40" fill="#4338ca" opacity="0.2" stroke="#4338ca" stroke-width="2" />
+      <text x="0" y="5" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle">3</text>
+    </g>
+    
+    <!-- Step 4 -->
+    <g transform="translate(0, 80)">
+      <circle cx="0" cy="0" r="40" fill="#4338ca" opacity="0.2" stroke="#4338ca" stroke-width="2" />
+      <text x="0" y="5" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle">4</text>
+    </g>
+    
+    <!-- Connecting arrows -->
+    <path d="M-160 0 L-40 -80" stroke="#4338ca" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    <path d="M40 -80 L160 0" stroke="#4338ca" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    <path d="M160 0 L40 80" stroke="#4338ca" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    <path d="M-40 80 L-160 0" stroke="#4338ca" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    
+    <!-- Process center -->
+    <circle cx="0" cy="0" r="60" fill="#4338ca" opacity="0.1" stroke="#4338ca" stroke-width="1" />
+    <circle cx="0" cy="0" r="30" fill="#4338ca" opacity="0.4" />
+    
+    <!-- Arrow definitions -->
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#4338ca" />
+      </marker>
+    </defs>
+  </g>
+  
+  <!-- Text content -->
+  <g transform="translate(150, 200)">
+    <text font-family="Arial, sans-serif" font-size="72" font-weight="bold">
+      <tspan x="0" y="0" fill="#ffffff">Way</tspan>
+      <tspan x="145" y="0" fill="#4338ca">Bank</tspan>
+    </text>
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="36" fill="#94a3b8">
+      How It Works
+    </text>
+    <text x="0" y="130" font-family="Arial, sans-serif" font-size="28" fill="#cbd5e1">
+      Complete Liquidity Optimization Guide
+    </text>
+    <rect x="0" y="160" width="150" height="8" fill="#4338ca" rx="4" />
+    
+    <!-- Key points -->
+    <g transform="translate(0, 200)">
+      <rect x="0" y="0" width="400" height="40" rx="5" fill="#4338ca" opacity="0.1" />
+      <text x="15" y="25" font-family="Arial, sans-serif" font-size="18" fill="#cbd5e1">
+        Position Management Contracts
+      </text>
+      
+      <rect x="0" y="50" width="400" height="40" rx="5" fill="#4338ca" opacity="0.1" />
+      <text x="15" y="75" font-family="Arial, sans-serif" font-size="18" fill="#cbd5e1">
+        On-chain Oracles Integration
+      </text>
+      
+      <rect x="0" y="100" width="400" height="40" rx="5" fill="#4338ca" opacity="0.1" />
+      <text x="15" y="125" font-family="Arial, sans-serif" font-size="18" fill="#cbd5e1">
+        Automation Systems
+      </text>
+    </g>
+  </g>
+  
+  <!-- Bottom information -->
+  <text x="150" y="580" font-family="Arial, sans-serif" font-size="24" fill="#94a3b8">
+    www.waybank.info/how-it-works
+  </text>
+</svg>

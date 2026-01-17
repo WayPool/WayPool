@@ -1,0 +1,50 @@
+/**
+ * Elimina cualquier contorno, borde, sombra o fondo de los logos de texto en la aplicación
+ * tanto para móvil como para escritorio
+ */
+
+/* Elimina cualquier contorno del texto del logo y fondo */
+header span.text-2xl.font-bold,
+header span.text-2xl.font-bold span {
+  text-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+  stroke: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Transparencia para el contenedor del logo */
+header .flex.items-center,
+header .container div.flex.items-center {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Asegura que el header tenga backdrop-filter pero no fondo */
+@media (max-width: 767px) {
+  header.sticky.top-0 {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  
+  header span.text-2xl.font-bold,
+  header span.text-2xl.font-bold span {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    font-weight: 700 !important;
+    background: transparent !important;
+  }
+}
+
+/* Asegura que no haya efectos de hover no deseados */
+header span.text-2xl.font-bold:hover,
+header span.text-2xl.font-bold span:hover {
+  text-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+  stroke: none !important;
+  background: transparent !important;
+}

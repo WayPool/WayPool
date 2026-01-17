@@ -1,0 +1,54 @@
+/**
+ * Solución específica para portales Radix UI en páginas públicas
+ *
+ * Este archivo contiene una solución para el problema donde la página
+ * completa se vuelve negra al abrir selectores o popovers en páginas
+ * públicas, evitando las inconsistencias entre publicKey y dashboard.
+ */
+
+/* Para páginas públicas, necesitamos un enfoque diferente a los portales */
+.public-page-active body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--background);
+  background-color: hsl(var(--background));
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* En tema oscuro, forzar fondo siempre visible */
+.public-page-active.dark body::after {
+  background-color: rgb(9, 14, 33) !important;
+}
+
+/* En tema claro */
+.public-page-active.light body::after {
+  background-color: #ffffff !important;
+}
+
+/* Para páginas públicas usar esta regla específica para los portales */
+.public-page-active [data-radix-portal],
+.public-page-active [data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Los contenedores dentro de la página pública deben mantener su z-index */
+.public-page {
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+/* Forzar posición para que el fondo negro no tape el contenido */
+.public-page-active [data-radix-portal] ~ div,
+.public-page-active [data-radix-portal] ~ main,
+.public-page-active [data-radix-portal] ~ header,
+.public-page-active [data-radix-portal] ~ section,
+.public-page-active [data-radix-portal] ~ footer {
+  position: relative !important;
+  z-index: 1 !important;
+}

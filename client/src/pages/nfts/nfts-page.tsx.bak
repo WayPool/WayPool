@@ -1,0 +1,1150 @@
+import React, { useState } from "react";
+import { useUserNFTs, useNFTDetails } from "@/hooks/use-nfts";
+import { useWallet } from "@/hooks/use-wallet";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Spinner } from "@/components/ui/spinner";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { 
+  ExternalLink, 
+  Filter, 
+  ListFilter, 
+  Plus, 
+  Sliders, 
+  ChevronRight, 
+  Wallet, 
+  Tag, 
+  ChevronUp, 
+  ChevronDown, 
+  Check, 
+  AlertCircle, 
+  Activity, 
+  Layers, 
+  Banknote, 
+  Info, 
+  Globe, 
+  BarChart3, 
+  Repeat, 
+  CheckCircle, 
+  XCircle,
+  LayoutGrid,
+  List,
+  ChevronLeft,
+  ArrowUpDown,
+  Copy,
+  Send
+} from "lucide-react";
+import DashboardLayout from "@/components/layouts/dashboard-layout";
+
+// Componente de tarjeta de NFT
+const NFTCard: React.FC<{
+  nft: any;
+  onClick: () => void;
+}> = ({ nft, onClick }) => {
+  // Imprimir para depuración
+  console.log('Rendering NFT card:', nft);
+  
+  // IMPLEMENTACIÓN CORREGIDA PARA MOSTRAR CORRECTAMENTE LOS PARES DE TOKENS Y FEES
+  
+  let tokenPair;
+  let feeValue;
+  
+  if (nft.version === "Uniswap V3") {
+    // PARA NFTS V3: 
+    // En la respuesta del endpoint /api/nfts/user/:address el campo fee contiene el par de tokens (ej. "USDT/MATIC")
+    // Necesitamos usarlo como par de tokens y mostrar el fee real si está disponible
+    if (nft.fee && nft.fee.includes("/")) {
+      tokenPair = nft.fee; // Usar el contenido de fee como par de tokens
+      
+      // MOSTRAR FEE REAL SI ESTÁ DISPONIBLE
+      if (nft.feeTier) {
+        feeValue = nft.feeTier; // Usar el fee real extraído de la descripción
+      } else {
+        feeValue = "..."; // Puntos suspensivos si no hay feeTier
+      }
+    } else {
+      // Si por alguna razón ya tenemos símbolos de tokens válidos en la lista
+      tokenPair = `${nft.token0Symbol}/${nft.token1Symbol}`;
+      feeValue = nft.fee;
+    }
+  } else {
+    // PARA NFTS V4:
+    // Para V4 el fee ya viene correcto como "0.01%" o "0.3%"
+    // Pero a veces los tokens siguen siendo "Unknown/Unknown"
+    if (nft.token0Symbol === "Unknown" && nft.token1Symbol === "Unknown") {
+      // Para V4 no podemos extraer el par de tokens del fee, pero podemos usar datos fijos
+      // Si tienes el nombre del NFT podríamos extraerlo de ahí
+      tokenPair = "Unknown/Unknown"; // Mostrar tal cual, en el detalle se verá correctamente
+    } else {
+      tokenPair = `${nft.token0Symbol}/${nft.token1Symbol}`;
+    }
+    
+    // Siempre mostrar el fee para V4 como viene de backend
+    feeValue = nft.fee;
+  }
+  
+  // Usar el valor directo del NFT, sin hardcodear ningún valor
+    
+  return (
+    <Card 
+      className="overflow-hidden shadow-lg hover:shadow-xl dark:border-slate-700 transition-all cursor-pointer flex flex-col h-full bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800"
+      onClick={onClick}
+    >
+      <CardContent className="p-0 flex flex-col h-full">
+        {/* Cabecera con ID y Estado */}
+        <div className="flex justify-between items-center p-2.5 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-800/90 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center">
+            <Tag className="h-3.5 w-3.5 text-primary mr-1.5" />
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">ID: {nft.tokenId}</span>
+          </div>
+          
+          <div>
+            {nft.inRange !== undefined ? (
+              <Badge 
+                variant={nft.inRange ? "success" : "destructive"} 
+                className="px-2 py-0 h-5 flex items-center gap-1 text-xs font-medium"
+              >
+                {nft.inRange ? (
+                  <>
+                    <CheckCircle className="h-3 w-3" />
+                    <span>En rango</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3 w-3" />
+                    <span>Fuera de rango</span>
+                  </>
+                )}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="px-2 py-0 h-5 flex items-center gap-1 text-xs font-medium">
+                <Info className="h-3 w-3" />
+                <span>Estado desconocido</span>
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        {/* Imagen del NFT */}
+        <div className="w-full overflow-hidden relative bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-900 dark:to-slate-800 p-0.5">
+          <div className="w-full aspect-square overflow-hidden rounded-md bg-black/5 dark:bg-white/5">
+            <img 
+              src={nft.imageUrl || "https://app.uniswap.org/static/media/position.b05a58a8.svg"} 
+              alt={`NFT ${nft.tokenId}`} 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // Si hay un error al cargar la imagen, usar una imagen predeterminada
+                const target = e.target as HTMLImageElement;
+                target.src = "https://app.uniswap.org/static/media/position.b05a58a8.svg";
+              }}
+            />
+          </div>
+        </div>
+        
+        {/* Información del par de tokens con iconografía */}
+        <div className="px-3 pt-3 pb-1">
+          <div className="flex items-center mb-1.5">
+            <Repeat className="h-4 w-4 text-primary mr-2" />
+            <div className="text-base font-bold tracking-tight">
+              {tokenPair}
+            </div>
+          </div>
+          
+          <div className="flex flex-col space-y-1.5 mb-2">
+            {/* Fee con iconografía */}
+            <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+              <BarChart3 className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+              <span className="font-medium">Fee:</span>
+              <span className="ml-1.5">{feeValue}</span>
+            </div>
+            
+            {/* Versión con iconografía */}
+            <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+              <Layers className="h-3.5 w-3.5 mr-1.5 text-indigo-500" />
+              <span>{nft.version || (nft.network === "polygon" ? "Uniswap V3" : "Uniswap V4")}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Separador con gradiente */}
+        <div className="px-3">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+        </div>
+        
+        {/* Footer con valor y red/estado de listado */}
+        <div className="p-3 mt-auto flex justify-between items-center bg-gradient-to-b from-transparent to-slate-50/80 dark:to-slate-800/50">
+          {/* Lado izquierdo: Valor y red */}
+          <div className="flex flex-col">
+            {/* Valor con iconografía */}
+            <div className="flex items-center text-sm font-semibold">
+              <Banknote className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+              <span>{nft.poolValue || "Valor no disponible"}</span>
+            </div>
+            
+            {/* Red con iconografía */}
+            <div className="flex items-center mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <Globe className="h-3 w-3 mr-1.5 text-blue-500" />
+              <span>{nft.network === "ethereum" ? "Ethereum" : "Polygon"}</span>
+            </div>
+          </div>
+          
+          {/* Lado derecho: Estado de listado */}
+          {nft.listing?.isListed ? (
+            <div className="flex items-center text-sm">
+              <Activity className="h-4 w-4 mr-1.5 text-primary" />
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-primary">Listado</span>
+                <span className="text-xs text-slate-500">{nft.listing.price}</span>
+              </div>
+            </div>
+          ) : (
+            <Badge variant="outline" className="flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+              <AlertCircle className="h-3 w-3 text-slate-400" />
+              <span>No listado</span>
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Componente de diálogo de detalles del NFT
+const NFTDetailsDialog: React.FC<{
+  tokenId: string | null;
+  network: string;
+  contractAddress?: string;
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ tokenId, network, contractAddress, isOpen, onClose }) => {
+  // Solo cargar detalles si el diálogo está abierto y hay un tokenId
+  const { data: nftDetails, isLoading, error } = useNFTDetails(
+    isOpen && tokenId ? tokenId : "", 
+    network,
+    contractAddress
+  );
+  
+  // Si no hay tokenId, no mostrar nada
+  if (!tokenId) return null;
+  
+  console.log(`Dialog para NFT #${tokenId} en red ${network}:`, nftDetails, error);
+  
+  // Determinar el par de tokens para mostrar en el diálogo de detalles
+  // Para V3 donde token0Symbol y token1Symbol son "Unknown" pero sabemos que el par real está en la descripción
+  let tokenPair = "";
+  
+  // Si tenemos detalles del NFT
+  if (nftDetails) {
+    // Intentar extraer el par de tokens de la descripción para NFTs V3
+    if (nftDetails.description && nftDetails.version === "Uniswap V3") {
+      // La descripción contiene líneas como "Pool Address: 0x..." seguida de
+      // líneas como "USDT Address: 0x..." y "MATIC Address: 0x..."
+      // Podemos extraer los nombres de tokens de estas líneas
+      const lines = nftDetails.description.split('\n');
+      let token0 = "";
+      let token1 = "";
+      
+      // Buscar líneas que contienen "Address:" y no son "Pool Address:"
+      for (const line of lines) {
+        if (line.includes("Address:") && !line.includes("Pool Address:")) {
+          const tokenName = line.split("Address:")[0].trim();
+          if (!token0) {
+            token0 = tokenName;
+          } else if (!token1) {
+            token1 = tokenName;
+          }
+        }
+      }
+      
+      if (token0 && token1) {
+        tokenPair = `${token0}/${token1}`;
+      } else {
+        // Si no pudimos extraer de la descripción pero los tenemos en fee (para NFTs V3)
+        if (nftDetails.token0Symbol === "Unknown" && nftDetails.token1Symbol === "Unknown" && 
+            nftDetails.fee && nftDetails.fee.includes("/")) {
+          tokenPair = nftDetails.fee;
+        } else {
+          // Usar los símbolos normales
+          tokenPair = `${nftDetails.token0Symbol}/${nftDetails.token1Symbol}`;
+        }
+      }
+    } else {
+      // Para V4 o cualquier otro caso
+      tokenPair = `${nftDetails.token0Symbol}/${nftDetails.token1Symbol}`;
+    }
+  }
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700">
+        <DialogTitle className="sr-only">NFT #{tokenId} Detalles</DialogTitle>
+        <DialogDescription className="sr-only">Información detallada sobre el NFT de Uniswap</DialogDescription>
+        
+        {/* Encabezado con gradiente */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 dark:from-slate-900 dark:to-slate-800 p-6 text-white">
+          <div className="flex items-center gap-2 mb-1">
+            <Tag className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold tracking-tight">NFT #{tokenId}</h2>
+          </div>
+          <p className="text-slate-300 ml-7">
+            Información detallada sobre tu posición de liquidez en {network === "ethereum" ? "Ethereum" : "Polygon"}
+          </p>
+        </div>
+        
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" className="text-primary" />
+          </div>
+        ) : nftDetails ? (
+          <div className="px-6 pb-6">
+            {/* Panel superior con imagen y datos principales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-6">
+              {/* Columna izquierda: Imagen */}
+              <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 p-1 rounded-lg overflow-hidden">
+                <img 
+                  src={nftDetails.imageUrl || "https://app.uniswap.org/static/media/position.b05a58a8.svg"} 
+                  alt={`NFT ${tokenId}`} 
+                  className="w-full h-full object-contain rounded-md"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://app.uniswap.org/static/media/position.b05a58a8.svg";
+                  }}
+                />
+              </div>
+              
+              {/* Columna derecha: Datos principales */}
+              <div className="md:col-span-2 space-y-4">
+                {/* Par de tokens y estado */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="flex items-center">
+                    <Repeat className="h-5 w-5 text-primary mr-2" />
+                    <h3 className="text-xl font-bold">{tokenPair}</h3>
+                  </div>
+                  
+                  <div>
+                    {nftDetails.inRange !== undefined ? (
+                      <Badge 
+                        variant={nftDetails.inRange ? "success" : "destructive"} 
+                        className="px-3 py-1 h-7 flex items-center gap-1.5 text-sm font-medium"
+                      >
+                        {nftDetails.inRange ? (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            <span>En rango</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4" />
+                            <span>Fuera de rango</span>
+                          </>
+                        )}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="px-3 py-1 h-7 flex items-center gap-1.5 text-sm font-medium">
+                        <Info className="h-4 w-4" />
+                        <span>Estado desconocido</span>
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Tarjetas de datos */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {/* Fee */}
+                  <div className="bg-slate-100/80 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center mb-1.5 text-slate-500 dark:text-slate-400 text-xs">
+                      <BarChart3 className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                      <span>Fee</span>
+                    </div>
+                    <div className="font-bold text-sm">
+                      {nftDetails.fee}
+                    </div>
+                  </div>
+                  
+                  {/* Versión */}
+                  <div className="bg-slate-100/80 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center mb-1.5 text-slate-500 dark:text-slate-400 text-xs">
+                      <Layers className="h-3.5 w-3.5 mr-1.5 text-indigo-500" />
+                      <span>Versión</span>
+                    </div>
+                    <div className="font-bold text-sm">{nftDetails.version}</div>
+                  </div>
+                  
+                  {/* Valor */}
+                  <div className="bg-slate-100/80 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center mb-1.5 text-slate-500 dark:text-slate-400 text-xs">
+                      <Banknote className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+                      <span>Valor estimado</span>
+                    </div>
+                    <div className="font-bold text-sm">{nftDetails.poolValue || "No disponible"}</div>
+                  </div>
+                </div>
+                
+                {/* Estado del listado */}
+                {nftDetails.marketplaceStatus?.isListed && (
+                  <div className="mt-4 bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-lg border border-primary/20">
+                    <div className="flex items-center mb-2">
+                      <Activity className="h-5 w-5 text-primary mr-2" />
+                      <h4 className="font-semibold">Información de listado</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 ml-7">
+                      <div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Listado en</div>
+                        <div className="font-medium">{nftDetails.marketplaceStatus.marketplace}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Precio</div>
+                        <div className="font-medium">{nftDetails.marketplaceStatus.price}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Separador con gradiente */}
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-6"></div>
+            
+            {/* Panel inferior con datos blockchain */}
+            <div className="space-y-5">
+              <h4 className="font-semibold flex items-center">
+                <div className="h-4 w-1 bg-primary rounded-full mr-2"></div>
+                Datos de blockchain
+              </h4>
+              
+              {/* Dirección del contrato */}
+              <div className="space-y-1.5">
+                <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                  <Info className="h-4 w-4 mr-1.5 text-slate-400" />
+                  <span>Dirección del contrato</span>
+                </div>
+                <div className="flex items-center">
+                  <code className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-l-md border border-slate-200 dark:border-slate-700 flex-1 truncate">
+                    {nftDetails.contractAddress}
+                  </code>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 rounded-l-none border-l-0 bg-slate-50 dark:bg-slate-800" 
+                    asChild
+                  >
+                    <a
+                      href={`https://${nftDetails.network === "ethereum" ? "etherscan.io" : "polygonscan.com"}/address/${nftDetails.contractAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Dirección del pool */}
+              <div className="space-y-1.5">
+                <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                  <Info className="h-4 w-4 mr-1.5 text-slate-400" />
+                  <span>Dirección del pool</span>
+                </div>
+                <div className="flex items-center">
+                  <code className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-l-md border border-slate-200 dark:border-slate-700 flex-1 truncate">
+                    {nftDetails.poolAddress || "No disponible"}
+                  </code>
+                  {nftDetails.poolAddress && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 rounded-l-none border-l-0 bg-slate-50 dark:bg-slate-800" 
+                      asChild
+                    >
+                      <a
+                        href={`https://${nftDetails.network === "ethereum" ? "etherscan.io" : "polygonscan.com"}/address/${nftDetails.poolAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Descripción */}
+              {nftDetails.description && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                    <Info className="h-4 w-4 mr-1.5 text-slate-400" />
+                    <span>Descripción</span>
+                  </div>
+                  <div className="text-sm p-3 bg-slate-100/50 dark:bg-slate-800/30 rounded-md border border-slate-200 dark:border-slate-700">
+                    {nftDetails.description || "Sin descripción disponible."}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Acciones */}
+            <div className="flex justify-end items-center gap-3 mt-8">
+              <Button variant="outline" onClick={onClose} className="border-slate-200 dark:border-slate-700">
+                Cerrar
+              </Button>
+              <Button 
+                className="bg-gradient-to-br from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80"
+                asChild
+              >
+                <a
+                  href={`https://app.uniswap.org/positions/${nftDetails?.version?.includes("V3") ? "v3" : "v4"}/${network === "polygon" ? "polygon" : "ethereum"}/${tokenId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center"
+                >
+                  Ver en Uniswap
+                  <ExternalLink className="h-4 w-4 ml-2" />
+                </a>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="py-12 px-6 text-center">
+            <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No se pudieron cargar los detalles</h3>
+            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+              No hemos podido recuperar la información del NFT #{tokenId} en este momento.
+            </p>
+            <Button variant="outline" onClick={onClose} className="mt-6">
+              Cerrar
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Componente de fila de tabla para NFTs
+const NFTTableRow: React.FC<{
+  nft: any;
+  onClick: () => void;
+}> = ({ nft, onClick }) => {
+  // IMPLEMENTACIÓN CORREGIDA PARA MOSTRAR CORRECTAMENTE LOS PARES DE TOKENS Y FEES EN TABLA
+  
+  let tokenPair;
+  let feeValue;
+  
+  if (nft.version === "Uniswap V3") {
+    // PARA NFTS V3: 
+    // En la respuesta del endpoint /api/nfts/user/:address el campo fee contiene el par de tokens (ej. "USDT/MATIC")
+    // Necesitamos usarlo como par de tokens y mostrar puntos suspensivos para el fee
+    if (nft.fee && nft.fee.includes("/")) {
+      tokenPair = nft.fee; // Usar el contenido de fee como par de tokens
+      
+      // MOSTRAR FEE REAL SI ESTÁ DISPONIBLE
+      if (nft.feeTier) {
+        feeValue = nft.feeTier; // Usar el fee real extraído de la descripción
+      } else {
+        feeValue = "..."; // Puntos suspensivos si no hay feeTier
+      }
+    } else {
+      // Si por alguna razón ya tenemos símbolos de tokens válidos en la lista
+      tokenPair = `${nft.token0Symbol}/${nft.token1Symbol}`;
+      feeValue = nft.fee;
+    }
+  } else {
+    // PARA NFTS V4:
+    // Para V4 el fee ya viene correcto como "0.01%" o "0.3%"
+    // Pero a veces los tokens siguen siendo "Unknown/Unknown"
+    if (nft.token0Symbol === "Unknown" && nft.token1Symbol === "Unknown") {
+      // Para V4 no podemos extraer el par de tokens del fee, pero podemos usar datos fijos
+      tokenPair = "Unknown/Unknown"; // Mostrar tal cual, en el detalle se verá correctamente
+    } else {
+      tokenPair = `${nft.token0Symbol}/${nft.token1Symbol}`;
+    }
+    
+    // Siempre mostrar el fee para V4 como viene de backend
+    feeValue = nft.fee;
+  }
+  
+  return (
+    <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onClick={onClick}>
+      <TableCell className="py-2 w-12">
+        <div className="w-10 h-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+          <img
+            src={nft.imageUrl || "https://app.uniswap.org/static/media/position.b05a58a8.svg"}
+            alt={`NFT ${nft.tokenId}`}
+            className="h-full w-full object-contain"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "https://app.uniswap.org/static/media/position.b05a58a8.svg";
+            }}
+          />
+        </div>
+      </TableCell>
+      <TableCell className="font-medium py-2">{tokenPair}</TableCell>
+      <TableCell className="py-2">{nft.version}</TableCell>
+      <TableCell className="py-2 text-slate-500 dark:text-slate-400 text-sm">#{nft.tokenId}</TableCell>
+      <TableCell className="py-2">{nft.poolValue || "—"}</TableCell>
+      <TableCell className="py-2">
+        {nft.inRange !== undefined ? (
+          <Badge 
+            variant={nft.inRange ? "success" : "destructive"} 
+            className="px-2 py-0 h-5 flex items-center gap-1 text-xs font-medium"
+          >
+            {nft.inRange ? (
+              <>
+                <CheckCircle className="h-3 w-3" />
+                <span>En rango</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-3 w-3" />
+                <span>Fuera de rango</span>
+              </>
+            )}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="px-2 py-0 h-5 flex items-center gap-1 text-xs font-medium">
+            <Info className="h-3 w-3" />
+            <span>Desconocido</span>
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Copiar al portapapeles
+              navigator.clipboard.writeText(nft.contractAddress);
+            }}
+          >
+            <Copy className="h-3.5 w-3.5 text-slate-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Redirigir a etherscan/polygonscan
+              window.open(
+                `https://${nft.network === "ethereum" ? "etherscan.io" : "polygonscan.com"}/token/${nft.contractAddress}?a=${nft.tokenId}`,
+                "_blank"
+              );
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Componente principal de la página de NFTs
+const NFTsPage: React.FC = () => {
+  const { address } = useWallet();
+  const { data: nfts, isLoading } = useUserNFTs();
+  
+  // Depuración: Mostrar los NFTs recibidos del backend
+  React.useEffect(() => {
+    if (nfts) {
+      console.log('NFTs cargados del backend:', nfts);
+      console.log('Total de NFTs:', nfts.length);
+      console.log('NFTs por red:', {
+        polygon: nfts.filter(nft => nft.network === 'polygon').length,
+        ethereum: nfts.filter(nft => nft.network === 'ethereum').length
+      });
+    }
+  }, [nfts]);
+  
+  const [selectedNFT, setSelectedNFT] = useState<string | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("polygon");
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [showOnlyInRange, setShowOnlyInRange] = useState(false);
+  const [showOnlyListed, setShowOnlyListed] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [sortField, setSortField] = useState<string>("tokenId");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  
+  // Función para cambiar el orden al hacer clic en una cabecera
+  const handleSortChange = (field: string) => {
+    if (sortField === field) {
+      // Si ya estamos ordenando por este campo, invertir la dirección
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Si es un nuevo campo, establecerlo como campo de ordenación y dirección descendente por defecto
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+  
+  // Filtrar NFTs según los filtros seleccionados
+  const filteredNFTs = React.useMemo(() => {
+    if (!nfts) return [];
+    
+    // Primero filtramos
+    const filtered = nfts.filter((nft) => {
+      // Filtrar por red
+      if (selectedNetwork !== "all" && nft.network !== selectedNetwork) {
+        return false;
+      }
+      
+      // Filtrar por rango
+      if (showOnlyInRange && !nft.inRange) {
+        return false;
+      }
+      
+      // Filtrar por listado
+      if (showOnlyListed && (!nft.listing || !nft.listing.isListed)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // Luego ordenamos
+    return [...filtered].sort((a, b) => {
+      let valueA: any;
+      let valueB: any;
+      
+      // Determinar valores a comparar según el campo de ordenación
+      switch (sortField) {
+        case "tokenId":
+          valueA = parseInt(a.tokenId, 10) || 0;
+          valueB = parseInt(b.tokenId, 10) || 0;
+          break;
+        case "pair":
+          valueA = `${a.token0Symbol}/${a.token1Symbol}`;
+          valueB = `${b.token0Symbol}/${b.token1Symbol}`;
+          break;
+        case "version":
+          valueA = a.version || "";
+          valueB = b.version || "";
+          break;
+        case "fee":
+          // Extraer valor numérico de la fee
+          const feeValueA = parseFloat(a.fee?.replace("%", "")) || 0;
+          const feeValueB = parseFloat(b.fee?.replace("%", "")) || 0;
+          valueA = feeValueA;
+          valueB = feeValueB;
+          break;
+        case "status":
+          valueA = a.inRange ? 1 : 0;
+          valueB = b.inRange ? 1 : 0;
+          break;
+        case "network":
+          valueA = a.network;
+          valueB = b.network;
+          break;
+        default:
+          valueA = a[sortField as keyof typeof a] || "";
+          valueB = b[sortField as keyof typeof b] || "";
+      }
+      
+      // Comparar valores según la dirección de ordenación
+      if (valueA < valueB) {
+        return sortDirection === "asc" ? -1 : 1;
+      }
+      if (valueA > valueB) {
+        return sortDirection === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [nfts, selectedNetwork, showOnlyInRange, showOnlyListed, sortField, sortDirection]);
+  
+  // Manejar clic en tarjeta o fila de NFT
+  const [selectedContractAddress, setSelectedContractAddress] = useState<string | undefined>(undefined);
+  
+  const handleNFTClick = (tokenId: string, network: string, contractAddress: string) => {
+    setSelectedNFT(tokenId);
+    setSelectedNetwork(network);
+    setSelectedContractAddress(contractAddress);
+    setIsDetailsDialogOpen(true);
+  };
+  
+  return (
+    <DashboardLayout>
+      <div className="container mx-auto p-4 max-w-full">
+        <div className="flex flex-col gap-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">Mis NFTs de Uniswap</h1>
+              <p className="text-muted-foreground">
+                Gestiona tus posiciones de liquidez tokenizadas
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Crear posición
+              </Button>
+              <Button size="sm">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Explorar mercado
+              </Button>
+            </div>
+          </div>
+          
+          <Tabs defaultValue="polygon" className="w-full">
+            <div className="flex justify-between items-center">
+              <TabsList>
+                <TabsTrigger value="all" onClick={() => setSelectedNetwork("all")}>
+                  Todos
+                </TabsTrigger>
+                <TabsTrigger value="ethereum" onClick={() => setSelectedNetwork("ethereum")}>
+                  Ethereum
+                </TabsTrigger>
+                <TabsTrigger value="polygon" onClick={() => setSelectedNetwork("polygon")}>
+                  Polygon
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="in-range-filter"
+                    checked={showOnlyInRange}
+                    onCheckedChange={setShowOnlyInRange}
+                  />
+                  <Label htmlFor="in-range-filter" className="cursor-pointer">
+                    Solo en rango
+                  </Label>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="listed-filter"
+                    checked={showOnlyListed}
+                    onCheckedChange={setShowOnlyListed}
+                  />
+                  <Label htmlFor="listed-filter" className="cursor-pointer">
+                    Solo listados
+                  </Label>
+                </div>
+                
+                <Button variant="outline" size="icon">
+                  <Sliders className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Cabecera de resultados con selector de vista */}
+            <div className="flex flex-col gap-4 mt-6 mb-4">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center">
+                  <span className="font-medium text-slate-700 dark:text-slate-300 mr-1">
+                    {filteredNFTs.length}
+                  </span>
+                  {filteredNFTs.length === 1 ? "NFT encontrado" : "NFTs encontrados"}
+                  {itemsPerPage < filteredNFTs.length && viewMode === "table" && (
+                    <span className="ml-1">{`(mostrando ${itemsPerPage})`}</span>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Selector de elementos por página (solo en vista tabla) */}
+                  {viewMode === "table" && (
+                    <div className="flex items-center gap-2 border rounded-md px-2 py-1 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
+                      <span className="text-xs text-slate-500">Items:</span>
+                      <select
+                        className="text-xs bg-transparent border-none focus:ring-0 p-0 pr-4 appearance-none"
+                        value={itemsPerPage}
+                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  )}
+                  
+                  {/* Selector de vista (grid/table) */}
+                  <ToggleGroup 
+                    type="single" 
+                    value={viewMode} 
+                    onValueChange={(value) => value && setViewMode(value as "grid" | "table")}
+                    className="border rounded-md"
+                  >
+                    <ToggleGroupItem value="grid" aria-label="Ver como tarjetas" className="h-8 w-8 p-0 data-[state=on]:bg-slate-100 dark:data-[state=on]:bg-slate-800">
+                      <LayoutGrid className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="table" aria-label="Ver como tabla" className="h-8 w-8 p-0 data-[state=on]:bg-slate-100 dark:data-[state=on]:bg-slate-800">
+                      <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              </div>
+              
+              {/* Cabecera de ordenación para ambas vistas */}
+              <div className="flex items-center">
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-200 mr-2 flex items-center">
+                  <ArrowUpDown className="h-4 w-4 mr-1 text-slate-400" /> 
+                  Ordenar por:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={sortField === "tokenId" ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-xs group"
+                    onClick={() => handleSortChange("tokenId")}
+                  >
+                    ID
+                    {sortField === "tokenId" && (
+                      <span className="ml-1">
+                        {sortDirection === "asc" ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant={sortField === "version" ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => handleSortChange("version")}
+                  >
+                    Versión
+                    {sortField === "version" && (
+                      <span className="ml-1">
+                        {sortDirection === "asc" ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant={sortField === "pair" ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => handleSortChange("pair")}
+                  >
+                    Par de tokens
+                    {sortField === "pair" && (
+                      <span className="ml-1">
+                        {sortDirection === "asc" ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant={sortField === "fee" ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => handleSortChange("fee")}
+                  >
+                    Fee
+                    {sortField === "fee" && (
+                      <span className="ml-1">
+                        {sortDirection === "asc" ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant={sortField === "network" ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => handleSortChange("network")}
+                  >
+                    Red
+                    {sortField === "network" && (
+                      <span className="ml-1">
+                        {sortDirection === "asc" ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
+                      </span>
+                    )}
+                  </Button>
+                  
+                  {/* Botón para invertir el orden */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 ml-auto"
+                    onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}
+                  >
+                    {sortDirection === "asc" ? (
+                      <ChevronUp className="h-4 w-4 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-slate-500" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : filteredNFTs.length > 0 ? (
+                viewMode === "grid" ? (
+                  // Vista de tarjetas (grid)
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {filteredNFTs.map((nft) => (
+                      <NFTCard
+                        key={`${nft.tokenId}-${nft.network}`}
+                        nft={nft}
+                        onClick={() => handleNFTClick(nft.tokenId, nft.network, nft.contractAddress)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  // Vista de tabla
+                  <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 dark:border-slate-700">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800">
+                        <TableRow>
+                          <TableHead className="w-16"></TableHead>
+                          <TableHead 
+                            onClick={() => handleSortChange("pair")}
+                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <span>Par de tokens</span>
+                              {sortField === "pair" && (
+                                <div className="ml-1">
+                                  {sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                              )}
+                              {sortField !== "pair" && <ArrowUpDown className="h-4 w-4 ml-1 opacity-30" />}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSortChange("version")}
+                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <span>Versión</span>
+                              {sortField === "version" && (
+                                <div className="ml-1">
+                                  {sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                              )}
+                              {sortField !== "version" && <ArrowUpDown className="h-4 w-4 ml-1 opacity-30" />}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSortChange("tokenId")}
+                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <span>Token ID</span>
+                              {sortField === "tokenId" && (
+                                <div className="ml-1">
+                                  {sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                              )}
+                              {sortField !== "tokenId" && <ArrowUpDown className="h-4 w-4 ml-1 opacity-30" />}
+                            </div>
+                          </TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead 
+                            onClick={() => handleSortChange("status")}
+                            className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <span>Estado</span>
+                              {sortField === "status" && (
+                                <div className="ml-1">
+                                  {sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                              )}
+                              {sortField !== "status" && <ArrowUpDown className="h-4 w-4 ml-1 opacity-30" />}
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredNFTs.slice(0, itemsPerPage).map((nft) => (
+                          <NFTTableRow
+                            key={`table-${nft.tokenId}-${nft.network}`}
+                            nft={nft}
+                            onClick={() => handleNFTClick(nft.tokenId, nft.network, nft.contractAddress)}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                    
+                    {filteredNFTs.length > itemsPerPage && (
+                      <div className="flex items-center justify-between px-4 py-2 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                        <Button variant="outline" size="sm" className="h-8">
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Anterior
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((page) => (
+                            <Button
+                              key={page}
+                              variant={page === 1 ? "default" : "outline"}
+                              size="sm"
+                              className={`h-8 w-8 p-0 ${
+                                page === 1
+                                  ? "bg-primary text-primary-foreground"
+                                  : ""
+                              }`}
+                            >
+                              {page}
+                            </Button>
+                          ))}
+                        </div>
+                        <Button variant="outline" size="sm" className="h-8">
+                          Siguiente
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )
+              
+              ) : (
+                <div className="text-center py-12 border rounded-lg bg-muted/20">
+                  <div className="text-4xl mb-3">🦄</div>
+                  <h3 className="text-lg font-semibold">No tienes NFTs de Uniswap</h3>
+                  <p className="text-muted-foreground mt-1 max-w-md mx-auto">
+                    Los NFTs de Uniswap representan tus posiciones de liquidez. Crea una posición en Uniswap para obtener NFTs.
+                  </p>
+                  <Button className="mt-4" asChild>
+                    <a
+                      href="https://app.uniswap.org/pools"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Crear posición en Uniswap
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Tabs>
+        </div>
+      </div>
+      
+      <NFTDetailsDialog
+        tokenId={selectedNFT}
+        network={selectedNetwork}
+        contractAddress={selectedContractAddress}
+        isOpen={isDetailsDialogOpen}
+        onClose={() => setIsDetailsDialogOpen(false)}
+      />
+    </DashboardLayout>
+  );
+};
+
+export default NFTsPage;

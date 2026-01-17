@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="200" fill="#d52b1e"/>
+  <rect width="900" height="200" fill="#fff" y="200"/>
+  <rect width="900" height="200" fill="#0039a6" y="400"/>
+  <g transform="translate(450, 300)">
+    <circle r="80" fill="#fff"/>
+    <circle r="65" fill="#f9e300"/>
+    <path d="M 0,-40 C -22,0 -22,40 0,40 C 22,40 22,0 0,-40 Z" fill="#0039a6"/>
+    <path d="M 0,-40 C 22,0 22,40 0,40 C -22,40 -22,0 0,-40 Z" fill="#d52b1e"/>
+    <circle r="15" fill="#0039a6"/>
+    <path d="M -10,-3 L -10,5 L 0,5 L 0,-3 Z M 5,-3 L 5,5 L 15,5 L 15,-3 Z M -10,-8 L 15,-8 L 15,-13 L -10,-13 Z" fill="#fff"/>
+  </g>
+</svg>

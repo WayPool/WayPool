@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512px" height="512px" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="linearGradient-1">
+      <stop stop-color="#6366F1" offset="0%"></stop>
+      <stop stop-color="#4F46E5" offset="100%"></stop>
+    </linearGradient>
+    <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="linearGradient-2">
+      <stop stop-color="#10B981" offset="0%"></stop>
+      <stop stop-color="#059669" offset="100%"></stop>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Background hexagon pattern -->
+  <g opacity="0.2">
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(0, 0)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(70, 0)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(140, 0)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(210, 0)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(280, 0)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(350, 0)"></path>
+    
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(35, 100)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(105, 100)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(175, 100)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(245, 100)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(315, 100)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(385, 100)"></path>
+    
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(0, 200)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(70, 200)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(140, 200)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(210, 200)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(280, 200)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(350, 200)"></path>
+    
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(35, 300)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(105, 300)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(175, 300)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(245, 300)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(315, 300)"></path>
+    <path d="M30,52 L60,30 L90,52 L90,96 L60,118 L30,96 Z" fill="#6366F1" transform="translate(385, 300)"></path>
+  </g>
+  
+  <!-- Shield outline -->
+  <path d="M256,90 L380,142 L380,246 C380,312 325,372 256,390 C187,372 132,312 132,246 L132,142 L256,90 Z" 
+        fill="none" 
+        stroke="url(#linearGradient-1)" 
+        stroke-width="8" 
+        filter="url(#glow)">
+  </path>
+  
+  <!-- Lock body -->
+  <path d="M226,248 L286,248 L296,248 L296,202 C296,174 274,152 246,152 C218,152 196,174 196,202 L196,248 L206,248 L226,248 Z M226,248 L226,202 C226,191 235,182 246,182 C257,182 266,191 266,202 L266,248 L226,248 Z" 
+        fill="url(#linearGradient-1)" 
+        filter="url(#glow)">
+  </path>
+  
+  <!-- Lock case -->
+  <rect x="196" y="248" width="100" height="70" rx="8" fill="url(#linearGradient-1)"></rect>
+  
+  <!-- Blockchain nodes and connections -->
+  <g transform="translate(170, 260)">
+    <circle cx="25" cy="35" r="6" fill="#FFFFFF" opacity="0.7"></circle>
+    <circle cx="55" cy="15" r="6" fill="#FFFFFF" opacity="0.7"></circle>
+    <circle cx="85" cy="35" r="6" fill="#FFFFFF" opacity="0.7"></circle>
+    <circle cx="55" cy="55" r="6" fill="#FFFFFF" opacity="0.7"></circle>
+    
+    <line x1="25" y1="35" x2="55" y2="15" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+    <line x1="55" y1="15" x2="85" y2="35" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+    <line x1="85" y1="35" x2="55" y2="55" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+    <line x1="55" y1="55" x2="25" y2="35" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+    <line x1="25" y1="35" x2="85" y2="35" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+    <line x1="55" y1="15" x2="55" y2="55" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></line>
+  </g>
+  
+  <!-- Green checkmark -->
+  <g transform="translate(246, 160)">
+    <circle cx="50" cy="275" r="18" fill="url(#linearGradient-2)" filter="url(#glow)"></circle>
+    <path d="M44,275 L48,279 L56,271" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  </g>
+</svg>

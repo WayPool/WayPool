@@ -1,0 +1,1404 @@
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "@/hooks/use-translation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useWalletAddress } from "../../hooks/use-wallet-address";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Clipboard, Users, Gift, Sparkles, ArrowRight, Wallet, Zap, BarChart3 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { 
+  Table, 
+  TableBody, 
+  TableCaption, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { formatExactCurrency } from "@/lib/utils";
+import Web3ConnectButton from "@/components/wallet/web3-connect-button";
+
+// Componentes personalizados para el programa de referidos
+import ReferralCodeCard from "@/components/referrals/referral-code-card";
+import RewardsCalculator from "@/components/referrals/rewards-calculator";
+import SuccessStories from "@/components/referrals/success-stories";
+import ReferralStats from "@/components/referrals/referral-stats";
+import BenefitsShowcase from "@/components/referrals/benefits-showcase";
+
+// Tipos para los datos de referidos
+interface Referral {
+  id: number;
+  referralCode: string;
+  walletAddress: string;
+  totalRewards: string;
+  createdAt: string;
+}
+
+interface ReferredUser {
+  id: number;
+  referralId: number;
+  referredWalletAddress: string;
+  joinedAt: string;
+  status: "active" | "inactive";
+  earnedRewards: string;
+  aprBoost: string;
+}
+
+interface ReferralStatus {
+  isReferred: boolean;
+  referredUser?: ReferredUser;
+  referrerWalletAddress?: string;
+}
+
+const ReferralsPage: React.FC = () => {
+  const { t } = useTranslation();
+  const { walletAddress } = useWalletAddress();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [referralCode, setReferralCode] = useState("");
+
+  // Consulta para obtener los referrals del usuario actual
+  const { 
+    data: myReferrals,
+    isLoading: isLoadingReferrals,
+    isError: isErrorReferrals,
+  } = useQuery<Referral[]>({ 
+    queryKey: ['/api/referrals', walletAddress],
+    enabled: !!walletAddress,
+  });
+
+  // Consulta para obtener los usuarios referidos
+  const { 
+    data: referredUsers,
+    isLoading: isLoadingReferredUsers,
+    isError: isErrorReferredUsers,
+  } = useQuery<ReferredUser[]>({ 
+    queryKey: ['/api/referrals/users/referred', walletAddress],
+    enabled: !!walletAddress,
+  });
+
+  // Consulta para verificar si el usuario actual es un referido
+  const { 
+    data: referralStatus,
+    isLoading: isLoadingReferralStatus,
+    isError: isErrorReferralStatus,
+  } = useQuery<ReferralStatus>({ 
+    queryKey: ['/api/referrals/check-referred', walletAddress],
+    enabled: !!walletAddress,
+  });
+
+  // Mutación para crear un código de referido
+  const createReferralMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/referrals'),
+    onSuccess: (data: Referral) => {
+      toast({
+        title: t("Referral code created"),
+        description: t("Your referral code has been created successfully"),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/referrals', walletAddress] });
+    },
+    onError: (error) => {
+      toast({
+        title: t("Error"),
+        description: t("There was an error creating your referral code"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutación para registrar un código de referido
+  const useReferralCodeMutation = useMutation({
+    mutationFn: (code: string) => apiRequest('POST', '/api/referrals/users/referred', { referralCode: code }),
+    onSuccess: (data) => {
+      toast({
+        title: t("Success"),
+        description: t("You have successfully used a referral code"),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/referrals/check-referred', walletAddress] });
+      setReferralCode("");
+      setDetectedCodeFromUrl(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("Error"),
+        description: error.response?.data?.error || t("There was an error using the referral code"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Función para manejar la copia del código de referido
+  const handleCopyReferralCode = async () => {
+    if (myReferrals && myReferrals.length > 0) {
+      try {
+        // Crear una URL completa para facilitar el uso del código
+        const referralUrl = `${window.location.origin}/referrals?code=${myReferrals[0].referralCode}`;
+        await navigator.clipboard.writeText(referralUrl);
+        toast({
+          title: t("Copied!"),
+          description: t("Full referral link copied to clipboard"),
+        });
+      } catch (err) {
+        toast({
+          title: t("Error"),
+          description: t("Could not copy to clipboard"),
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Función para compartir el código de referido
+  const handleShareReferralCode = async () => {
+    if (myReferrals && myReferrals.length > 0) {
+      try {
+        // Crear una URL completa con el código de referido
+        const referralUrl = `${window.location.origin}/referrals?code=${myReferrals[0].referralCode}`;
+        
+        const shareData = {
+          title: 'Waybank Referral',
+          text: `${t('Join Waybank with my referral link')} ${t('and get an extra 1% APR!')}`,
+          url: referralUrl,
+        };
+        
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          // Si la API Web Share no está disponible, copiar URL completa al portapapeles
+          await navigator.clipboard.writeText(referralUrl);
+          toast({
+            title: t("Copied!"),
+            description: t("Full referral link copied to clipboard"),
+          });
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          toast({
+            title: t("Error"),
+            description: t("Could not share the referral link"),
+            variant: "destructive",
+          });
+        }
+      }
+    }
+  };
+
+  // Función para manejar la creación de un código de referido
+  const handleCreateReferralCode = async () => {
+    // Verificar primero si el usuario está autenticado
+    try {
+      const sessionResponse = await fetch('/api/auth/session');
+      const sessionData = await sessionResponse.json();
+      
+      if (!sessionData.isLoggedIn) {
+        toast({
+          title: t("Error"),
+          description: t("Necesitas conectar tu billetera y estar autenticado para crear un código de referido."),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Si está autenticado, crear el código
+      createReferralMutation.mutate();
+    } catch (error) {
+      console.error("Error verificando autenticación:", error);
+      toast({
+        title: t("Error"),
+        description: t("Ocurrió un problema verificando tu autenticación. Intenta conectar tu billetera nuevamente."),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para manejar el uso de un código de referido
+  const handleUseReferralCode = async () => {
+    // Verificar primero si el usuario está autenticado
+    try {
+      const sessionResponse = await fetch('/api/auth/session');
+      const sessionData = await sessionResponse.json();
+      
+      if (!sessionData.isLoggedIn) {
+        toast({
+          title: t("Error"),
+          description: t("Necesitas conectar tu billetera y estar autenticado para usar un código de referido."),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Verificar que el código de referido sea válido
+      if (referralCode.trim()) {
+        useReferralCodeMutation.mutate(referralCode.trim());
+      } else {
+        toast({
+          title: t("Error"),
+          description: t("Por favor ingresa un código de referido válido"),
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error verificando autenticación:", error);
+      toast({
+        title: t("Error"),
+        description: t("Ocurrió un problema verificando tu autenticación. Intenta conectar tu billetera nuevamente."),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Truncar la dirección del wallet para mostrarla de forma más legible
+  const truncateAddress = (address: string) => {
+    return address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : "";
+  };
+
+  // Formatear la fecha en formato legible para el usuario
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat(navigator.language, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  };
+
+  // Obtener la cantidad total de recompensas generadas por referidos
+  const getTotalRewards = () => {
+    if (!myReferrals || myReferrals.length === 0) return "0";
+    return myReferrals[0].totalRewards;
+  };
+
+  // Obtener el aumento de APR si el usuario es un referido
+  const getAprBoost = () => {
+    if (!referralStatus?.isReferred || !referralStatus.referredUser) return null;
+    // Convertir el valor del boost (p.ej. 1.01) a porcentaje (p.ej. 1%)
+    const boostValue = parseFloat(referralStatus.referredUser.aprBoost);
+    return ((boostValue - 1) * 100).toFixed(1);
+  };
+
+  // Estado para controlar si se detectó un código en la URL
+  const [detectedCodeFromUrl, setDetectedCodeFromUrl] = React.useState<string | null>(null);
+  
+  // Detectar y usar código de referido desde la URL
+  React.useEffect(() => {
+    // Obtener parámetros de la URL
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = params.get('code');
+    
+    if (codeFromUrl && isAuthenticated) {
+      // Si hay un código en la URL y el usuario está autenticado, establecer el código
+      setReferralCode(codeFromUrl);
+      setDetectedCodeFromUrl(codeFromUrl);
+      
+      // Cambiar a la pestaña "Usar código de referido"
+      const tabsElement = document.querySelector('[data-value="use-code"]') as HTMLElement;
+      if (tabsElement) {
+        tabsElement.click();
+      }
+    }
+  }, [isAuthenticated]);
+  
+  // Estado de autenticación
+  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(false);
+  const [checkingAuth, setCheckingAuth] = React.useState<boolean>(true);
+
+  // Verificar si el usuario está autenticado
+  React.useEffect(() => {
+    const checkAuthentication = async () => {
+      try {
+        setCheckingAuth(true);
+        const sessionResponse = await fetch('/api/auth/session');
+        const sessionData = await sessionResponse.json();
+        setIsAuthenticated(sessionData.isLoggedIn);
+      } catch (error) {
+        console.error("Error verificando autenticación:", error);
+        setIsAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkAuthentication();
+  }, []);
+  
+  // Preparar datos para estadísticas
+  const statsData = {
+    totalReferred: referredUsers?.length || 0,
+    activeUsers: referredUsers?.filter(u => u.status === "active").length || 0,
+    totalRewards: getTotalRewards(),
+    completionRate: referredUsers && referredUsers.length > 0 
+      ? (referredUsers.filter(u => u.status === "active").length / referredUsers.length) * 100 
+      : 0
+  };
+  
+  // Datos para el próximo nivel de recompensas
+  const targetInfo = {
+    currentLevel: referredUsers?.length || 0,
+    nextLevel: referredUsers?.length ? Math.ceil((referredUsers.length + 1) / 5) * 5 : 5, // Siguiente múltiplo de 5
+    progress: referredUsers?.length ? (referredUsers.length % 5) * 20 : 0,
+    reward: formatExactCurrency(50, "USD") // Recompensa ficticia por alcanzar el siguiente nivel
+  };
+  
+  return (
+    <div className="container mx-auto py-6 space-y-8">
+      {/* Header con fondo decorativo y efecto de gradiente */}
+      <div className="relative bg-gradient-to-br from-primary/10 to-background rounded-lg p-6 mb-8 overflow-hidden shadow-sm">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary opacity-10 rounded-full filter blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+        
+        <div className="relative z-10 max-w-4xl">
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+            {t("Referral Program")}
+          </h1>
+          <p className="text-xl text-muted-foreground mt-2">
+            {t("Grow your passive income and help your friends earn more with Waybank")}
+          </p>
+          
+          <div className="flex flex-wrap gap-4 mt-6">
+            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
+              <Gift className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{t("1% of Benefits")}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
+              <Zap className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{t("+1% APR Boost")}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{t("Unlimited Referrals")}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{t("Win-Win System")}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Mostrar banner de conexión si no está autenticado */}
+        {!checkingAuth && !isAuthenticated && (
+          <Alert variant="default" className="mt-6 bg-card border-primary/20 shadow-lg max-w-xl">
+            <Wallet className="h-5 w-5 text-primary" />
+            <AlertTitle className="text-lg">{t("Connect your wallet")}</AlertTitle>
+            <AlertDescription className="flex flex-col gap-4">
+              <p>{t("You need to connect your wallet to use the referral program and start earning passive income.")}</p>
+              <div>
+                <Web3ConnectButton size="default" variant="default" className="mt-2" />
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+      
+      <Tabs defaultValue="my-code" className="w-full">
+        <TabsList className="mb-6 bg-card border border-border shadow-sm">
+          <TabsTrigger value="my-code" className="data-[state=active]:bg-primary/10">
+            {t("My Referral Code")}
+          </TabsTrigger>
+          <TabsTrigger value="use-code" className="data-[state=active]:bg-primary/10">
+            {t("Use Referral Code")}
+          </TabsTrigger>
+          <TabsTrigger value="referred-users" className="data-[state=active]:bg-primary/10">
+            {t("Referred Users")}
+          </TabsTrigger>
+          <TabsTrigger value="benefits" className="data-[state=active]:bg-primary/10">
+            {t("Benefits")}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Mi código de referido */}
+        <TabsContent value="my-code" className="space-y-8 animate-in fade-in-50 duration-500">
+          {isLoadingReferrals ? (
+            <Card>
+              <CardContent className="pt-6 min-h-40">
+                <div className="h-32 flex items-center justify-center">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-primary/20 rounded w-3/4"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-primary/10 rounded"></div>
+                        <div className="h-4 bg-primary/10 rounded w-5/6"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isErrorReferrals ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("Error")}</AlertTitle>
+              <AlertDescription>
+                {t("There was an error loading your referral code. Please try again later.")}
+              </AlertDescription>
+            </Alert>
+          ) : myReferrals && myReferrals.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ReferralCodeCard 
+                    referralCode={myReferrals[0].referralCode}
+                    onCopy={handleCopyReferralCode}
+                    onShare={handleShareReferralCode}
+                  />
+                </div>
+                
+                <div>
+                  <ReferralStats 
+                    stats={statsData}
+                    targetInfo={targetInfo}
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-8">
+                <RewardsCalculator />
+              </div>
+              
+              <div className="pt-8">
+                <SuccessStories />
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <Card className="overflow-hidden border-primary/10 shadow-lg">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary opacity-10 rounded-full filter blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+                  <CardHeader>
+                    <CardTitle className="text-2xl">{t("Create Your Referral Code")}</CardTitle>
+                    <CardDescription>
+                      {t("Generate a unique referral code to start inviting friends")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-4 relative z-10">
+                    <div className="flex flex-col items-center space-y-6 max-w-md mx-auto">
+                      <div className="bg-primary/10 rounded-full p-5">
+                        <Gift className="h-10 w-10 text-primary" />
+                      </div>
+                      
+                      <p className="text-center text-muted-foreground">
+                        {t("Join our referral program and start earning rewards. You'll receive 1% of the benefits generated by the users you refer, and they'll get an extra 1% APR on all their positions.")}
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-8 w-full mt-6">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="bg-emerald-500/10 rounded-full h-12 w-12 flex items-center justify-center mb-2">
+                            <span className="text-emerald-500 font-bold">1%</span>
+                          </div>
+                          <p className="text-sm">{t("You earn 1% of all benefits")}</p>
+                        </div>
+                        
+                        <div className="flex flex-col items-center text-center">
+                          <div className="bg-blue-500/10 rounded-full h-12 w-12 flex items-center justify-center mb-2">
+                            <span className="text-blue-500 font-bold">∞</span>
+                          </div>
+                          <p className="text-sm">{t("No limit to referred users")}</p>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleCreateReferralCode} 
+                        disabled={createReferralMutation.isPending}
+                        className="w-full mt-6"
+                        size="lg"
+                      >
+                        {createReferralMutation.isPending ? (
+                          <>
+                            <span className="animate-pulse mr-2">●</span>
+                            {t("Creating...")}
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            {t("Create Referral Code")}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-6 lg:col-span-1">
+                <Card className="border-primary/10 bg-gradient-to-br from-background to-primary/5">
+                  <CardHeader>
+                    <CardTitle>{t("How It Works")}</CardTitle>
+                    <CardDescription>
+                      {t("3 simple steps to start earning")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-primary/10 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="font-bold text-primary">1</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{t("Create your code")}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t("Generate your unique referral code with one click")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-4">
+                      <div className="bg-primary/10 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="font-bold text-primary">2</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{t("Share with friends")}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t("Send your referral link to friends using any platform")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-4">
+                      <div className="bg-primary/10 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="font-bold text-primary">3</span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{t("Earn rewards")}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t("Receive 1% of all benefits your referrals generate, forever")}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border-primary/10 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle>{t("Your Earnings Potential")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("5 Referrals")}</span>
+                          <span className="font-medium">$250/year</span>
+                        </div>
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary w-1/4"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("20 Referrals")}</span>
+                          <span className="font-medium">$1,000/year</span>
+                        </div>
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary w-2/4"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("50 Referrals")}</span>
+                          <span className="font-medium">$2,500/year</span>
+                        </div>
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary w-3/4"></div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground pt-2">
+                        {t("Based on average investments of $1,000 per user with 50% APR")}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Usar código de referido */}
+        <TabsContent value="use-code" className="space-y-6 animate-in fade-in-50 duration-500">
+          {isLoadingReferralStatus ? (
+            <Card>
+              <CardContent className="pt-6 min-h-40">
+                <div className="h-32 flex items-center justify-center">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-primary/20 rounded w-3/4"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-primary/10 rounded"></div>
+                        <div className="h-4 bg-primary/10 rounded w-5/6"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isErrorReferralStatus ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("Error")}</AlertTitle>
+              <AlertDescription>
+                {t("There was an error checking your referral status. Please try again later.")}
+              </AlertDescription>
+            </Alert>
+          ) : referralStatus?.isReferred ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-success/20 bg-gradient-to-br from-card to-success/5 shadow-lg">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-success opacity-10 rounded-full filter blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-emerald-500" />
+                    {t("You're Already Referred")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("You are already enjoying benefits from our referral program")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-card border border-success/20 rounded-lg p-6 relative z-10">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium">
+                        {t("Your APR Boost")}
+                      </h3>
+                      <div className="bg-success/10 text-success rounded-full px-3 py-1 font-bold">
+                        +{getAprBoost()}%
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground mb-4">
+                      {t("Your positions are now earning an additional")} {getAprBoost()}% {t("APR thanks to your referral boost!")}
+                    </p>
+                    
+                    {referralStatus.referrerWalletAddress && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <p className="text-sm text-muted-foreground">
+                          {t("You were referred by")}:
+                        </p>
+                        <div className="mt-1 font-mono bg-card border rounded-md p-2 px-3 inline-block">
+                          {truncateAddress(referralStatus.referrerWalletAddress)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="bg-success/10 border border-success/20 rounded-lg p-4 mt-6">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <Gift className="h-4 w-4 text-emerald-500" />
+                      {t("Now it's your turn to refer!")}
+                    </h3>
+                    <p className="text-sm mt-1">
+                      {t("Create your own referral code and start earning passive income by referring others.")}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-3 w-full border-success/20 hover:bg-success/5"
+                      onClick={() => { const element = document.querySelector('button[value="my-code"]') as HTMLButtonElement; if (element) element.click(); }}
+                    >
+                      {t("Create My Referral Code")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="space-y-6">
+                <Card className="border-primary/10 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>{t("What This Means For You")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-emerald-500/10 rounded-full p-2 mt-0.5">
+                          <Sparkles className="h-4 w-4 text-emerald-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{t("Increased Returns")}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {t("All your positions now earn an additional 1% APR automatically")}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-500/10 rounded-full p-2 mt-0.5">
+                          <Zap className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{t("Already Applied")}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {t("Your boost is already active and working on all your positions")}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="bg-violet-500/10 rounded-full p-2 mt-0.5">
+                          <Gift className="h-4 w-4 text-violet-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{t("Pass It On")}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {t("Now you can create your own referral code to help others boost their returns")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <div className="bg-primary/5 border border-primary/10 rounded-lg p-5">
+                  <h3 className="font-medium text-lg mb-3">{t("Example Boost Calculation")}</h3>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-card rounded-md border border-primary/10">
+                      <div className="flex justify-between items-center">
+                        <span>{t("Base APR")}</span>
+                        <span className="font-mono">50%</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-card rounded-md border border-success/20">
+                      <div className="flex justify-between items-center">
+                        <span>{t("Referral Boost")}</span>
+                        <span className="font-mono text-success">+1%</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-primary/10 rounded-md border border-primary/20">
+                      <div className="flex justify-between items-center font-medium">
+                        <span>{t("Total APR")}</span>
+                        <span className="font-mono">51%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {t("With a $1,000 investment, you earn an extra $10 per year thanks to your referral boost")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+              <div className="lg:col-span-3">
+                <Card className="border-primary/10 shadow-lg bg-gradient-to-br from-background to-primary/5 overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-primary opacity-10 rounded-full filter blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                  <CardHeader>
+                    <CardTitle className="text-2xl">{t("Use a Referral Code")}</CardTitle>
+                    <CardDescription>
+                      {t("Enter a friend's referral code to get a permanent 1% APR boost")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6 relative z-10">
+                    {detectedCodeFromUrl && (
+                      <Alert className="mb-4 bg-success/10 border-success/20 shadow">
+                        <Sparkles className="h-4 w-4 text-emerald-500" />
+                        <AlertTitle>{t("Referral Code Detected")}</AlertTitle>
+                        <AlertDescription className="flex flex-col gap-2">
+                          <p>{t("We detected a referral code in the link you used to access this page.")}</p>
+                          <div className="flex flex-wrap gap-3 mt-2 items-center">
+                            <span className="bg-card border border-success/20 p-2 px-3 rounded font-mono text-sm">
+                              {detectedCodeFromUrl}
+                            </span>
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1"
+                              onClick={handleUseReferralCode}
+                              disabled={useReferralCodeMutation.isPending}
+                            >
+                              <Sparkles size={14} />
+                              {useReferralCodeMutation.isPending ? t("Applying...") : t("Apply This Code")}
+                            </Button>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="referralCode" className="text-base">
+                        {t("Enter Referral Code")}
+                      </Label>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Input
+                          id="referralCode"
+                          placeholder={t("Enter your friend's referral code")}
+                          value={referralCode}
+                          onChange={(e) => setReferralCode(e.target.value)}
+                          className="bg-card border-primary/20 text-lg py-6 px-4 font-mono"
+                        />
+                        <Button 
+                          onClick={handleUseReferralCode}
+                          disabled={useReferralCodeMutation.isPending || !referralCode.trim()}
+                          className="w-full sm:w-auto gap-2 py-6"
+                          size="lg"
+                        >
+                          <Sparkles size={16} />
+                          {useReferralCodeMutation.isPending ? t("Submitting...") : t("Get +1% APR Boost")}
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {t("Enter the code you received from a friend or colleague")}
+                      </p>
+                    </div>
+
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 shadow-sm mt-6">
+                      <div className="flex items-start gap-4">
+                        <div className="bg-primary/10 rounded-full p-3 mt-1">
+                          <Sparkles className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-medium">{t("Boost Your Earnings")}</h3>
+                          <p className="text-muted-foreground mt-1">
+                            {t("By using a referral code, you'll receive an additional 1% APR on all your positions. This boost applies forever to all your current and future investments.")}
+                          </p>
+                          
+                          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="bg-card border border-primary/10 rounded-lg p-3">
+                              <p className="text-sm text-muted-foreground">{t("Permanent")}</p>
+                              <p className="font-medium">
+                                {t("Boost never expires")}
+                              </p>
+                            </div>
+                            <div className="bg-card border border-primary/10 rounded-lg p-3">
+                              <p className="text-sm text-muted-foreground">{t("Universal")}</p>
+                              <p className="font-medium">
+                                {t("Applies to all positions")}
+                              </p>
+                            </div>
+                            <div className="bg-card border border-primary/10 rounded-lg p-3">
+                              <p className="text-sm text-muted-foreground">{t("Compound")}</p>
+                              <p className="font-medium">
+                                {t("Faster growth over time")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="border-primary/10 shadow-md">
+                  <CardHeader className="pb-3">
+                    <CardTitle>{t("APR Boost Calculator")}</CardTitle>
+                    <CardDescription>
+                      {t("See how a 1% boost impacts your returns")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("Investment Amount")}</span>
+                          <span className="font-medium">$1,000</span>
+                        </div>
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary w-4/5"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("Base APR")}</span>
+                          <span className="font-medium">50%</span>
+                        </div>
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary w-1/2"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mt-6">
+                        <div className="bg-card border rounded-lg p-4">
+                          <h4 className="text-sm text-muted-foreground">
+                            {t("Without Referral")}
+                          </h4>
+                          <p className="text-2xl font-bold">$500</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t("Annual return")}
+                          </p>
+                        </div>
+                        
+                        <div className="bg-success/5 border border-success/20 rounded-lg p-4">
+                          <h4 className="text-sm text-muted-foreground">
+                            {t("With Referral")}
+                          </h4>
+                          <div className="flex items-baseline">
+                            <p className="text-2xl font-bold">$510</p>
+                            <span className="text-xs font-medium text-emerald-500 ml-2">+$10</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t("Annual return")}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-primary/5 rounded-lg border border-primary/20 p-3">
+                        <div className="flex justify-between text-sm">
+                          <span>{t("5-Year Impact:")}</span>
+                          <span className="font-medium text-emerald-500">+$51.55</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <div className="bg-primary/5 border border-primary/10 rounded-lg p-5">
+                  <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-primary" />
+                    {t("Referral Benefits")}
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">1</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("+1% APR Forever")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("Get a permanent 1% APR boost on all your positions")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">2</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("Help Your Friend")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("Your friend earns 1% of the benefits from your activities")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">3</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("Start Your Own Chain")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("After joining, create your own referral code to refer others")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Usuarios referidos */}
+        <TabsContent value="referred-users" className="space-y-6 animate-in fade-in-50 duration-500">
+          {isLoadingReferredUsers ? (
+            <Card>
+              <CardContent className="pt-6 min-h-40">
+                <div className="h-32 flex items-center justify-center">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-primary/20 rounded w-3/4"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-primary/10 rounded"></div>
+                        <div className="h-4 bg-primary/10 rounded w-5/6"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isErrorReferredUsers ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("Error")}</AlertTitle>
+              <AlertDescription>
+                {t("There was an error loading your referred users. Please try again later.")}
+              </AlertDescription>
+            </Alert>
+          ) : !myReferrals || myReferrals.length === 0 ? (
+            <div className="bg-gradient-to-br from-primary/5 to-background rounded-lg border border-primary/10 p-8 text-center max-w-2xl mx-auto shadow-sm">
+              <div className="bg-primary/10 rounded-full p-4 mx-auto w-16 h-16 flex items-center justify-center mb-4">
+                <Gift className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold">{t("No Referral Code Yet")}</h2>
+              <p className="text-muted-foreground mt-2 mb-6 max-w-md mx-auto">
+                {t("You need to create a referral code first before you can start referring users and tracking your referral statistics.")}
+              </p>
+              <Button 
+                size="lg" 
+                className="gap-2"
+                onClick={() => { const element = document.querySelector('button[value="my-code"]') as HTMLButtonElement; if (element) element.click(); }}
+              >
+                <Sparkles size={16} />
+                {t("Create Referral Code")}
+              </Button>
+            </div>
+          ) : !referredUsers || referredUsers.length === 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="border-primary/10 shadow-md bg-gradient-to-br from-background to-primary/5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary opacity-10 rounded-full filter blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                <CardHeader>
+                  <CardTitle>{t("No Referred Users Yet")}</CardTitle>
+                  <CardDescription>
+                    {t("Start sharing your referral code to earn passive income")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 relative z-10">
+                  <div className="bg-primary/5 rounded-lg border border-primary/20 p-5">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      {t("Your Referral Code")}
+                    </h3>
+                    <div className="bg-card border border-primary/10 rounded-md p-3 font-mono text-center text-lg">
+                      {myReferrals[0].referralCode}
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <Button 
+                        className="w-full gap-2"
+                        onClick={handleCopyReferralCode}
+                      >
+                        <Clipboard size={16} />
+                        {t("Copy Link")}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full gap-2"
+                        onClick={() => { const element = document.querySelector('button[value="my-code"]') as HTMLButtonElement; if (element) element.click(); }}
+                      >
+                        <Gift size={16} />
+                        {t("Share Options")}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t("How to Get Referrals")}</h3>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">1</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("Share Your Link")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("Share your unique referral link with friends through social media, email, or messaging apps")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">2</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("Highlight Benefits")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("Emphasize how they'll get an extra 1% APR boost on all their positions")}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                        <span className="text-xs font-bold">3</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{t("Follow Up")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("Check this dashboard regularly to see your referrals and earnings")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="space-y-6">
+                <Card className="border-primary/10 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle>{t("Potential Earnings")}</CardTitle>
+                    <CardDescription>
+                      {t("How much you could earn from referrals")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-card border rounded-lg p-3">
+                          <p className="text-sm text-muted-foreground">{t("With 5 Referrals")}</p>
+                          <p className="text-lg font-bold">$250<span className="text-xs text-muted-foreground">/year</span></p>
+                        </div>
+                        
+                        <div className="bg-card border rounded-lg p-3">
+                          <p className="text-sm text-muted-foreground">{t("With 10 Referrals")}</p>
+                          <p className="text-lg font-bold">$500<span className="text-xs text-muted-foreground">/year</span></p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">
+                        {t("Assuming each referral invests $1,000 with a 50% base APR")}
+                      </p>
+                      
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-2">
+                        <h4 className="font-medium mb-2">{t("Unlimited Earning Potential")}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t("There's no limit to how many users you can refer or how much you can earn. The more you share, the more you earn!")}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border-primary/10 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle>{t("Referral Message Template")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-card border border-primary/10 rounded-md p-4 text-sm">
+                      <p>{t("Hi! I'm using Waybank for my crypto investments and thought you might be interested. If you join using my referral link, you'll get an extra 1% APR boost on all your positions, which really adds up over time!")}</p>
+                      <p className="mt-2">{t("Here's my referral link")}:</p>
+                      <div className="bg-primary/5 rounded-md p-2 mt-1 font-medium">
+                        {window.location.origin}/referrals?code={myReferrals[0].referralCode}
+                      </div>
+                    </div>
+                    <Button variant="outline" className="w-full mt-3 gap-2" onClick={handleCopyReferralCode}>
+                      <Clipboard size={15} />
+                      {t("Copy Message & Link")}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <Card className="border-primary/10 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{t("Your Referred Users")}</span>
+                      <Badge variant="outline" className="ml-2 bg-primary/5">
+                        {referredUsers.length} {t("Users")}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      {t("Users who have used your referral code")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead>{t("User")}</TableHead>
+                            <TableHead>{t("Joined")}</TableHead>
+                            <TableHead>{t("Status")}</TableHead>
+                            <TableHead className="text-right">{t("Rewards Earned")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {referredUsers.map((user) => (
+                            <TableRow key={user.id} className="hover:bg-muted/20">
+                              <TableCell className="font-mono">
+                                {truncateAddress(user.referredWalletAddress)}
+                              </TableCell>
+                              <TableCell>{formatDate(user.joinedAt)}</TableCell>
+                              <TableCell>
+                                <Badge variant={user.status === "active" ? "default" : "secondary"} className={user.status === "active" ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20" : ""}>
+                                  {user.status === "active" ? t("Active") : t("Inactive")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatExactCurrency(user.earnedRewards, "USD")}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="bg-card/50 border-primary/10">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">{t("Share Your Code")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-2">
+                            <div className="bg-muted p-2 rounded-md font-mono text-sm flex-1 truncate">
+                              {myReferrals[0].referralCode}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={handleCopyReferralCode}
+                              className="whitespace-nowrap"
+                            >
+                              {t("Copy Link")}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-primary/5 border-primary/10">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">{t("Your Earnings")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-2xl font-bold">
+                                {formatExactCurrency(getTotalRewards(), "USD")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {t("Total earnings from referrals")}
+                              </p>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => { const element = document.querySelector('button[value="my-code"]') as HTMLButtonElement; if (element) element.click(); }}
+                            >
+                              {t("View Details")}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-6">
+                <ReferralStats 
+                  stats={statsData}
+                  targetInfo={targetInfo}
+                />
+                
+                <Card className="border-primary/10 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle>{t("Growth Opportunities")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                          <Gift size={15} className="text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{t("Refer More Users")}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {t("Keep sharing your referral code to increase your passive income")}
+                          </p>
+                          <Button 
+                            variant="link" 
+                            className="px-0 h-auto text-primary" 
+                            onClick={handleCopyReferralCode}
+                          >
+                            {t("Copy Referral Link")}
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                          <Users size={15} className="text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{t("Target Active Users")}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {t("Focus on referring users who will be active investors")}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                          <Sparkles size={15} className="text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{t("Highlight Benefits")}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {t("Emphasize the mutual benefits when sharing your code")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Beneficios */}
+        <TabsContent value="benefits" className="space-y-8 animate-in fade-in-50 duration-500">
+          <BenefitsShowcase />
+          
+          <div className="pt-8">
+            <SuccessStories />
+          </div>
+          
+          <div className="pt-8">
+            <RewardsCalculator />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Footer decorativo */}
+      <div className="relative mt-16 bg-gradient-to-br from-primary/5 to-background rounded-lg p-8 overflow-hidden shadow-sm border border-primary/10">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary opacity-10 rounded-full filter blur-3xl translate-y-1/2 -translate-x-1/4"></div>
+        
+        <div className="relative z-10">
+          <div className="max-w-3xl mx-auto text-center space-y-4">
+            <h2 className="text-3xl font-bold">{t("Ready to Start Earning?")}</h2>
+            <p className="text-xl text-muted-foreground">
+              {t("Create your referral code today or use a friend's code to boost your APR")}
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-4 mt-8">
+              <Button 
+                size="lg" 
+                className="px-8 gap-2"
+                onClick={() => {
+                  if (!myReferrals || myReferrals.length === 0) {
+                    handleCreateReferralCode();
+                  } else {
+                    handleCopyReferralCode();
+                  }
+                }}
+              >
+                {!myReferrals || myReferrals.length === 0 ? (
+                  <>
+                    <Gift size={16} />
+                    {t("Create My Referral Code")}
+                  </>
+                ) : (
+                  <>
+                    <Clipboard size={16} />
+                    {t("Copy My Referral Link")}
+                  </>
+                )}
+              </Button>
+              
+              {!referralStatus?.isReferred && (
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="px-8 gap-2"
+                  onClick={() => { const element = document.querySelector('button[value="use-code"]') as HTMLButtonElement; if (element) element.click(); }}
+                >
+                  <Sparkles size={16} />
+                  {t("Use a Referral Code")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ReferralsPage;

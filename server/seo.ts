@@ -22,6 +22,11 @@ export function seoMiddleware(req: Request, res: Response, next: NextFunction) {
   const host = req.headers.host || '';
   const url = req.url;
   const fullUrl = `https://${host}${url}`;
+
+  // Skip SEO middleware for API routes - they should not have SEO headers
+  if (url.startsWith('/api/') || url.startsWith('/api')) {
+    return next();
+  }
   
   // Detectar si es un crawler
   const isCrawlerRequest = isCrawler(userAgent || '');

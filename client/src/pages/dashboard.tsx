@@ -17,6 +17,7 @@ const UserPositions = lazy(() => import("@/components/dashboard/user-positions")
 const ActiveNFTPositions = lazy(() => import("@/components/dashboard/active-nft-positions").then(module => ({ default: module.ActiveNFTPositions })));
 const SafeTranslationProvider = lazy(() => import("@/components/dashboard/safe-translation-provider"));
 const NFTFlowProcess = lazy(() => import("@/components/dashboard/nft-flow-process"));
+const NFTPoolCreationBanner = lazy(() => import("@/components/nft-pool-creation-banner"));
 
 const Dashboard: React.FC = () => {
   const { address, setIsModalOpen } = useWallet();
@@ -51,6 +52,11 @@ const Dashboard: React.FC = () => {
       {/* Only show portfolio section if wallet is connected */}
       {address && (
         <>
+          {/* NFT Pool Creation Banner - shows when user has pending NFT creations */}
+          <Suspense fallback={null}>
+            <NFTPoolCreationBanner />
+          </Suspense>
+
           {/* NFT Flow Process con carga lazy */}
           <Suspense fallback={<div className="h-32 flex items-center justify-center"><Spinner /></div>}>
             <NFTFlowProcess />

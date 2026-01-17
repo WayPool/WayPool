@@ -134,14 +134,20 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentInstance, setCurrentInstance] = useState<any>(null);
 
-  // Intentar conectarse automáticamente con el último proveedor utilizado o wallet guardado
-  useEffect(() => {
-    const init = async () => {
-      console.log("🚀 Inicializando proveedor de wallet con persistencia...");
-      console.log("🔍 WalletProvider useEffect ejecutándose al montar el componente");
+  // Ref para evitar múltiples inicializaciones (prevenir loop)
+  const hasInitialized = React.useRef(false);
 
-      // CRÍTICO: Verificar PRIMERO si hay un wallet provider disponible
-      // Si no hay wallet (Firefox/navegador sin extensión), limpiar sesión y NO intentar reconectar
+  // Intentar conectarse automáticamente - SOLO UNA VEZ al montar
+  useEffect(() => {
+    // CRÍTICO: Evitar múltiples ejecuciones
+    if (hasInitialized.current) {
+      return;
+    }
+    hasInitialized.current = true;
+
+    const init = async () => {
+      console.log("🚀 Inicializando proveedor de wallet (una sola vez)...");
+
       const savedSession = WalletSessionManager.getSession();
       const hasWalletProvider = typeof window !== 'undefined' && (
         window.ethereum ||
@@ -149,34 +155,36 @@ export function WalletProvider({ children }: WalletProviderProps) {
       );
 
       if (savedSession && !hasWalletProvider) {
-        console.log("⚠️ Sesión guardada pero NO hay wallet provider disponible - limpiando sesión para evitar loops");
+        console.log("⚠️ No hay wallet provider - limpiando sesión");
         WalletSessionManager.clearSession();
         WalletSessionManager.clearLoginSession();
-        console.log("✅ Sesión limpiada. La página cargará sin intentos de reconexión.");
-        return; // Salir inmediatamente, no intentar nada más
-      }
-
-      // Si no hay sesión guardada, no hay nada que hacer
-      if (!savedSession) {
-        console.log("📭 No hay sesión guardada, cargando página sin wallet");
         return;
       }
 
-      // A partir de aquí, tenemos sesión Y wallet provider disponible
-      console.log("✅ Wallet provider detectado, procediendo con reconexión...");
+      if (!savedSession) {
+        console.log("📭 No hay sesión guardada");
+        return;
+      }
 
-      // Configurar listeners para mantener sesión activa
-      WalletSessionManager.setupActivityListener();
-      WalletSessionManager.setupAutoRefresh();
+      console.log("✅ Sesión encontrada, reconectando...");
 
-      // Esperar un poco para que el DOM y los providers estén listos
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Establecer estado inmediatamente
+      setAddress(savedSession.address);
+      setChainId(savedSession.chainId);
 
-      // Configurar listeners persistentes para reconexión (ahora en modo pasivo)
-      AutoReconnectManager.setupPersistentListeners(connectWallet);
+      const networkInfo = Object.values(NETWORKS).find((n: Network) => n.chainId === savedSession.chainId);
+      if (networkInfo) {
+        setNetwork(networkInfo);
+      }
 
-      // Intentar reconexión automática
-      console.log("🚀 Iniciando sistema de reconexión automática...");
+      // Auth en backend (no bloquear)
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: savedSession.address }),
+      }).catch(() => {});
+
+      // Reconexión real en background
       const reconnected = await AutoReconnectManager.attemptAutoReconnect(connectWallet);
 
       if (reconnected) {
@@ -198,7 +206,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
         setError(null);
 
         // Actualizar la información de red
-        const networkInfo = NETWORKS.find((n: Network) => n.chainId === savedSession.chainId);
+        const networkInfo = Object.values(NETWORKS).find((n: Network) => n.chainId === savedSession.chainId);
         if (networkInfo) {
           setNetwork(networkInfo);
         }
@@ -453,53 +461,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
     };
 
     const cleanup = setupWalletListeners();
-    
-    // Intentar reconexión periódica si hay sesión pero no hay conexión activa
-    // NOTA: Reconexión deshabilitada por defecto para evitar loops en Firefox
-    // Solo se activa si hay un wallet provider disponible
-    let reconnectionAttempts = 0;
-    const MAX_RECONNECTION_ATTEMPTS = 3;
 
-    const reconnectionInterval = setInterval(() => {
-      const savedSession = WalletSessionManager.getSession();
-      // Solo intentar reconectar si:
-      // 1. Hay sesión guardada
-      // 2. No hay dirección conectada
-      // 3. No estamos conectando actualmente
-      // 4. No hemos excedido el máximo de intentos
-      // 5. Hay un provider disponible (evita loops en Firefox sin wallet)
-      const hasWalletProvider = typeof window !== 'undefined' && (
-        window.ethereum ||
-        savedSession?.walletType === 'custodial'
-      );
-
-      if (savedSession && !address && !isConnecting && reconnectionAttempts < MAX_RECONNECTION_ATTEMPTS && hasWalletProvider) {
-        reconnectionAttempts++;
-        console.log(`🔄 Intentando reconexión automática (${reconnectionAttempts}/${MAX_RECONNECTION_ATTEMPTS})...`);
-        connectWallet(savedSession.walletType as WalletType).catch(error => {
-          console.warn("Error en reconexión automática:", error);
-        });
-      } else if (address) {
-        // Si ya está conectado, resetear contador y logear solo una vez
-        reconnectionAttempts = 0;
-        const alreadyLoggedKey = `reconnectionStopped_${address}`;
-        if (!sessionStorage.getItem(alreadyLoggedKey)) {
-          console.log("✅ Wallet conectado, detener intentos de reconexión");
-          sessionStorage.setItem(alreadyLoggedKey, 'true');
-        }
-      } else if (!hasWalletProvider && savedSession) {
-        // Si no hay wallet provider disponible pero hay sesión guardada, limpiar la sesión
-        // para evitar intentos fallidos repetidos
-        console.log("⚠️ No hay wallet provider disponible, limpiando sesión guardada");
-        WalletSessionManager.clearSession();
-      }
-    }, 30000); // Intentar cada 30 segundos (antes era 15, ahora más conservador)
+    // DESHABILITADO: El interval de reconexión causaba loops infinitos
+    // La reconexión se maneja una sola vez al montar el componente
 
     return () => {
       cleanup?.();
-      clearInterval(reconnectionInterval);
     };
-  }, [address, isConnecting]);
+  }, []); // SIN DEPENDENCIAS - solo ejecutar al montar
 
   // Actualizar información de red cuando cambia el chainId
   useEffect(() => {

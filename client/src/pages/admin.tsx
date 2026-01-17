@@ -33,6 +33,7 @@ import DatabaseMonitor from "@/components/admin/DatabaseMonitor";
 import AdvancedDatabaseMonitor from "@/components/admin/AdvancedDatabaseMonitor";
 import FeeWithdrawalsManager from "@/components/admin/fee-withdrawals-manager";
 import LegalSignaturesManager from "@/components/admin/legal-signatures-manager";
+import YieldDistributionManager from "@/components/admin/yield-distribution-manager";
 
 // Función de utilidad para extraer una dirección de pool de Uniswap desde varias fuentes
 function extractPoolAddress(input: string): string {
@@ -1024,9 +1025,13 @@ export default function AdminPage() {
                   Histórico
                 </Button>
               </Link>
-              <Button variant="secondary" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 flex items-center gap-2">
+              <Button
+                variant="secondary"
+                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 flex items-center gap-2"
+                onClick={() => setTabWithUrlUpdate("yield-distribution")}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 15h.01"/></svg>
-                Fondos
+                Rendimientos
               </Button>
             </div>
             <div className="flex items-center space-x-4">
@@ -1242,6 +1247,21 @@ export default function AdminPage() {
                 </div>
                 <span className="admin-nav-text">Legal</span>
               </button>
+
+              <button
+                onClick={() => setTabWithUrlUpdate("yield-distribution")}
+                className={`admin-nav-button ${activeTab === "yield-distribution" ? "active" : ""}`}
+                data-testid="button-nav-yield-distribution"
+              >
+                <div className="admin-nav-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    <path d="m16 16 2 2 4-4"/>
+                  </svg>
+                </div>
+                <span className="admin-nav-text">Rendimientos</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1307,6 +1327,9 @@ export default function AdminPage() {
             </button>
             <button className="mobile-menu-item" data-state={activeTab === "legal" ? "active" : ""} onClick={() => setTabWithUrlUpdate("legal")}>
               Legal
+            </button>
+            <button className="mobile-menu-item" data-state={activeTab === "yield-distribution" ? "active" : ""} onClick={() => setTabWithUrlUpdate("yield-distribution")}>
+              Rendimientos Trading
             </button>
           </div>
         </div>
@@ -1901,6 +1924,10 @@ export default function AdminPage() {
 
         <TabsContent value="legal" className="admin-content">
           <LegalSignaturesManager />
+        </TabsContent>
+
+        <TabsContent value="yield-distribution" className="admin-content">
+          <YieldDistributionManager />
         </TabsContent>
       </Tabs>
       

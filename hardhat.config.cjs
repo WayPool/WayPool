@@ -1,0 +1,70 @@
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
+
+// Load environment variables
+const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || "https://polygon-rpc.com";
+const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
+
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+  solidity: {
+    version: "0.8.20",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      viaIR: true,
+    },
+  },
+  networks: {
+    // Local development network
+    hardhat: {
+      chainId: 31337,
+      forking: {
+        url: POLYGON_RPC_URL,
+        enabled: false, // Enable when testing with mainnet fork
+      },
+    },
+    // Polygon Mainnet
+    polygon: {
+      url: POLYGON_RPC_URL,
+      chainId: 137,
+      accounts: [PRIVATE_KEY],
+      gasPrice: "auto",
+    },
+    // Polygon Amoy Testnet (formerly Mumbai)
+    polygonAmoy: {
+      url: process.env.POLYGON_AMOY_RPC_URL || "https://rpc-amoy.polygon.technology",
+      chainId: 80002,
+      accounts: [PRIVATE_KEY],
+      gasPrice: "auto",
+    },
+  },
+  etherscan: {
+    apiKey: {
+      polygon: POLYGONSCAN_API_KEY,
+      polygonAmoy: POLYGONSCAN_API_KEY,
+    },
+    customChains: [
+      {
+        network: "polygonAmoy",
+        chainId: 80002,
+        urls: {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com",
+        },
+      },
+    ],
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
+  },
+  mocha: {
+    timeout: 40000,
+  },
+};

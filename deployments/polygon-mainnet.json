@@ -1,0 +1,27 @@
+{
+  "network": "polygon",
+  "chainId": 137,
+  "contractName": "WayPoolPositionCreator",
+  "contractAddress": "0xf81938F926714f114D07b68dfc3b0E3bC501167B",
+  "positionManagerAddress": "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+  "deployer": "0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F",
+  "transactionHash": "0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7",
+  "blockNumber": 81779977,
+  "timestamp": "2026-01-17T20:45:00.000Z",
+  "gasUsed": "1400928",
+  "deploymentCost": "0.13782209886757392 MATIC",
+  "config": {
+    "token0": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    "token0Symbol": "USDC",
+    "token1": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+    "token1Symbol": "WETH",
+    "fee": "500",
+    "feePercent": "0.05%",
+    "minAmount0": "1",
+    "minAmount1": "1"
+  },
+  "urls": {
+    "contract": "https://polygonscan.com/address/0xf81938F926714f114D07b68dfc3b0E3bC501167B",
+    "transaction": "https://polygonscan.com/tx/0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7"
+  }
+}

@@ -34,6 +34,8 @@ import {
 import { emailService } from './email-service';
 import { sendNewSupportTicketEmail, sendTicketReplyEmail } from './support-email-service';
 import { convertToNumber } from '../shared/utils';
+import * as nftPoolService from './nft-pool-creation-service';
+import * as yieldDistributionService from './yield-distribution-service';
 
 // Rate limiting para endpoints de administración
 const adminAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -281,7 +283,272 @@ const isAdminExtended = async (req: Request, res: Response, next: NextFunction) 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Servir archivos estáticos desde la carpeta public
   app.use(express.static('public'));
-  
+
+  // ============================================
+  // NFT Pool Creation Routes (Early registration)
+  // ============================================
+
+  // Get pending NFT creations for a wallet
+  app.get('/api/nft-creation/pending/:walletAddress', async (req: Request, res: Response) => {
+    try {
+      const { walletAddress } = req.params;
+
+      if (!walletAddress) {
+        return res.status(400).json({ message: 'Wallet address required' });
+      }
+
+      const pendingCreations = await nftPoolService.getPendingNFTCreations(walletAddress);
+
+      return res.json({
+        success: true,
+        pendingCreations,
+        contractAddress: nftPoolService.WAYPOOL_CREATOR_ADDRESS,
+        positionManagerAddress: nftPoolService.POSITION_MANAGER_ADDRESS,
+      });
+    } catch (error) {
+      console.error('Error getting pending NFT creations:', error);
+      return res.status(500).json({ message: 'Error getting pending NFT creations' });
+    }
+  });
+
+  // Register a newly created NFT
+  app.post('/api/nft-creation/register', async (req: Request, res: Response) => {
+    try {
+      const { positionId, tokenId, transactionHash, walletAddress, valueUsdc } = req.body;
+
+      if (!positionId || !tokenId || !transactionHash || !walletAddress) {
+        return res.status(400).json({
+          message: 'Missing required fields: positionId, tokenId, transactionHash, walletAddress',
+        });
+      }
+
+      const success = await nftPoolService.registerCreatedNFT(
+        positionId,
+        tokenId,
+        transactionHash,
+        walletAddress,
+        valueUsdc || '0'
+      );
+
+      if (success) {
+        const urls = nftPoolService.getNFTUrls(tokenId);
+        return res.json({
+          success: true,
+          message: 'NFT registered successfully',
+          tokenId,
+          urls,
+        });
+      } else {
+        return res.status(500).json({ message: 'Failed to register NFT' });
+      }
+    } catch (error) {
+      console.error('Error registering NFT:', error);
+      return res.status(500).json({ message: 'Error registering NFT' });
+    }
+  });
+
+  // Mark NFT creation as failed
+  app.post('/api/nft-creation/failed', async (req: Request, res: Response) => {
+    try {
+      const { positionId, errorMessage } = req.body;
+
+      if (!positionId) {
+        return res.status(400).json({ message: 'Position ID required' });
+      }
+
+      await nftPoolService.markNFTCreationFailed(positionId, errorMessage || 'Unknown error');
+
+      return res.json({ success: true, message: 'NFT creation marked as failed' });
+    } catch (error) {
+      console.error('Error marking NFT creation as failed:', error);
+      return res.status(500).json({ message: 'Error marking NFT creation as failed' });
+    }
+  });
+
+  // Get contract configuration
+  app.get('/api/nft-creation/config', async (_req: Request, res: Response) => {
+    try {
+      return res.json({
+        success: true,
+        contractAddress: nftPoolService.WAYPOOL_CREATOR_ADDRESS,
+        positionManagerAddress: nftPoolService.POSITION_MANAGER_ADDRESS,
+        tokens: nftPoolService.POLYGON_TOKENS,
+        defaultTickRange: nftPoolService.DEFAULT_TICK_RANGE,
+        feeTiers: nftPoolService.FEE_TIERS,
+        network: 'polygon',
+        chainId: 137,
+      });
+    } catch (error) {
+      console.error('Error getting NFT creation config:', error);
+      return res.status(500).json({ message: 'Error getting config' });
+    }
+  });
+
+  // ============================================
+  // Yield Distribution Routes (SuperAdmin only)
+  // ============================================
+
+  // Middleware to check if user is superadmin
+  const isSuperAdminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const walletAddress = req.session?.user?.walletAddress || req.headers['x-wallet-address'] as string;
+
+      if (!walletAddress) {
+        return res.status(401).json({ error: 'Wallet address required' });
+      }
+
+      const superadminConfig = await storage.getAppConfigByKey('superadmin_address');
+      if (!superadminConfig || walletAddress.toLowerCase() !== superadminConfig.value.toLowerCase()) {
+        return res.status(403).json({ error: 'SuperAdmin access required' });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Error checking superadmin:', error);
+      return res.status(500).json({ error: 'Error checking permissions' });
+    }
+  };
+
+  // Get active positions for distribution preview
+  app.get('/api/superadmin/yield-distribution/positions', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const positions = await yieldDistributionService.getActivePositionsForDistribution();
+      return res.json({
+        success: true,
+        positions,
+        totalPositions: positions.length,
+        totalCapital: positions.reduce((sum, p) => sum + parseFloat(p.depositedUSDC || '0'), 0),
+      });
+    } catch (error) {
+      console.error('Error getting active positions:', error);
+      return res.status(500).json({ error: 'Error getting active positions' });
+    }
+  });
+
+  // Preview distribution calculation
+  app.post('/api/superadmin/yield-distribution/preview', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { totalAmount, includeAprBonus } = req.body;
+
+      if (!totalAmount || totalAmount <= 0) {
+        return res.status(400).json({ error: 'Total amount must be greater than 0' });
+      }
+
+      const preview = await yieldDistributionService.previewDistribution(
+        parseFloat(totalAmount),
+        includeAprBonus === true
+      );
+
+      return res.json({
+        success: true,
+        preview,
+      });
+    } catch (error) {
+      console.error('Error previewing distribution:', error);
+      return res.status(500).json({ error: 'Error previewing distribution' });
+    }
+  });
+
+  // Execute distribution
+  app.post('/api/superadmin/yield-distribution/execute', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const walletAddress = req.session?.user?.walletAddress || req.headers['x-wallet-address'] as string;
+      const { totalAmount, includeAprBonus, source, sourceDetails, brokerName, notes } = req.body;
+
+      if (!totalAmount || totalAmount <= 0) {
+        return res.status(400).json({ error: 'Total amount must be greater than 0' });
+      }
+
+      const result = await yieldDistributionService.executeDistribution(
+        parseFloat(totalAmount),
+        walletAddress,
+        {
+          includeAprBonus: includeAprBonus === true,
+          source: source || 'external_trading',
+          sourceDetails,
+          brokerName,
+          notes,
+        }
+      );
+
+      if (result.success) {
+        return res.json({
+          success: true,
+          distributionId: result.distributionId,
+          distributionCode: result.distributionCode,
+          totalDistributed: result.totalDistributed,
+          positionsUpdated: result.positionsUpdated,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+        });
+      }
+    } catch (error) {
+      console.error('Error executing distribution:', error);
+      return res.status(500).json({ error: 'Error executing distribution' });
+    }
+  });
+
+  // Get distribution history
+  app.get('/api/superadmin/yield-distribution/history', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const history = await yieldDistributionService.getDistributionHistory(page, limit);
+
+      return res.json({
+        success: true,
+        ...history,
+      });
+    } catch (error) {
+      console.error('Error getting distribution history:', error);
+      return res.status(500).json({ error: 'Error getting distribution history' });
+    }
+  });
+
+  // Get distribution details by ID
+  app.get('/api/superadmin/yield-distribution/:id', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const distributionId = parseInt(req.params.id);
+
+      if (isNaN(distributionId)) {
+        return res.status(400).json({ error: 'Invalid distribution ID' });
+      }
+
+      const details = await yieldDistributionService.getDistributionDetails(distributionId);
+
+      if (!details) {
+        return res.status(404).json({ error: 'Distribution not found' });
+      }
+
+      return res.json({
+        success: true,
+        ...details,
+      });
+    } catch (error) {
+      console.error('Error getting distribution details:', error);
+      return res.status(500).json({ error: 'Error getting distribution details' });
+    }
+  });
+
+  // Get yield statistics
+  app.get('/api/superadmin/yield-distribution/stats', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const stats = await yieldDistributionService.getYieldStatistics();
+
+      return res.json({
+        success: true,
+        ...stats,
+      });
+    } catch (error) {
+      console.error('Error getting yield statistics:', error);
+      return res.status(500).json({ error: 'Error getting yield statistics' });
+    }
+  });
+
   // Register blockchain data API routes
   registerApiRoutes(app);
   
@@ -2776,12 +3043,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: updatedPosition.status
       });
       
-      // Si el estado de la posición cambió a "Active", actualizar la factura asociada
+      // Si el estado de la posición cambió a "Active", actualizar la factura asociada y marcar para creación de NFT
       if (positionData.status === 'Active') {
         try {
           // Obtener facturas asociadas a esta posición
           const invoices = await storage.getInvoicesByPositionId(id);
-          
+
           // Si hay facturas pendientes, actualizarlas a pagadas
           for (const invoice of invoices) {
             if (invoice.status === 'Pending') {
@@ -2796,6 +3063,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (invoiceError) {
           // No bloqueamos la respuesta si hay un error al actualizar las facturas
           console.error(`Error updating invoices for position ${id}:`, invoiceError);
+        }
+
+        // Handle NFT creation based on wallet type (custodial vs external)
+        // For custodial wallets: create NFT automatically
+        // For external wallets: mark for manual creation via frontend
+        try {
+          if (!updatedPosition.nftTokenId) {
+            const valueUsdc = updatedPosition.depositedUSDC?.toString() || '0';
+            const result = await nftPoolService.handlePositionActivation(
+              id,
+              updatedPosition.walletAddress,
+              valueUsdc
+            );
+
+            if (result?.success) {
+              console.log(`Position ${id}: NFT created automatically for custodial wallet, tokenId: ${result.tokenId}`);
+            } else if (result === null) {
+              console.log(`Position ${id}: Marked for manual NFT creation (external wallet)`);
+            } else {
+              console.log(`Position ${id}: NFT creation failed: ${result?.error}`);
+            }
+          }
+        } catch (nftError) {
+          console.error(`Error handling NFT creation for position ${id}:`, nftError);
         }
       }
       

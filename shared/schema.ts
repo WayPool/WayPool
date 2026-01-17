@@ -98,6 +98,13 @@ export const positionHistory = pgTable("position_history", {
   contractAddress: text("contract_address"), // Dirección del contrato NFT de Uniswap
   tokenPair: text("token_pair"), // Par de tokens (ej: USDC/WETH) formateado para mostrar
   fee: text("fee"), // Porcentaje de tarifa (ej: 0.05%, 0.3%, 1%)
+  // NFT Creation tracking fields
+  nftCreationPending: boolean("nft_creation_pending").default(false), // True when admin activates, waiting for user to create
+  nftCreationStatus: text("nft_creation_status").default("none"), // 'none', 'pending', 'completed', 'failed'
+  nftCreatedAt: timestamp("nft_created_at"), // When the NFT was created on-chain
+  nftTransactionHash: text("nft_transaction_hash"), // Transaction hash of NFT creation
+  nftCreationError: text("nft_creation_error"), // Error message if creation failed
+  nftCreationAttempts: integer("nft_creation_attempts").default(0), // Number of creation attempts
 });
 
 // User settings
@@ -746,3 +753,124 @@ export const withdrawalSchema = z.object({
 });
 
 export type WithdrawalFormValues = z.infer<typeof withdrawalSchema>;
+
+// ============================================================================
+// YIELD DISTRIBUTION SYSTEM - Trading Profits Distribution
+// ============================================================================
+
+/**
+ * Tabla principal para distribuciones de rendimientos de trading externo
+ * Cada registro representa una distribución de USDC generados en plataformas de trading
+ * que se reparten proporcionalmente entre todas las posiciones activas
+ */
+export const yieldDistributions = pgTable("yield_distributions", {
+  id: serial("id").primaryKey(),
+
+  // Información de la distribución
+  distributionCode: text("distribution_code").notNull().unique(), // Código único: YD-2026-01-001
+  totalAmount: decimal("total_amount", { precision: 16, scale: 2 }).notNull(), // Total USDC a distribuir
+  distributedAmount: decimal("distributed_amount", { precision: 16, scale: 2 }).default("0"), // USDC distribuido efectivamente
+
+  // Fuente del rendimiento
+  source: text("source").notNull().default("external_trading"), // external_trading, defi_farming, staking, etc.
+  sourceDetails: text("source_details"), // Descripción detallada de la fuente
+  brokerName: text("broker_name"), // Nombre del broker/plataforma
+
+  // Estadísticas de la distribución
+  totalActivePositions: integer("total_active_positions").default(0), // Número de posiciones que reciben
+  totalActiveCapital: decimal("total_active_capital", { precision: 18, scale: 2 }).default("0"), // Capital total activo en el momento
+  averageDistributionPercent: decimal("average_distribution_percent", { precision: 8, scale: 4 }).default("0"), // Porcentaje promedio distribuido
+
+  // Estado y proceso
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed, cancelled
+  processedAt: timestamp("processed_at"), // Cuando se procesó la distribución
+
+  // Auditoría
+  notes: text("notes"),
+  createdBy: text("created_by").notNull(), // Wallet del superadmin que creó
+  approvedBy: text("approved_by"), // Wallet del que aprobó (si aplica)
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+/**
+ * Tabla de detalle de distribución por posición
+ * Cada registro representa cuánto recibió cada posición en una distribución
+ */
+export const yieldDistributionDetails = pgTable("yield_distribution_details", {
+  id: serial("id").primaryKey(),
+
+  // Relación con la distribución principal
+  distributionId: integer("distribution_id").notNull().references(() => yieldDistributions.id),
+
+  // Posición que recibe
+  positionId: integer("position_id").notNull().references(() => positionHistory.id),
+  walletAddress: text("wallet_address").notNull(),
+
+  // Datos de la posición al momento de la distribución (snapshot)
+  positionCapital: decimal("position_capital", { precision: 16, scale: 2 }).notNull(), // Capital depositado
+  positionApr: decimal("position_apr", { precision: 8, scale: 2 }).notNull(), // APR de la posición
+  positionWeight: decimal("position_weight", { precision: 12, scale: 8 }).notNull(), // Peso relativo (capital * APR factor)
+
+  // Cálculo de distribución
+  baseDistribution: decimal("base_distribution", { precision: 16, scale: 6 }).notNull(), // Distribución proporcional al capital
+  aprBonus: decimal("apr_bonus", { precision: 16, scale: 6 }).default("0"), // Bonus por APR (opcional)
+  totalDistribution: decimal("total_distribution", { precision: 16, scale: 6 }).notNull(), // Total recibido
+  distributionPercent: decimal("distribution_percent", { precision: 8, scale: 4 }).notNull(), // Porcentaje del total
+
+  // Estado
+  status: text("status").notNull().default("pending"), // pending, credited, failed
+  creditedAt: timestamp("credited_at"), // Cuando se acreditó a la posición
+  errorMessage: text("error_message"), // Si hubo error
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+/**
+ * Tabla de historial de rendimientos acumulados por posición
+ * Permite hacer seguimiento de los rendimientos totales recibidos por cada posición
+ */
+export const positionYieldHistory = pgTable("position_yield_history", {
+  id: serial("id").primaryKey(),
+
+  positionId: integer("position_id").notNull().references(() => positionHistory.id),
+  walletAddress: text("wallet_address").notNull(),
+
+  // Rendimientos acumulados
+  totalYieldReceived: decimal("total_yield_received", { precision: 18, scale: 6 }).default("0"),
+  totalDistributions: integer("total_distributions").default(0), // Número de distribuciones recibidas
+  lastDistributionId: integer("last_distribution_id"),
+  lastDistributionAmount: decimal("last_distribution_amount", { precision: 16, scale: 6 }),
+  lastDistributionDate: timestamp("last_distribution_date"),
+
+  // Estadísticas
+  averageDistributionAmount: decimal("average_distribution_amount", { precision: 16, scale: 6 }).default("0"),
+  highestDistributionAmount: decimal("highest_distribution_amount", { precision: 16, scale: 6 }).default("0"),
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas para yield distributions
+export const insertYieldDistributionSchema = createInsertSchema(yieldDistributions)
+  .omit({ id: true, createdAt: true, updatedAt: true, processedAt: true });
+
+export const insertYieldDistributionDetailSchema = createInsertSchema(yieldDistributionDetails)
+  .omit({ id: true, createdAt: true, creditedAt: true });
+
+export const insertPositionYieldHistorySchema = createInsertSchema(positionYieldHistory)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Types para yield distributions
+export type InsertYieldDistribution = z.infer<typeof insertYieldDistributionSchema>;
+export type YieldDistribution = typeof yieldDistributions.$inferSelect;
+
+export type InsertYieldDistributionDetail = z.infer<typeof insertYieldDistributionDetailSchema>;
+export type YieldDistributionDetail = typeof yieldDistributionDetails.$inferSelect;
+
+export type InsertPositionYieldHistory = z.infer<typeof insertPositionYieldHistorySchema>;
+export type PositionYieldHistory = typeof positionYieldHistory.$inferSelect;

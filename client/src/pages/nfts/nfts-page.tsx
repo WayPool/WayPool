@@ -1003,7 +1003,17 @@ const NFTsPage: React.FC = () => {
     : userNFTs;
 
   // Filtrar por red y luego aplicar filtros avanzados (status, versión, fee, etc.)
+  // IMPORTANTE: Solo mostrar NFTs con status conocido (NO "Unknown")
   const displayedNFTs = filteredByManaged
+    .filter(nft => {
+      // Filtrar NFTs con status Unknown - solo mostrar los que tienen estado válido
+      const status = nft.status?.toLowerCase() || 'unknown';
+      if (status === 'unknown') {
+        console.log(`[NFTs] Ocultando NFT #${nft.tokenId} - status Unknown (no activado)`);
+        return false;
+      }
+      return true;
+    })
     .filter(nft => {
       if (networkFilter === "all") return true;
       return nft.network === networkFilter ||

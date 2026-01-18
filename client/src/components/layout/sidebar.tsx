@@ -11,11 +11,11 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { NotificationDot } from "@/components/ui/notification-dot";
 import Web3ConnectButton from "@/components/wallet/web3-connect-button";
-import { 
-  LayoutDashboard, 
-  PanelLeft, 
-  Plus, 
-  BarChart, 
+import {
+  LayoutDashboard,
+  PanelLeft,
+  Plus,
+  BarChart,
   Settings,
   Wallet,
   ShieldCheck,
@@ -24,6 +24,7 @@ import {
   Users,
   Database
 } from "lucide-react";
+import { VERSION_STRING } from "@/lib/version";
 
 const Sidebar: React.FC = () => {
   const [location] = useLocation();
@@ -349,6 +350,15 @@ const Sidebar: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Version Label */}
+        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+          <div className="text-center">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {VERSION_STRING}
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   );

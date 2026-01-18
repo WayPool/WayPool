@@ -524,6 +524,15 @@ app.use((req, res, next) => {
   // Registrar rutas principales de la aplicación
   const server = await registerRoutes(app);
 
+  // ACTIVAR SISTEMA DE DISTRIBUCIÓN DIARIA DE APR
+  try {
+    const { startDailyAprCron } = await import('./daily-apr-cron');
+    startDailyAprCron();
+    log('[DailyAPR] Daily APR distribution system activated');
+  } catch (error) {
+    log(`[DailyAPR] Error activating daily APR system: ${error}`);
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

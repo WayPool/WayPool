@@ -553,6 +553,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   console.log('✅ Yield Distribution routes registered successfully');
 
+  // ============================================================================
+  // DAILY APR DISTRIBUTION - Automatic pool-based APR distribution
+  // ============================================================================
+
+  // Import daily APR distribution service
+  const dailyAprCron = await import('./daily-apr-cron');
+  const dailyAprService = await import('./daily-apr-distribution-service');
+
+  // Get daily APR system status and info
+  app.get('/api/superadmin/daily-apr/status', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const cronStatus = dailyAprCron.getCronStatus();
+      const systemInfo = await dailyAprService.getAprSystemInfo();
+
+      return res.json({
+        success: true,
+        cron: cronStatus,
+        system: systemInfo,
+      });
+    } catch (error) {
+      console.error('Error getting daily APR status:', error);
+      return res.status(500).json({ error: 'Error getting daily APR status' });
+    }
+  });
+
+  // Preview daily APR distribution (dry run)
+  app.get('/api/superadmin/daily-apr/preview', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const preview = await dailyAprCron.getDistributionPreview();
+
+      return res.json({
+        success: true,
+        preview,
+      });
+    } catch (error) {
+      console.error('Error previewing daily APR distribution:', error);
+      return res.status(500).json({ error: 'Error previewing daily APR distribution' });
+    }
+  });
+
+  // Execute daily APR distribution manually
+  app.post('/api/superadmin/daily-apr/execute', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const walletAddress = req.session?.user?.walletAddress || req.headers['x-wallet-address'] as string;
+
+      const result = await dailyAprCron.executeManualDistribution(walletAddress);
+
+      if (result.success) {
+        return res.json({
+          success: true,
+          result: result.result,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+        });
+      }
+    } catch (error) {
+      console.error('Error executing daily APR distribution:', error);
+      return res.status(500).json({ error: 'Error executing daily APR distribution' });
+    }
+  });
+
+  // Get pools APR information
+  app.get('/api/superadmin/daily-apr/pools', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { average, pools } = await dailyAprService.calculateAveragePoolApr();
+
+      return res.json({
+        success: true,
+        averageApr: average,
+        pools,
+      });
+    } catch (error) {
+      console.error('Error getting pools APR:', error);
+      return res.status(500).json({ error: 'Error getting pools APR' });
+    }
+  });
+
+  // Start/stop daily APR cron
+  app.post('/api/superadmin/daily-apr/cron/:action', isSuperAdminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { action } = req.params;
+
+      if (action === 'start') {
+        dailyAprCron.startDailyAprCron();
+        return res.json({ success: true, message: 'Daily APR cron started' });
+      } else if (action === 'stop') {
+        dailyAprCron.stopDailyAprCron();
+        return res.json({ success: true, message: 'Daily APR cron stopped' });
+      } else {
+        return res.status(400).json({ error: 'Invalid action. Use "start" or "stop"' });
+      }
+    } catch (error) {
+      console.error('Error controlling daily APR cron:', error);
+      return res.status(500).json({ error: 'Error controlling daily APR cron' });
+    }
+  });
+
+  console.log('✅ Daily APR Distribution routes registered successfully');
+
   // Register blockchain data API routes
   registerApiRoutes(app);
   

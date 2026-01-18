@@ -1344,7 +1344,7 @@ const UserPositionsManager = () => {
                 </div>
                 
                 {/* Cabecera con columnas y botones de ordenamiento */}
-                <div className="grid grid-cols-6 gap-1 bg-slate-100 dark:bg-slate-800/50 rounded p-2 mb-2">
+                <div className="grid grid-cols-7 gap-1 bg-slate-100 dark:bg-slate-800/50 rounded p-2 mb-2">
                   {/* Columna 1 - Usuario */}
                   <div className="flex items-center">
                     <Button 
@@ -1372,8 +1372,8 @@ const UserPositionsManager = () => {
                   
                   {/* Columna 3 - Contratos */}
                   <div className="flex items-center justify-center">
-                    <Button 
-                      variant={sortOrder === 'contracts' ? "default" : "ghost"} 
+                    <Button
+                      variant={sortOrder === 'contracts' ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setSortOrder('contracts')}
                       className="h-8 px-3 rounded shadow-none"
@@ -1382,11 +1382,23 @@ const UserPositionsManager = () => {
                       <ArrowDownUp className={`h-4 w-4 ${sortOrder === 'contracts' ? 'text-white' : 'text-slate-400'}`} />
                     </Button>
                   </div>
-                  
-                  {/* Columna 4 - Valor */}
+
+                  {/* Columna 4 - APR */}
+                  <div className="flex items-center justify-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-3 rounded shadow-none"
+                      disabled
+                    >
+                      <span>APR</span>
+                    </Button>
+                  </div>
+
+                  {/* Columna 5 - Valor */}
                   <div className="flex items-center justify-end">
-                    <Button 
-                      variant={sortOrder === 'value' ? "default" : "ghost"} 
+                    <Button
+                      variant={sortOrder === 'value' ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setSortOrder('value')}
                       className="h-8 px-3 rounded shadow-none ml-auto"
@@ -1395,11 +1407,11 @@ const UserPositionsManager = () => {
                       <TrendingUp className={`h-4 w-4 ${sortOrder === 'value' ? 'text-white' : 'text-slate-400'}`} />
                     </Button>
                   </div>
-                  
-                  {/* Columna 5 - Ganancias */}
+
+                  {/* Columna 6 - Ganancias */}
                   <div className="flex items-center justify-center">
-                    <Button 
-                      variant={sortOrder === 'earnings' ? "default" : "ghost"} 
+                    <Button
+                      variant={sortOrder === 'earnings' ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setSortOrder('earnings')}
                       className="h-8 px-3 rounded shadow-none"
@@ -1408,11 +1420,11 @@ const UserPositionsManager = () => {
                       <TrendingUp className={`h-4 w-4 ${sortOrder === 'earnings' ? 'text-white' : 'text-slate-400'}`} />
                     </Button>
                   </div>
-                  
-                  {/* Columna 6 - Estado */}
+
+                  {/* Columna 7 - Estado */}
                   <div className="flex items-center justify-end">
-                    <Button 
-                      variant={sortOrder === 'status' ? "default" : "ghost"} 
+                    <Button
+                      variant={sortOrder === 'status' ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setSortOrder('status')}
                       className="h-8 px-3 rounded shadow-none ml-auto"
@@ -1462,7 +1474,7 @@ const UserPositionsManager = () => {
                       }}
                       style={{ cursor: 'pointer' }}
                     >
-                      <div className="grid grid-cols-6 gap-1">
+                      <div className="grid grid-cols-7 gap-1">
                         {/* Columna 1 - Usuario y dirección */}
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-full ${
@@ -1626,18 +1638,46 @@ const UserPositionsManager = () => {
                         <div className="bg-slate-50 dark:bg-slate-800/40 px-4 py-1.5 flex flex-col justify-center items-center" style={{ padding: '10px', paddingLeft: '30px' }}>
                           <div className="font-semibold text-base">{userPositions.length}</div>
                         </div>
-                        
-                        {/* Columna 4 - Valor */}
+
+                        {/* Columna 4 - APR (Actual / Contrato) */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 px-4 py-1.5 flex flex-col justify-center items-center">
+                          {(() => {
+                            // Calcular APR promedio actual y contratado
+                            const activePos = userPositions.filter(p => p.status === "Active");
+                            if (activePos.length === 0) {
+                              return <span className="text-xs text-slate-400">-</span>;
+                            }
+                            const avgCurrentApr = activePos.reduce((sum, p) => {
+                              const current = p.currentApr !== undefined && p.currentApr !== null
+                                ? Number(p.currentApr)
+                                : Number(p.apr);
+                              return sum + current;
+                            }, 0) / activePos.length;
+                            const avgContractApr = activePos.reduce((sum, p) => sum + Number(p.apr), 0) / activePos.length;
+                            return (
+                              <div className="flex flex-col items-center">
+                                <span className="font-semibold text-blue-600 text-sm">
+                                  {formatNumber(avgCurrentApr)}%
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  C: {formatNumber(avgContractApr)}%
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Columna 5 - Valor */}
                         <div className="bg-slate-50 dark:bg-slate-800/40 px-4 py-1.5 flex flex-col justify-center items-end">
                           <div className="font-semibold text-base">{formatCurrency(totalValue)}</div>
                         </div>
-                        
-                        {/* Columna 5 - Ganancias (calculadas en tiempo real) */}
+
+                        {/* Columna 6 - Ganancias (calculadas en tiempo real) */}
                         <div className="bg-slate-50 dark:bg-slate-800/40 px-4 py-1.5 flex flex-col justify-center items-center">
                           <div className="font-semibold text-base text-green-600">{formatCurrency(calculateRealTimeEarnings(userPositions))}</div>
                         </div>
-                        
-                        {/* Columna 6 - Estado */}
+
+                        {/* Columna 7 - Estado */}
                         <div className="bg-slate-50 dark:bg-slate-800/40 px-4 py-1.5 flex flex-col justify-center items-end">
                           <div className="flex justify-end gap-1">
                             {activePositions > 0 && (

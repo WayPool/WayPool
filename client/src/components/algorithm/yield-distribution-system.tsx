@@ -20,7 +20,11 @@ import {
   DollarSign,
   PieChart,
   LineChart,
-  Activity
+  Activity,
+  AlertTriangle,
+  Scale,
+  FileWarning,
+  Info
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +69,21 @@ const translations = {
     feature3: "Non-custodial NFT positions",
     feature4: "Daily automatic updates",
     viewPmts: "View PMTS Platform",
-    learnMore: "Learn More"
+    learnMore: "Learn More",
+    // Risk Disclaimer
+    riskDisclaimer: "Risk Disclaimer",
+    riskWarning: "Important Investment Warning",
+    riskText1: "Cryptocurrency and DeFi investments involve substantial risk of loss and are not suitable for all investors. The value of digital assets can be extremely volatile and may result in significant or total loss of invested capital.",
+    riskText2: "Past performance is not indicative of future results. Historical returns, expected yields, and APR projections shown on this platform do not guarantee future performance. Market conditions can change rapidly and without warning.",
+    riskText3: "This platform does not provide financial, investment, tax, or legal advice. You should consult with qualified professionals before making any investment decisions. Only invest funds you can afford to lose entirely.",
+    riskText4: "Regulatory frameworks for digital assets vary by jurisdiction. Users are responsible for compliance with applicable laws in their country of residence.",
+    euRegulation: "EU Regulation (MiCA)",
+    euText: "In accordance with the Markets in Crypto-Assets Regulation (EU) 2023/1114, crypto-assets are not covered by investor compensation schemes and may lose their entire value.",
+    usRegulation: "US Regulation (SEC/CFTC)",
+    usText: "Digital assets may be considered securities under U.S. law. This platform is not registered with the SEC or CFTC. U.S. residents should verify regulatory compliance before investing.",
+    uaeRegulation: "UAE Regulation (VARA/SCA)",
+    uaeText: "Virtual assets in the UAE are regulated by VARA and SCA. This platform operates in compliance with applicable UAE regulations. Investors should understand local requirements.",
+    acknowledgment: "By using this platform, you acknowledge that you have read, understood, and accept these risks."
   },
   es: {
     title: "Sistema de Distribución de Rendimientos",
@@ -103,7 +121,21 @@ const translations = {
     feature3: "Posiciones NFT no custodiales",
     feature4: "Actualizaciones automáticas diarias",
     viewPmts: "Ver Plataforma PMTS",
-    learnMore: "Más Información"
+    learnMore: "Más Información",
+    // Risk Disclaimer
+    riskDisclaimer: "Aviso de Riesgos",
+    riskWarning: "Advertencia Importante de Inversión",
+    riskText1: "Las inversiones en criptomonedas y DeFi conllevan un riesgo sustancial de pérdida y no son adecuadas para todos los inversores. El valor de los activos digitales puede ser extremadamente volátil y puede resultar en una pérdida significativa o total del capital invertido.",
+    riskText2: "El rendimiento pasado no es indicativo de resultados futuros. Los rendimientos históricos, rendimientos esperados y proyecciones de APR mostrados en esta plataforma no garantizan el rendimiento futuro. Las condiciones del mercado pueden cambiar rápidamente y sin previo aviso.",
+    riskText3: "Esta plataforma no proporciona asesoramiento financiero, de inversión, fiscal o legal. Debe consultar con profesionales calificados antes de tomar cualquier decisión de inversión. Solo invierta fondos que pueda permitirse perder por completo.",
+    riskText4: "Los marcos regulatorios para activos digitales varían según la jurisdicción. Los usuarios son responsables del cumplimiento de las leyes aplicables en su país de residencia.",
+    euRegulation: "Regulación UE (MiCA)",
+    euText: "De acuerdo con el Reglamento de Mercados de Criptoactivos (UE) 2023/1114, los criptoactivos no están cubiertos por esquemas de compensación de inversores y pueden perder todo su valor.",
+    usRegulation: "Regulación EE.UU. (SEC/CFTC)",
+    usText: "Los activos digitales pueden considerarse valores según la ley estadounidense. Esta plataforma no está registrada en la SEC ni en la CFTC. Los residentes de EE.UU. deben verificar el cumplimiento normativo antes de invertir.",
+    uaeRegulation: "Regulación EAU (VARA/SCA)",
+    uaeText: "Los activos virtuales en los EAU están regulados por VARA y SCA. Esta plataforma opera en cumplimiento con las regulaciones aplicables de los EAU. Los inversores deben comprender los requisitos locales.",
+    acknowledgment: "Al usar esta plataforma, reconoce que ha leído, entendido y acepta estos riesgos."
   },
   fr: {
     title: "Système de Distribution des Rendements",
@@ -141,7 +173,21 @@ const translations = {
     feature3: "Positions NFT non-custodiales",
     feature4: "Mises à jour automatiques quotidiennes",
     viewPmts: "Voir Plateforme PMTS",
-    learnMore: "En Savoir Plus"
+    learnMore: "En Savoir Plus",
+    // Risk Disclaimer
+    riskDisclaimer: "Avertissement sur les Risques",
+    riskWarning: "Avertissement Important sur l'Investissement",
+    riskText1: "Les investissements en cryptomonnaies et DeFi comportent un risque substantiel de perte et ne conviennent pas à tous les investisseurs. La valeur des actifs numériques peut être extrêmement volatile et peut entraîner une perte significative ou totale du capital investi.",
+    riskText2: "Les performances passées ne préjugent pas des résultats futurs. Les rendements historiques, les rendements attendus et les projections d'APR affichés sur cette plateforme ne garantissent pas les performances futures. Les conditions du marché peuvent changer rapidement et sans préavis.",
+    riskText3: "Cette plateforme ne fournit pas de conseils financiers, d'investissement, fiscaux ou juridiques. Vous devez consulter des professionnels qualifiés avant de prendre toute décision d'investissement. N'investissez que des fonds que vous pouvez vous permettre de perdre entièrement.",
+    riskText4: "Les cadres réglementaires pour les actifs numériques varient selon les juridictions. Les utilisateurs sont responsables du respect des lois applicables dans leur pays de résidence.",
+    euRegulation: "Réglementation UE (MiCA)",
+    euText: "Conformément au Règlement sur les Marchés de Crypto-actifs (UE) 2023/1114, les crypto-actifs ne sont pas couverts par les systèmes d'indemnisation des investisseurs et peuvent perdre toute leur valeur.",
+    usRegulation: "Réglementation US (SEC/CFTC)",
+    usText: "Les actifs numériques peuvent être considérés comme des valeurs mobilières en vertu de la loi américaine. Cette plateforme n'est pas enregistrée auprès de la SEC ou de la CFTC. Les résidents américains doivent vérifier la conformité réglementaire avant d'investir.",
+    uaeRegulation: "Réglementation EAU (VARA/SCA)",
+    uaeText: "Les actifs virtuels aux EAU sont réglementés par VARA et SCA. Cette plateforme opère en conformité avec les réglementations applicables des EAU. Les investisseurs doivent comprendre les exigences locales.",
+    acknowledgment: "En utilisant cette plateforme, vous reconnaissez avoir lu, compris et accepté ces risques."
   },
   de: {
     title: "Ertragsverteilungssystem",
@@ -179,7 +225,21 @@ const translations = {
     feature3: "Nicht-verwahrte NFT-Positionen",
     feature4: "Tägliche automatische Updates",
     viewPmts: "PMTS-Plattform anzeigen",
-    learnMore: "Mehr erfahren"
+    learnMore: "Mehr erfahren",
+    // Risk Disclaimer
+    riskDisclaimer: "Risikohinweis",
+    riskWarning: "Wichtiger Investitionshinweis",
+    riskText1: "Investitionen in Kryptowährungen und DeFi bergen ein erhebliches Verlustrisiko und sind nicht für alle Anleger geeignet. Der Wert digitaler Vermögenswerte kann extrem volatil sein und zu einem erheblichen oder vollständigen Verlust des investierten Kapitals führen.",
+    riskText2: "Die vergangene Wertentwicklung ist kein Indikator für zukünftige Ergebnisse. Historische Renditen, erwartete Erträge und auf dieser Plattform gezeigte APR-Prognosen garantieren keine zukünftige Wertentwicklung. Marktbedingungen können sich schnell und ohne Vorwarnung ändern.",
+    riskText3: "Diese Plattform bietet keine Finanz-, Anlage-, Steuer- oder Rechtsberatung. Sie sollten qualifizierte Fachleute konsultieren, bevor Sie Anlageentscheidungen treffen. Investieren Sie nur Mittel, deren vollständigen Verlust Sie sich leisten können.",
+    riskText4: "Die regulatorischen Rahmenbedingungen für digitale Vermögenswerte variieren je nach Rechtsordnung. Nutzer sind für die Einhaltung der geltenden Gesetze in ihrem Wohnsitzland verantwortlich.",
+    euRegulation: "EU-Verordnung (MiCA)",
+    euText: "Gemäß der Verordnung über Märkte für Krypto-Assets (EU) 2023/1114 sind Krypto-Assets nicht durch Anlegerentschädigungssysteme abgedeckt und können ihren gesamten Wert verlieren.",
+    usRegulation: "US-Regulierung (SEC/CFTC)",
+    usText: "Digitale Vermögenswerte können nach US-Recht als Wertpapiere gelten. Diese Plattform ist nicht bei der SEC oder CFTC registriert. US-Bürger sollten die regulatorische Konformität vor einer Investition überprüfen.",
+    uaeRegulation: "VAE-Regulierung (VARA/SCA)",
+    uaeText: "Virtuelle Vermögenswerte in den VAE werden von VARA und SCA reguliert. Diese Plattform arbeitet in Übereinstimmung mit den geltenden VAE-Vorschriften. Anleger sollten die lokalen Anforderungen verstehen.",
+    acknowledgment: "Durch die Nutzung dieser Plattform bestätigen Sie, dass Sie diese Risiken gelesen, verstanden und akzeptiert haben."
   }
 };
 
@@ -530,6 +590,88 @@ export function YieldDistributionSystem() {
           </Badge>
         </div>
       </div>
+
+      {/* Risk Disclaimer Section */}
+      <Card className="border-amber-200 dark:border-amber-900/50 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-3 text-amber-700 dark:text-amber-400">
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">{t.riskDisclaimer}</h3>
+              <p className="text-sm font-normal text-amber-600 dark:text-amber-500">{t.riskWarning}</p>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Main Risk Warnings */}
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-white/60 dark:bg-slate-900/40 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+              <FileWarning className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{t.riskText1}</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-white/60 dark:bg-slate-900/40 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+              <TrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{t.riskText2}</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-white/60 dark:bg-slate-900/40 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+              <Info className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{t.riskText3}</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-white/60 dark:bg-slate-900/40 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+              <Scale className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{t.riskText4}</p>
+            </div>
+          </div>
+
+          {/* Regulatory Sections */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-amber-200/50 dark:border-amber-800/30">
+            {/* EU Regulation */}
+            <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200/50 dark:border-blue-800/30">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-5 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600 rounded-sm flex items-center justify-center">
+                  <span className="text-yellow-400 text-[8px] font-bold">EU</span>
+                </div>
+                <h4 className="font-semibold text-sm text-blue-700 dark:text-blue-400">{t.euRegulation}</h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{t.euText}</p>
+            </div>
+
+            {/* US Regulation */}
+            <div className="p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200/50 dark:border-red-800/30">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-5 bg-gradient-to-b from-red-500 via-white to-blue-600 rounded-sm flex items-center justify-center">
+                  <span className="text-blue-900 text-[8px] font-bold">US</span>
+                </div>
+                <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">{t.usRegulation}</h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{t.usText}</p>
+            </div>
+
+            {/* UAE Regulation */}
+            <div className="p-4 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/30">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-5 rounded-sm overflow-hidden flex flex-col">
+                  <div className="flex-1 bg-green-600"></div>
+                  <div className="flex-1 bg-white"></div>
+                  <div className="flex-1 bg-black"></div>
+                  <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-600"></div>
+                </div>
+                <h4 className="font-semibold text-sm text-green-700 dark:text-green-400">{t.uaeRegulation}</h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{t.uaeText}</p>
+            </div>
+          </div>
+
+          {/* Acknowledgment */}
+          <div className="mt-4 p-4 bg-slate-100/80 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {t.acknowledgment}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

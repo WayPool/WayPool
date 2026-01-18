@@ -2607,6 +2607,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           depositedUSDC: pos.deposited_usdc,
           feesEarned: pos.fees_earned,
           apr: pos.apr,
+          currentApr: pos.current_apr ? parseFloat(pos.current_apr) : null,
+          lastAprUpdate: pos.last_apr_update,
           startDate: pos.start_date,
           timestamp: pos.timestamp,
           timeframe: pos.timeframe,

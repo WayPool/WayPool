@@ -46,6 +46,8 @@ interface OptimizedPosition {
   depositedUSDC: number;
   feesEarned: number;
   apr: number;
+  currentApr?: number;
+  lastAprUpdate?: string;
   startDate: string;
   timestamp: string;
   timeframe: number;
@@ -533,12 +535,12 @@ export default function OptimizedPositionsManager() {
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-50" 
+                <TableHead
+                  className="cursor-pointer hover:bg-gray-50"
                   onClick={() => handleSort('apr')}
                 >
                   <div className="flex items-center">
-                    APR
+                    APR Actual / Contrato
                     {sortBy === 'apr' && (
                       sortOrder === 'asc' ? <SortAsc className="ml-1 h-4 w-4" /> : <SortDesc className="ml-1 h-4 w-4" />
                     )}
@@ -610,7 +612,17 @@ export default function OptimizedPositionsManager() {
                       {formatCurrency(position.feesEarned)}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {position.apr.toFixed(2)}%
+                      <div className="flex flex-col">
+                        <span className="text-blue-600">
+                          {position.currentApr !== undefined && position.currentApr !== null
+                            ? `${position.currentApr.toFixed(2)}%`
+                            : `${position.apr.toFixed(2)}%`
+                          }
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Contrato: {position.apr.toFixed(2)}%
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">

@@ -334,6 +334,11 @@ app.use((req, res, next) => {
     const { addWalletSeedPhrasesTableMigration } = await import('./migrations/add-wallet-seed-phrases-table');
     await addWalletSeedPhrasesTableMigration();
     console.log("Migración de tabla de frases semilla completada con éxito");
+
+    // Ejecutar la migración para añadir current_apr a position_history
+    const { addCurrentAprFieldMigration } = await import('./migrations/add-current-apr-field');
+    await addCurrentAprFieldMigration();
+    console.log("Migración de campo current_apr completada con éxito");
   } catch (error) {
     log(`[DB] Error in custodial wallet migration: ${error}`);
   }

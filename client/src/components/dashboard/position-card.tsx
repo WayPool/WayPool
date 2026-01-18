@@ -25,7 +25,9 @@ export interface PositionCardProps {
     token1Amount: string;
     depositedUSDC: number;
     timeframe: number;
-    apr: number;
+    apr: number; // APR contratado (referencia estimada)
+    currentApr?: number; // APR actual basado en pools (variable)
+    lastAprUpdate?: string; // Última actualización del APR
     status: "Active" | "Pending" | "Finalized";
     feesEarned: number;
     lowerPrice: number;
@@ -496,8 +498,14 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
             <div className="font-medium text-emerald-500">{formatCurrency(position.depositedUSDC * position.apr / 100)}</div>
           </div>
           <div>
-            <div className="text-sm text-slate-500 dark:text-slate-400">{t("positions.stats.apr", "APR")}</div>
-            <div className="font-medium text-blue-500">{typeof position.apr === 'number' ? position.apr.toFixed(2) : parseFloat(String(position.apr)).toFixed(2)}%</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">{t("positions.stats.currentApr", "APR Actual")}</div>
+            <div className="font-medium text-blue-500">
+              {position.currentApr !== undefined && position.currentApr !== null
+                ? `${(typeof position.currentApr === 'number' ? position.currentApr : parseFloat(String(position.currentApr))).toFixed(2)}%`
+                : `${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr))).toFixed(2)}%`
+              }
+            </div>
+            <div className="text-xs text-slate-400">{t("positions.stats.contractApr", "Contratado")}: {(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr))).toFixed(2)}%</div>
           </div>
           <div>
             <div className="text-sm text-slate-500 dark:text-slate-400">{t("positions.stats.priceRange", "Rango de Precio")}</div>

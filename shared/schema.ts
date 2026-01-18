@@ -80,7 +80,9 @@ export const positionHistory = pgTable("position_history", {
   timeframe: integer("timeframe").notNull(), // 30, 90, 365 días
   contractDuration: integer("contract_duration").default(365), // Duración del contrato en días (365, 730, 1095, 1460, 1825)
   status: text("status").notNull().default("Pending"), // 'Active', 'Pending', 'Finalized'
-  apr: decimal("apr", { precision: 10, scale: 2 }).notNull(),
+  apr: decimal("apr", { precision: 10, scale: 2 }).notNull(), // APR contratado (referencia estimada)
+  currentApr: decimal("current_apr", { precision: 10, scale: 2 }), // APR actual basado en pools (variable diario)
+  lastAprUpdate: timestamp("last_apr_update"), // Última actualización del APR actual
   feesEarned: decimal("fees_earned", { precision: 12, scale: 2 }).default("0"),
   feesCollected: decimal("fees_collected", { precision: 12, scale: 2 }).default("0"),
   totalFeesCollected: decimal("total_fees_collected", { precision: 12, scale: 2 }).default("0"),

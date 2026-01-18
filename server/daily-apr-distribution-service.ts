@@ -206,19 +206,25 @@ async function getActivePositions() {
 }
 
 /**
- * Actualiza el feesEarned de una posición
+ * Actualiza el feesEarned y currentApr de una posición
  */
-async function updatePositionFees(positionId: number, newFeesEarned: number): Promise<boolean> {
+async function updatePositionFeesAndApr(
+  positionId: number,
+  newFeesEarned: number,
+  currentApr: number
+): Promise<boolean> {
   try {
     await db
       .update(positionHistory)
       .set({
         feesEarned: newFeesEarned.toFixed(2),
+        currentApr: currentApr.toFixed(2),
+        lastAprUpdate: new Date(),
       })
       .where(eq(positionHistory.id, positionId));
     return true;
   } catch (error) {
-    log(`Error actualizando fees de posición ${positionId}: ${error}`, 'ERROR');
+    log(`Error actualizando fees/APR de posición ${positionId}: ${error}`, 'ERROR');
     return false;
   }
 }
@@ -311,7 +317,7 @@ export async function executeDailyAprDistribution(
 
       // Actualizar en base de datos (si no es dry run)
       if (!dryRun) {
-        const updated = await updatePositionFees(position.id, finalFeesEarned);
+        const updated = await updatePositionFeesAndApr(position.id, finalFeesEarned, adjustedApr);
         if (updated) {
           result.totalPositionsUpdated++;
         }

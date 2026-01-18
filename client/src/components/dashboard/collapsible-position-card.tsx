@@ -30,7 +30,9 @@ export interface PositionCardProps {
     token1Amount: string;
     depositedUSDC: number;
     timeframe: number;
-    apr: number;
+    apr: number; // APR contratado (referencia estimada)
+    currentApr?: number; // APR actual basado en pools (variable)
+    lastAprUpdate?: string; // Última actualización del APR
     status: "Active" | "Pending" | "Finalized";
     feesEarned: number;
     feesCollected?: number;
@@ -914,7 +916,10 @@ const CollapsiblePositionCard = ({ position, onRefresh }: PositionCardProps) => 
                     {language === 'es' && 'APR'}
                     {language === 'fr' && 'TRA'}
                     {language === 'de' && 'JER'}
-                    : {typeof position.apr === 'number' ? position.apr.toFixed(2) : parseFloat(String(position.apr || 0)).toFixed(2)}%
+                    : {position.currentApr !== undefined && position.currentApr !== null
+                        ? (typeof position.currentApr === 'number' ? position.currentApr : parseFloat(String(position.currentApr))).toFixed(2)
+                        : (typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)
+                      }%
                   </span>
                 </div>
                 <div className="flex items-center text-slate-500">
@@ -1031,12 +1036,23 @@ const CollapsiblePositionCard = ({ position, onRefresh }: PositionCardProps) => 
             </div>
             <div>
               <div className="text-sm text-slate-500 dark:text-slate-400">
-                {language === 'en' && 'APR'}
-                {language === 'es' && 'APR'}
-                {language === 'fr' && 'TRA'}
-                {language === 'de' && 'JER'}
+                {language === 'en' && 'Current APR'}
+                {language === 'es' && 'APR Actual'}
+                {language === 'fr' && 'TRA Actuel'}
+                {language === 'de' && 'Aktueller JER'}
               </div>
-              <div className="text-xl font-bold">{typeof position.apr === 'number' ? position.apr.toFixed(2) : parseFloat(String(position.apr || 0)).toFixed(2)}%</div>
+              <div className="text-xl font-bold">
+                {position.currentApr !== undefined && position.currentApr !== null
+                  ? `${(typeof position.currentApr === 'number' ? position.currentApr : parseFloat(String(position.currentApr))).toFixed(2)}%`
+                  : `${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)}%`
+                }
+              </div>
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                {language === 'en' && `Contract: ${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)}%`}
+                {language === 'es' && `Contratado: ${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)}%`}
+                {language === 'fr' && `Contractuel: ${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)}%`}
+                {language === 'de' && `Vertraglich: ${(typeof position.apr === 'number' ? position.apr : parseFloat(String(position.apr || 0))).toFixed(2)}%`}
+              </div>
             </div>
             <div>
               <div className="text-sm text-slate-500 dark:text-slate-400">

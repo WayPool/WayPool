@@ -200,6 +200,8 @@ interface PositionHistory {
   timeframe: number;
   status: string;
   apr: number;
+  currentApr?: number; // APR actual basado en pools (variable diario)
+  lastAprUpdate?: string; // Última actualización del APR actual
   feesEarned: number;
   lowerPrice?: number;
   upperPrice?: number;
@@ -2049,7 +2051,7 @@ const UserPositionsManager = () => {
                   <TableHead>Pool</TableHead>
                   <TableHead>Monto</TableHead>
                   <TableHead>Timeframe</TableHead>
-                  <TableHead>APR</TableHead>
+                  <TableHead>APR Actual / Contrato</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -2077,8 +2079,16 @@ const UserPositionsManager = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-green-600">
-                        {formatNumber(Number(position.apr) || 0)}%
+                      <div className="flex flex-col">
+                        <span className="font-medium text-blue-600">
+                          {position.currentApr !== undefined && position.currentApr !== null
+                            ? `${formatNumber(Number(position.currentApr))}%`
+                            : `${formatNumber(Number(position.apr) || 0)}%`
+                          }
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Contrato: {formatNumber(Number(position.apr) || 0)}%
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>

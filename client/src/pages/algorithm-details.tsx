@@ -39,6 +39,7 @@ import { AnimatedChart } from "@/components/algorithm/animated-chart";
 import { FeatureCard } from "@/components/algorithm/feature-card";
 import { BlockchainScene } from "@/components/algorithm/blockchain-scene";
 import { ProcessFlow } from "@/components/algorithm/process-flow";
+import { YieldDistributionSystem } from "@/components/algorithm/yield-distribution-system";
 
 export default function AlgorithmDetails() {
   const { language } = useLanguage();
@@ -232,13 +233,16 @@ export default function AlgorithmDetails() {
               <div className="bg-primary/5 p-6 rounded-lg border mt-8">
                 <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                   <LineChart className="h-5 w-5 text-primary" />
-                  {t.simulatedPerformance || 
-                    (currentLanguage === 'es' ? "Rendimiento Simulado" : 
-                     currentLanguage === 'fr' ? "Performance Simulée" : 
+                  {t.simulatedPerformance ||
+                    (language === 'es' ? "Rendimiento Simulado" :
+                     language === 'fr' ? "Performance Simulée" :
                      "Simulated Performance")}
                 </h3>
                 <AnimatedChart type="poolPerformance" />
               </div>
+
+              {/* Yield Distribution System - PMTS Algorithm */}
+              <YieldDistributionSystem />
             </TabsContent>
             
             {/* Tab Contenido: Pool Strategy */}

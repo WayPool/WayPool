@@ -89,16 +89,16 @@ export function useUserNFTs() {
           customHeaders['x-wallet-address'] = walletAddress;
         }
         
-        // 1. Primero obtener los NFTs reales de blockchain del usuario
+        // 1. Obtener NFTs REALES de la blockchain del usuario
         const nftsResponse = await apiRequest<UniswapNFT[]>(
           'GET',
-          `/api/nfts/blockchain/${walletAddress}`, // ⚠️ Cambiado a /blockchain/ para obtener solo NFTs reales
+          `/api/nfts/blockchain/${walletAddress}`, // NFTs reales de blockchain
           undefined,
           { headers: customHeaders }
         );
-        
+
         const blockchainNfts = nftsResponse || [];
-        logger.info(`Blockchain NFTs fetched successfully (${blockchainNfts.length}):`, blockchainNfts);
+        logger.info(`Blockchain NFTs fetched (${blockchainNfts.length}):`, blockchainNfts.map(n => n.tokenId));
         
         // 2. Obtener información de estados para los NFTs
         try {
@@ -172,24 +172,26 @@ export function useUserNFTs() {
                     logger.info(`✅ Admin: Aplicando estado "${managedNft.status}" al NFT #${nft.tokenId} (DB ID: ${managedNft.id})`);
                     return {
                       ...nft,
+                      walletAddress: walletAddress, // CRÍTICO: Asignar wallet del usuario
                       status: managedNft.status || nft.status || 'Unknown',
                       valueUsdc: managedNft.valueUsdc || '0.00',
                       managedId: managedNft.id
                     };
                   }
                 }
-                
+
                 // Si no existe un estado en la base de datos, inferir estado inteligente
                 let inferredStatus = 'Inactive';
-                
+
                 // Si el NFT tiene información básica válida, marcar como activo
-                if (nft.fee && nft.token0Symbol && nft.token1Symbol && 
+                if (nft.fee && nft.token0Symbol && nft.token1Symbol &&
                     nft.token0Symbol !== 'Unknown' && nft.token1Symbol !== 'Unknown') {
                   inferredStatus = 'Active';
                 }
-                
+
                 return {
                   ...nft,
+                  walletAddress: walletAddress, // CRÍTICO: Asignar wallet del usuario
                   status: inferredStatus,
                   valueUsdc: '0.00',
                 };
@@ -221,20 +223,22 @@ export function useUserNFTs() {
                 if (response.ok) {
                   const statusData = await response.json();
                   logger.debug(`Estado para NFT #${nft.tokenId}:`, statusData);
-                  
+
                   if (statusData.found) {
                     logger.info(`✅ Usuario: NFT #${nft.tokenId} tiene estado "${statusData.status}" y valor ${statusData.valueUsdc}`);
                     return {
                       ...nft,
+                      walletAddress: walletAddress, // CRÍTICO: Asignar wallet del usuario
                       status: statusData.status || 'Unknown',
                       valueUsdc: statusData.valueUsdc || '0.00'
                     };
                   }
                 }
-                
+
                 // Si no hay datos o hay error, devolver con estado Unknown
                 return {
                   ...nft,
+                  walletAddress: walletAddress, // CRÍTICO: Asignar wallet del usuario
                   status: 'Unknown',
                   valueUsdc: '0.00'
                 };
@@ -242,21 +246,25 @@ export function useUserNFTs() {
                 logger.error(`Error obteniendo estado para NFT #${nft.tokenId}:`, error);
                 return {
                   ...nft,
+                  walletAddress: walletAddress, // CRÍTICO: Asignar wallet del usuario
                   status: 'Unknown',
                   valueUsdc: '0.00'
                 };
               }
             }));
-            
+
             return nftsWithStatus;
           }
         } catch (error) {
           logger.error('Error fetching NFT states:', error);
           // Si hay error, simplemente usamos los NFTs de blockchain sin estados
         }
-        
-        // Si no pudimos obtener estados, al menos devolver NFTs de blockchain
-        return blockchainNfts;
+
+        // Si no pudimos obtener estados, al menos devolver NFTs de blockchain con walletAddress
+        return blockchainNfts.map(nft => ({
+          ...nft,
+          walletAddress: walletAddress
+        }));
       } catch (error) {
         logger.error(`Error fetching NFTs:`, error);
         
@@ -266,10 +274,10 @@ export function useUserNFTs() {
           const headers: Record<string, string> = {
             'Content-Type': 'application/json'
           };
-          
+
           if (isAdmin) headers['x-is-admin'] = 'true';
           if (walletAddress) headers['x-wallet-address'] = walletAddress;
-          
+
           const fallbackResponse = await fetch(`/api/nfts/blockchain/${walletAddress}`, {
             method: 'GET',
             headers
@@ -278,18 +286,27 @@ export function useUserNFTs() {
           if (fallbackResponse.ok) {
             const data = await fallbackResponse.json();
             logger.info(`Fallback NFT fetch succeeded:`, data);
-            return data || [];
+            // Asignar walletAddress a cada NFT del fallback
+            return (data || []).map((nft: any) => ({
+              ...nft,
+              walletAddress: walletAddress
+            }));
           }
         } catch (fallbackError) {
           console.error(`Fallback fetch also failed:`, fallbackError);
         }
-        
+
         return []; // Devolvemos un array vacío en caso de error total
       }
     },
     enabled: !!walletAddress,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    retry: 2
+    retry: 2,
+    // ANTI-CACHE: Configuración agresiva para datos siempre frescos
+    staleTime: 0,
+    gcTime: 30000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000 // Refetch cada 60 segundos
   });
 }
 
@@ -346,9 +363,12 @@ export function useNFTDetails(tokenId: string, network: string = "ethereum", con
       }
     },
     enabled: !!tokenId && !!walletAddress,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    // ANTI-CACHE: Configuración para datos frescos
+    staleTime: 0,
+    gcTime: 30000,
     retry: 2,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
   });
 }
 
@@ -405,8 +425,12 @@ export function useNFTListingInfo(tokenId: string, network: string = "ethereum")
       }
     },
     enabled: !!tokenId && !!walletAddress,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    retry: 2
+    // ANTI-CACHE: Configuración para datos frescos
+    staleTime: 0,
+    gcTime: 30000,
+    retry: 2,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
   });
 }
 
@@ -503,8 +527,13 @@ export function useManagedNFTs() {
       }
     },
     enabled: !!walletAddress, // Habilitado para todos los usuarios que tengan wallet
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    // ANTI-CACHE: Configuración para datos frescos
+    staleTime: 0,
+    gcTime: 30000,
     retry: 2,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: 60000 // Refetch cada 60 segundos
   });
 }
 

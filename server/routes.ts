@@ -384,6 +384,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  console.log('✅ NFT Pool Creation routes registered successfully');
+
   // ============================================
   // Yield Distribution Routes (SuperAdmin only)
   // ============================================
@@ -548,6 +550,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: 'Error getting yield statistics' });
     }
   });
+
+  console.log('✅ Yield Distribution routes registered successfully');
 
   // Register blockchain data API routes
   registerApiRoutes(app);

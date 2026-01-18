@@ -65,7 +65,10 @@ export function usePositions() {
     },
     enabled: !!address && !!chainId && !!provider,
     refetchInterval: 120000, // 120 segundos (2 minutos) - optimizado para reducir costes
-    staleTime: 60000, // Los datos se consideran obsoletos después de 60 segundos
+    staleTime: 0, // ANTI-CACHE: Datos siempre obsoletos para forzar actualización
+    gcTime: 30000, // ANTI-CACHE: Cache corto (30 segundos)
+    refetchOnMount: true, // ANTI-CACHE: Siempre actualizar al montar
+    refetchOnWindowFocus: true, // ANTI-CACHE: Actualizar al volver a la ventana
   });
 
   // Fetch user's positions from the database - Optimized to prevent race conditions
@@ -96,12 +99,12 @@ export function usePositions() {
       }
     },
     enabled: !!address,
-    refetchInterval: false, // Desactivar refetch automático para evitar race conditions
-    staleTime: 1000 * 60 * 5, // 5 minutos - datos frescos por más tiempo
-    refetchOnWindowFocus: false, // Desactivar para evitar múltiples consultas
-    refetchOnMount: true,      // Solo actualizar al montar
+    refetchInterval: 60000, // ANTI-CACHE: Refetch cada 60 segundos
+    staleTime: 0, // ANTI-CACHE: Datos siempre obsoletos
+    refetchOnWindowFocus: true, // ANTI-CACHE: Actualizar al volver a la ventana
+    refetchOnMount: true, // ANTI-CACHE: Actualizar al montar
     retry: 1, // Reducir reintentos para evitar consultas múltiples
-    gcTime: 300000 // Mantener en caché por 5 minutos para evitar recalcular
+    gcTime: 30000 // ANTI-CACHE: Cache corto (30 segundos)
   });
 
   // Calculate total value and fees from blockchain positions - SOLO ACTIVAS

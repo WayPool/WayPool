@@ -10,6 +10,7 @@ export interface UniswapNFT {
   token0Symbol: string;
   token1Symbol: string;
   fee: string;
+  feeTier?: string; // Fee tier extraído de los metadatos
   poolAddress?: string;
   poolValue?: string;
   inRange?: boolean;
@@ -19,6 +20,7 @@ export interface UniswapNFT {
   description?: string; // Descripción del NFT
   poolManagerAddress?: string; // Dirección del pool manager (para V4)
   estimatedValue?: string; // Valor estimado del NFT
+  valueUsdc?: string; // Valor en USDC asignado al NFT (de managed_nfts)
   walletAddress?: string; // Dirección del wallet propietario
   listing?: {
     price?: string;
@@ -303,6 +305,7 @@ export async function getUserManagedNFTs(walletAddress: string): Promise<Uniswap
       status: nft.status || 'Unknown',
       version: nft.version || 'V3',
       walletAddress: normalizedAddress,
+      valueUsdc: nft.valueUsdc || '0.00', // CRÍTICO: El frontend necesita valueUsdc directamente
       estimatedValue: nft.valueUsdc ? `${nft.valueUsdc} USDC` : '0 USDC'
     }));
     
@@ -370,7 +373,12 @@ export async function getAllUserNFTs(walletAddress: string): Promise<UniswapNFT[
     // Función para calcular puntuación de calidad del NFT
     const calculateNftQualityScore = (nft: UniswapNFT): number => {
       let score = 0;
-      
+
+      // CRÍTICO: NFTs con valueUsdc y status Active tienen máxima prioridad
+      // Estos vienen de managed_nfts y representan inversiones activas del usuario
+      if (nft.valueUsdc && parseFloat(nft.valueUsdc) > 0) score += 50;
+      if (nft.status && (nft.status.toLowerCase() === 'active' || nft.status.toLowerCase() === 'activo')) score += 30;
+
       // Campos importantes que indican un NFT completo y legítimo
       if (nft.fee && typeof nft.fee === 'string' && nft.fee.includes("%")) score += 10; // Fee con formato correcto
       if (nft.feeTier) score += 5;
@@ -378,12 +386,11 @@ export async function getAllUserNFTs(walletAddress: string): Promise<UniswapNFT[
       if (nft.token1Symbol && nft.token1Symbol !== "Unknown") score += 2;
       if (nft.imageUrl) score += 2;
       if (nft.poolAddress) score += 3;
-      if (nft.status) score += 1;
-      if (nft.valueUsdc || nft.estimatedValue) score += 3;
-      
+      if (nft.estimatedValue) score += 3;
+
       // Un NFT con estado y sin datos básicos probablemente es un fantasma
       if (!nft.fee && nft.status) score -= 5;
-      
+
       return score;
     };
 
@@ -422,16 +429,29 @@ export async function getAllUserNFTs(walletAddress: string): Promise<UniswapNFT[
         // Combinar información adicional del resto de NFTs si el mejor no la tiene
         for (let i = 1; i < nftsForTokenId.length; i++) {
           const otherNft = nftsForTokenId[i];
-          
+
           // Combinar datos que podrían faltar en el mejor NFT
           if (!bestNft.fee && otherNft.fee) bestNft.fee = otherNft.fee;
           if (!bestNft.feeTier && otherNft.feeTier) bestNft.feeTier = otherNft.feeTier;
-          if (!bestNft.status && otherNft.status) bestNft.status = otherNft.status;
           if (!bestNft.poolAddress && otherNft.poolAddress) bestNft.poolAddress = otherNft.poolAddress;
           if (!bestNft.imageUrl && otherNft.imageUrl) bestNft.imageUrl = otherNft.imageUrl;
-          if (!bestNft.valueUsdc && otherNft.valueUsdc) bestNft.valueUsdc = otherNft.valueUsdc;
           if (!bestNft.estimatedValue && otherNft.estimatedValue) bestNft.estimatedValue = otherNft.estimatedValue;
-          
+
+          // CRÍTICO: valueUsdc y status de managed_nfts deben tener prioridad
+          // Si el otro NFT tiene valueUsdc con valor real, usarlo
+          if (otherNft.valueUsdc && parseFloat(otherNft.valueUsdc) > 0) {
+            bestNft.valueUsdc = otherNft.valueUsdc;
+          } else if (!bestNft.valueUsdc && otherNft.valueUsdc) {
+            bestNft.valueUsdc = otherNft.valueUsdc;
+          }
+
+          // Si el otro NFT tiene status Active, usarlo
+          if (otherNft.status && (otherNft.status.toLowerCase() === 'active' || otherNft.status.toLowerCase() === 'activo')) {
+            bestNft.status = otherNft.status;
+          } else if (!bestNft.status && otherNft.status) {
+            bestNft.status = otherNft.status;
+          }
+
           // Registrar que hemos eliminado un duplicado
           duplicatesFound[tokenId] = (duplicatesFound[tokenId] || 0) + 1;
         }

@@ -1002,14 +1002,16 @@ const NFTsPage: React.FC = () => {
       )
     : userNFTs;
 
-  // Filtrar por red
-  const displayedNFTs = filteredByManaged.filter(nft => {
-    if (networkFilter === "all") return true;
-    return nft.network === networkFilter || 
-           (networkFilter === 'ethereum' && nft.network === 'mainnet') ||
-           (networkFilter === 'polygon' && nft.network === 'matic') ||
-           (networkFilter === 'unichain' && nft.network === 'unichain');
-  });
+  // Filtrar por red y luego aplicar filtros avanzados (status, versión, fee, etc.)
+  const displayedNFTs = filteredByManaged
+    .filter(nft => {
+      if (networkFilter === "all") return true;
+      return nft.network === networkFilter ||
+             (networkFilter === 'ethereum' && nft.network === 'mainnet') ||
+             (networkFilter === 'polygon' && nft.network === 'matic') ||
+             (networkFilter === 'unichain' && nft.network === 'unichain');
+    })
+    .filter(filterNFTs);
   
   // Combinar estados de carga y errores
   const isLoading = isLoadingUserNFTs || isLoadingManagedNFTs;

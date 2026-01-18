@@ -235,28 +235,53 @@ app.delete('/api/admin/podcasts/:id', async (req: any, res: any) => {
 
 console.log("🎧 Rutas de podcasts con prioridad absoluta registradas");
 
-// Middleware para controlar la caché
+// Middleware ANTI-CACHE agresivo para todas las rutas API y páginas dinámicas
 app.use((req, res, next) => {
-  // Prevenir el almacenamiento en caché para páginas HTML y archivos de metadata SEO
-  if (req.path.endsWith('.html') || req.path === '/' || req.path === '/algorithm' ||
-    req.path === '/how-it-works' || req.path === '/dashboard' ||
-    req.path.includes('seo') || req.path.includes('meta')) {
+  // ANTI-CACHE: Todas las rutas API deben ser siempre frescas
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    // Prevenir cache en CDNs y proxies
+    res.setHeader('Vary', '*');
+  }
 
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  // ANTI-CACHE: Páginas HTML y rutas dinámicas de la SPA
+  if (req.path.endsWith('.html') ||
+      req.path === '/' ||
+      req.path === '/algorithm' ||
+      req.path === '/how-it-works' ||
+      req.path === '/dashboard' ||
+      req.path === '/nfts' ||
+      req.path === '/positions' ||
+      req.path === '/analytics' ||
+      req.path === '/referrals' ||
+      req.path === '/settings' ||
+      req.path === '/admin' ||
+      req.path === '/support' ||
+      req.path === '/transfers' ||
+      req.path.includes('seo') ||
+      req.path.includes('meta')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
   }
+
   next();
 });
 
-// Configuración de sesiones
+// Configuración de sesiones - Duración extendida (7 días) para sesión permanente
 app.use(session({
   secret: process.env.SESSION_SECRET || 'waybank-secure-session-secret',
-  resave: false,
+  resave: true, // Permitir re-guardar sesión para extender duración
   saveUninitialized: false,
+  rolling: true, // Renovar cookie en cada request para sesión permanente
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días - sesión permanente
+    httpOnly: true, // Seguridad: no accesible desde JavaScript
+    sameSite: 'lax' // Protección CSRF pero permite navegación normal
   },
   store: new MemoryStoreSession({
     checkPeriod: 86400000 // Eliminar sesiones caducadas cada 24h

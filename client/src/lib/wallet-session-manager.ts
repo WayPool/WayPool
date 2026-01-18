@@ -15,8 +15,11 @@ const STORAGE_KEYS = {
   LOGIN_EXPIRES_AT: 'waybank_login_expires'
 };
 
-// Tiempo de expiración de sesión (24 horas por defecto)
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+// Tiempo de expiración de sesión (7 días - sesión permanente mientras haya actividad)
+const SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
+
+// Tiempo de inactividad máximo (30 minutos sin actividad = refrescar)
+const INACTIVITY_THRESHOLD = 30 * 60 * 1000; // 30 minutos
 
 export interface WalletSessionData {
   address: string;

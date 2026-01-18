@@ -557,19 +557,64 @@ export function registerApiRoutes(app: Express) {
   router.get("/nfts/blockchain/:walletAddress", async (req: Request, res: Response) => {
     try {
       const { walletAddress } = req.params;
-      
+      const normalizedAddress = walletAddress.toLowerCase();
+
       // Verificar permisos
       if (req.session && req.session.user) {
-        if (req.session.user.walletAddress.toLowerCase() !== walletAddress.toLowerCase() && !req.session.user.isAdmin) {
+        if (req.session.user.walletAddress.toLowerCase() !== normalizedAddress && !req.session.user.isAdmin) {
           return res.status(403).json({
             error: "No tienes permiso para ver los NFTs de este usuario"
           });
         }
       }
-      
-      console.log('Buscando NFTs de blockchain para wallet:', walletAddress);
-      const nfts = await getUserUniswapNFTs(walletAddress);
-      return res.json(nfts);
+
+      console.log('Buscando NFTs de blockchain para wallet:', normalizedAddress);
+
+      // 1. Obtener NFTs de blockchain via Alchemy
+      const blockchainNfts = await getUserUniswapNFTs(walletAddress);
+      console.log(`[NFTs Blockchain] Encontrados ${blockchainNfts.length} NFTs via Alchemy`);
+
+      // 2. Obtener NFTs desde position_history (como fallback)
+      const userPositions = await storage.getUserPositionHistory(normalizedAddress);
+      const positionsWithNft = userPositions.filter(p => p.nftTokenId && p.nftTokenId !== '');
+      console.log(`[NFTs Blockchain] Encontradas ${positionsWithNft.length} posiciones con NFT en position_history`);
+
+      // 3. Crear un Set de tokenIds que ya tenemos de blockchain
+      const existingTokenIds = new Set(blockchainNfts.map(n => n.tokenId));
+
+      // 4. Para cada posición con NFT que no esté en blockchain, agregarlo
+      const additionalNfts: any[] = [];
+      for (const pos of positionsWithNft) {
+        if (!existingTokenIds.has(pos.nftTokenId!)) {
+          // Buscar datos adicionales en managed_nfts
+          const managedNft = await storage.getManagedNftByTokenId(pos.nftTokenId!, pos.network || 'polygon');
+
+          const nft = {
+            tokenId: pos.nftTokenId,
+            contractAddress: pos.contractAddress || managedNft?.contractAddress || '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+            network: pos.network || managedNft?.network || 'polygon',
+            token0Symbol: pos.token0 || managedNft?.token0Symbol || 'Unknown',
+            token1Symbol: pos.token1 || managedNft?.token1Symbol || 'Unknown',
+            fee: pos.fee || managedNft?.feeTier || '',
+            poolAddress: pos.poolAddress || managedNft?.poolAddress || '',
+            imageUrl: managedNft?.imageUrl || '',
+            status: managedNft?.status || pos.status || 'Unknown',
+            version: pos.version || managedNft?.version || 'V3',
+            walletAddress: normalizedAddress,
+            valueUsdc: managedNft?.valueUsdc || pos.valueUsdc || '0.00',
+          };
+
+          console.log(`[NFTs Blockchain] Agregando NFT #${pos.nftTokenId} desde position_history (no encontrado en Alchemy)`);
+          additionalNfts.push(nft);
+          existingTokenIds.add(pos.nftTokenId!);
+        }
+      }
+
+      // 5. Combinar resultados
+      const allNfts = [...blockchainNfts, ...additionalNfts];
+      console.log(`[NFTs Blockchain] Total NFTs retornados: ${allNfts.length} (${blockchainNfts.length} de Alchemy + ${additionalNfts.length} de position_history)`);
+
+      return res.json(allNfts);
     } catch (error) {
       console.error("Error al obtener los NFTs de blockchain del usuario:", error);
       return res.status(500).json({

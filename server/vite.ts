@@ -79,10 +79,37 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Servir archivos estáticos con cache inteligente:
+  // - Assets con hash (JS, CSS): cache largo (1 año) porque el hash cambia en cada build
+  // - HTML: sin cache para siempre cargar la versión más reciente
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      // Los assets con hash pueden tener cache largo
+      if (filePath.includes('/assets/') && (filePath.endsWith('.js') || filePath.endsWith('.css'))) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else if (filePath.endsWith('.html')) {
+        // HTML siempre fresco
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    }
+  }));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // IMPORTANT: Exclude /api and /ws routes from catch-all
+  app.use("*", (req, res, next) => {
+    console.log(`[serveStatic] Catch-all received: ${req.originalUrl}`);
+    // Don't serve index.html for API or WebSocket routes
+    if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/ws')) {
+      console.log(`[serveStatic] Passing /api or /ws route to next middleware: ${req.originalUrl}`);
+      return next();
+    }
+    console.log(`[serveStatic] Serving index.html for: ${req.originalUrl}`);
+    // ANTI-CACHE: Headers para que el HTML siempre se recargue
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

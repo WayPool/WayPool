@@ -544,13 +544,47 @@ export const getQueryFn: <TypeData>(options: {
     }
   };
 
+// Sistema anti-cache agresivo - forzar datos frescos siempre
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      // ANTI-CACHE: Siempre refetch cuando la ventana obtiene foco
       refetchOnWindowFocus: true,
-      refetchInterval: false,
+      // ANTI-CACHE: Refetch cuando se reconecta a internet
+      refetchOnReconnect: true,
+      // ANTI-CACHE: Refetch cuando el componente se monta
+      refetchOnMount: true,
+      // ANTI-CACHE: Los datos se consideran obsoletos inmediatamente
+      staleTime: 0,
+      // ANTI-CACHE: Cache muy corto (30 segundos) - solo para evitar requests duplicados inmediatos
+      gcTime: 30 * 1000,
+      // Reintentos limitados
       retry: 1,
+      // Query function por defecto
       queryFn: getQueryFn({ on401: "throw" })
     },
+    mutations: {
+      // ANTI-CACHE: Invalidar cache después de cada mutación
+      onSuccess: () => {
+        // Las mutaciones exitosas invalidan todo el cache
+        queryClient.invalidateQueries();
+      }
+    }
   },
 });
+
+// Función helper para forzar refresh de datos críticos
+export function invalidateAllQueries() {
+  queryClient.invalidateQueries();
+  queryClient.refetchQueries();
+}
+
+// Función para invalidar queries específicas por prefijo
+export function invalidateQueriesByPrefix(prefix: string) {
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const queryKey = query.queryKey[0];
+      return typeof queryKey === 'string' && queryKey.startsWith(prefix);
+    }
+  });
+}

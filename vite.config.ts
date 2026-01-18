@@ -33,5 +33,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    // Cache-busting: nombres de archivo con hash único en cada build
+    rollupOptions: {
+      output: {
+        // Agregar hash al nombre de los chunks JS
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        // Agregar hash a los assets (CSS, imágenes, etc.)
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
   },
+  // Deshabilitar cache de módulos en desarrollo
+  server: {
+    headers: {
+      'Cache-Control': 'no-store'
+    }
+  }
 });

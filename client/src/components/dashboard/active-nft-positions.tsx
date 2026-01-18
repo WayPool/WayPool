@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useUserNFTs, useNFTDetails } from "@/hooks/use-nfts";
+import React, { useState, useEffect, useMemo } from "react";
+import { useUserNFTs, useNFTDetails, useManagedNFTs } from "@/hooks/use-nfts";
 import { useWallet } from "@/hooks/use-wallet";
 import { formatExactCurrency } from "@/lib/utils";
 import { APP_NAME } from "@/utils/app-config";
@@ -471,9 +471,48 @@ export function ActiveNFTPositions() {
   const { address } = useWallet();
   const walletAddress = address?.toLowerCase() || '';
   const { t, language } = useTranslation();
-  
-  // Obtenemos los NFTs con su estado actualizado
-  const { data: nfts = [], isLoading } = useUserNFTs();
+
+  // 1. Obtenemos los NFTs REALES de blockchain del usuario
+  const { data: blockchainNfts = [], isLoading: isLoadingBlockchain } = useUserNFTs();
+
+  // 2. Obtenemos los NFTs administrados (para saber cuáles tienen status Active y valueUsdc)
+  const { data: managedNfts = [], isLoading: isLoadingManaged } = useManagedNFTs();
+
+  const isLoading = isLoadingBlockchain || isLoadingManaged;
+
+  // LÓGICA SIMPLE:
+  // - Tomar NFTs reales de blockchain
+  // - Buscar cada uno en managed_nfts para obtener status y valueUsdc
+  // - Solo mostrar los que tienen status Active y valueUsdc > 0
+  const nfts = useMemo(() => {
+    console.log(`[ActiveNFTPositions] NFTs de blockchain: ${blockchainNfts.length}`);
+    console.log(`[ActiveNFTPositions] NFTs administrados disponibles: ${managedNfts.length}`);
+
+    // Para cada NFT de blockchain, buscar su entrada en managed_nfts
+    return blockchainNfts.map((nft: any) => {
+      // Buscar en managed_nfts por tokenId
+      const managedNft = managedNfts.find((m: any) => m.tokenId === nft.tokenId);
+
+      if (managedNft) {
+        console.log(`[ActiveNFTPositions] NFT #${nft.tokenId} encontrado en managed_nfts: status=${managedNft.status}, valueUsdc=${managedNft.valueUsdc}`);
+        // Combinar datos de blockchain con datos de managed_nfts
+        return {
+          ...nft,
+          walletAddress: walletAddress,
+          status: managedNft.status || nft.status || 'Unknown',
+          valueUsdc: managedNft.valueUsdc || '0.00',
+        };
+      }
+
+      // Si no está en managed_nfts, mantener el NFT pero sin status/valueUsdc activo
+      return {
+        ...nft,
+        walletAddress: walletAddress,
+        status: nft.status || 'Unknown',
+        valueUsdc: nft.valueUsdc || '0.00',
+      };
+    });
+  }, [blockchainNfts, managedNfts, walletAddress]);
   
   // State for details dialog
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);

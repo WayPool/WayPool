@@ -2609,14 +2609,31 @@ export class DatabaseStorage implements IStorage, DatabaseStoragePasswordRecover
 
   async createManagedNft(data: InsertManagedNft): Promise<ManagedNft> {
     try {
+      // First, fix the sequence if it's out of sync (common issue after restores/imports)
+      try {
+        await db.execute(sql`SELECT setval('managed_nfts_id_seq', COALESCE((SELECT MAX(id) FROM managed_nfts), 0))`);
+      } catch (seqError) {
+        console.warn("Could not fix managed_nfts sequence:", seqError);
+      }
+
       const result = await db.insert(managedNfts).values({
         ...data,
         createdAt: new Date(),
         updatedAt: new Date()
       }).returning();
-      
+
+      console.log(`[Storage] Created managed NFT with ID: ${result[0].id}, tokenId: ${result[0].tokenId}`);
       return result[0];
-    } catch (error) {
+    } catch (error: any) {
+      // If duplicate key error, check if NFT already exists with same token_id
+      if (error.message?.includes('duplicate key') || error.code === '23505') {
+        console.warn(`[Storage] Duplicate key error, checking if NFT already exists with token_id: ${data.tokenId}`);
+        const existing = await this.getManagedNftByTokenId(data.tokenId || '', data.network || 'polygon');
+        if (existing) {
+          console.log(`[Storage] Found existing NFT with token_id ${data.tokenId}, returning it`);
+          return existing;
+        }
+      }
       console.error("Error al crear NFT administrado:", error);
       throw error;
     }

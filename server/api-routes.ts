@@ -570,12 +570,14 @@ export function registerApiRoutes(app: Express) {
 
       console.log('Buscando NFTs de blockchain para wallet:', normalizedAddress);
 
-      // SOLO obtener NFTs REALES de blockchain via Alchemy
-      // NO usar fallback de base de datos - si no está en blockchain, no existe
+      // Obtener NFTs de blockchain via Alchemy
       const blockchainNfts = await getUserUniswapNFTs(walletAddress);
-      console.log(`[NFTs Blockchain] Encontrados ${blockchainNfts.length} NFTs REALES via Alchemy`);
+      console.log(`[NFTs Blockchain] Encontrados ${blockchainNfts.length} NFTs via Alchemy`);
 
-      // Enriquecer con datos de managed_nfts para obtener status (Active, Finalized, etc.)
+      // Crear un Set con los tokenIds de blockchain para detectar duplicados
+      const blockchainTokenIds = new Set(blockchainNfts.map(nft => nft.tokenId));
+
+      // Enriquecer NFTs de blockchain con datos de managed_nfts
       const enrichedNfts = await Promise.all(blockchainNfts.map(async (nft) => {
         const managedNft = await storage.getManagedNftByTokenId(nft.tokenId, nft.network || 'polygon');
 
@@ -594,9 +596,39 @@ export function registerApiRoutes(app: Express) {
         };
       }));
 
-      console.log(`[NFTs Blockchain] Total NFTs retornados: ${enrichedNfts.length} (solo de blockchain)`);
+      // MEJORA: Incluir NFTs de managed_nfts que pertenecen al usuario pero Alchemy aún no indexó
+      // Esto asegura que los NFTs recién creados aparezcan inmediatamente
+      const userManagedNfts = await storage.getManagedNftsByWalletAddress(normalizedAddress);
+      console.log(`[NFTs Blockchain] Encontrados ${userManagedNfts.length} NFTs en managed_nfts para este usuario`);
 
-      return res.json(enrichedNfts);
+      // Agregar NFTs de managed_nfts que no están en blockchain (recién creados)
+      const additionalNfts = userManagedNfts
+        .filter(managed => !blockchainTokenIds.has(managed.tokenId || ''))
+        .map(managed => ({
+          tokenId: managed.tokenId || '',
+          contractAddress: managed.contractAddress || '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+          network: managed.network || 'polygon',
+          token0Symbol: managed.token0Symbol || 'Unknown',
+          token1Symbol: managed.token1Symbol || 'Unknown',
+          fee: managed.feeTier || '0.05%',
+          version: managed.version || 'V3',
+          status: managed.status || 'Active',
+          valueUsdc: managed.valueUsdc || '0.00',
+          poolAddress: managed.poolAddress || '',
+          imageUrl: managed.imageUrl || '',
+          walletAddress: normalizedAddress,
+          // Marcar como pendiente de indexación por Alchemy
+          pendingIndexing: true,
+        }));
+
+      if (additionalNfts.length > 0) {
+        console.log(`[NFTs Blockchain] Añadiendo ${additionalNfts.length} NFTs de managed_nfts (pendientes de indexación por Alchemy)`);
+      }
+
+      const allNfts = [...enrichedNfts, ...additionalNfts];
+      console.log(`[NFTs Blockchain] Total NFTs retornados: ${allNfts.length} (${enrichedNfts.length} blockchain + ${additionalNfts.length} managed)`);
+
+      return res.json(allNfts);
     } catch (error) {
       console.error("Error al obtener los NFTs de blockchain del usuario:", error);
       return res.status(500).json({

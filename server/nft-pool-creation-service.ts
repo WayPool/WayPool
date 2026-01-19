@@ -44,10 +44,58 @@ export const WAYPOOL_CREATOR_ABI = [
   'event PositionCreated(address indexed user, uint256 indexed tokenId, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1)',
 ];
 
-// Default tick range for wide positions (covers most price movements)
+// USDC/WETH Pool address on Polygon (0.05% fee tier)
+export const USDC_WETH_POOL_ADDRESS = '0x45dDa9cb7c25131DF268515131f647d726f50608';
+
+// Pool ABI for getting current tick
+export const POOL_ABI = [
+  'function slot0() external view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)',
+  'function tickSpacing() external view returns (int24)',
+];
+
+// Tick spacing for 0.05% fee tier
+const TICK_SPACING = 10;
+
+// Range around current price (in ticks) - ~50% price range each direction
+// Each tick represents ~0.01% price change, so 5000 ticks = ~50% range
+const TICK_RANGE_HALF = 5000;
+
+/**
+ * Get current tick from the USDC/WETH pool and calculate a reasonable range
+ * This ensures the NFT tokenURI works correctly (avoids SafeMath overflow)
+ */
+export async function getDynamicTickRange(): Promise<{ tickLower: number; tickUpper: number }> {
+  try {
+    const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
+    const pool = new ethers.Contract(USDC_WETH_POOL_ADDRESS, POOL_ABI, provider);
+
+    const slot0 = await pool.slot0();
+    const currentTick = Number(slot0.tick);
+
+    console.log(`[NFT-Service] Current pool tick: ${currentTick}`);
+
+    // Calculate range centered around current tick, rounded to tick spacing
+    const tickLower = Math.floor((currentTick - TICK_RANGE_HALF) / TICK_SPACING) * TICK_SPACING;
+    const tickUpper = Math.ceil((currentTick + TICK_RANGE_HALF) / TICK_SPACING) * TICK_SPACING;
+
+    console.log(`[NFT-Service] Dynamic tick range: [${tickLower}, ${tickUpper}]`);
+
+    return { tickLower, tickUpper };
+  } catch (error) {
+    console.error('[NFT-Service] Error getting dynamic tick range, using fallback:', error);
+    // Fallback to a reasonable static range around typical ETH/USDC prices
+    // Current tick is around 195615, so we use a range around that
+    return {
+      tickLower: 190000,
+      tickUpper: 201000,
+    };
+  }
+}
+
+// Legacy constant for backwards compatibility (will be replaced by dynamic calculation)
 export const DEFAULT_TICK_RANGE = {
-  tickLower: -887220,
-  tickUpper: 887220,
+  tickLower: 190000,  // ~$2500 ETH
+  tickUpper: 201000,  // ~$4000 ETH
 };
 
 // Fee tiers
@@ -162,6 +210,9 @@ export async function getPendingNFTCreations(walletAddress: string): Promise<Pen
     // Get all positions for this wallet that are Active and pending NFT creation
     const positions = await storage.getPositionHistoryByWalletAddress(walletAddress);
 
+    // Get dynamic tick range based on current pool price
+    const tickRange = await getDynamicTickRange();
+
     const pendingCreations = positions
       .filter((pos: any) =>
         pos.status === 'Active' &&
@@ -176,8 +227,8 @@ export async function getPendingNFTCreations(walletAddress: string): Promise<Pen
         token0: pos.token0,
         token1: pos.token1,
         fee: pos.fee ? parseInt(pos.fee) : FEE_TIERS.LOW,
-        tickLower: DEFAULT_TICK_RANGE.tickLower,
-        tickUpper: DEFAULT_TICK_RANGE.tickUpper,
+        tickLower: tickRange.tickLower,
+        tickUpper: tickRange.tickUpper,
       }));
 
     console.log(`[NFT-Service] Found ${pendingCreations.length} pending NFT creations`);
@@ -389,11 +440,14 @@ export async function createNFTForCustodialWallet(
       console.log('[NFT-Service] WETH approved');
     }
 
+    // Get dynamic tick range based on current pool price
+    const tickRange = await getDynamicTickRange();
+
     // Create the position
-    console.log('[NFT-Service] Creating minimal position...');
+    console.log(`[NFT-Service] Creating minimal position with ticks [${tickRange.tickLower}, ${tickRange.tickUpper}]...`);
     const createTx = await waypoolCreator.createMinimalPosition(
-      DEFAULT_TICK_RANGE.tickLower,
-      DEFAULT_TICK_RANGE.tickUpper,
+      tickRange.tickLower,
+      tickRange.tickUpper,
       { gasLimit: 500000 }
     );
 
@@ -582,6 +636,9 @@ export async function createNFTForAnyWallet(
       deployerWallet
     );
 
+    // Get dynamic tick range based on current pool price
+    const tickRange = await getDynamicTickRange();
+
     // Sort tokens (Uniswap requires token0 < token1)
     const token0 = POLYGON_TOKENS.USDC.toLowerCase() < POLYGON_TOKENS.WETH.toLowerCase()
       ? POLYGON_TOKENS.USDC
@@ -603,8 +660,8 @@ export async function createNFTForAnyWallet(
       token0: token0,
       token1: token1,
       fee: FEE_TIERS.LOW, // 0.05% fee tier
-      tickLower: DEFAULT_TICK_RANGE.tickLower,
-      tickUpper: DEFAULT_TICK_RANGE.tickUpper,
+      tickLower: tickRange.tickLower,
+      tickUpper: tickRange.tickUpper,
       amount0Desired: amount0,
       amount1Desired: amount1,
       amount0Min: 0n, // Accept any amount
@@ -721,10 +778,11 @@ export async function handlePositionActivation(
 /**
  * Get transaction data for creating a minimal position
  * This returns the encoded function call data that the user's wallet will sign
+ * Note: tickLower and tickUpper should be provided from getDynamicTickRange()
  */
 export function getCreatePositionTxData(
-  tickLower: number = DEFAULT_TICK_RANGE.tickLower,
-  tickUpper: number = DEFAULT_TICK_RANGE.tickUpper
+  tickLower: number,
+  tickUpper: number
 ): string {
   const iface = new ethers.Interface(WAYPOOL_CREATOR_ABI);
   return iface.encodeFunctionData('createMinimalPosition', [tickLower, tickUpper]);

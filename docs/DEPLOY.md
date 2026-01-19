@@ -100,7 +100,7 @@ module.exports = {
     cwd: '/var/www/vhosts/waypool.net/WayPool.net',
     env: {
       NODE_ENV: 'production',
-      PORT: 5000,
+      PORT: 5001,
       DATABASE_URL: 'postgresql://...',
       SESSION_SECRET: '...',
       SMTP_HOST: '...',

@@ -402,11 +402,13 @@ export async function checkUserBalances(
 }
 
 // Export default configuration
+// Updated to use ticks near current pool price to avoid tokenURI overflow errors
+// The server will provide the actual dynamic ticks based on current pool price
 export const DEFAULT_TICK_RANGE = {
-  // For USDC/WETH at ~$2000 ETH price
-  // These ticks represent a wide range
-  tickLower: -887220, // Very low price
-  tickUpper: 887220,  // Very high price
+  // For USDC/WETH at ~$3300 ETH price (current tick ~195615)
+  // Using ~50% range each direction (5000 ticks = ~50% price change)
+  tickLower: 190000,  // ~$2500 ETH
+  tickUpper: 201000,  // ~$4000 ETH
 };
 
 // Fee tiers

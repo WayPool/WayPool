@@ -993,13 +993,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactionId: `fees-${Date.now()}-${Math.floor(Math.random() * 10000)}`
       };
       
+      // Obtener idioma del query param o usar inglés por defecto
+      const testLanguage = (req.query.lang as string) || 'en';
+
       // Datos de prueba para el usuario
       const testUserInfo = {
         walletAddress: '0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F',
         ipAddress: req.ip || '127.0.0.1',
-        userAgent: req.headers['user-agent'] || 'Unknown Browser'
+        userAgent: req.headers['user-agent'] || 'Unknown Browser',
+        language: testLanguage
       };
-      
+
       // Datos de prueba para la posición
       const testPositionData = {
         id: 92,
@@ -1017,12 +1021,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feesEarned: 6050.99,
         inRange: true
       };
-      
-      // Enviar el email de prueba de recolección
+
+      // Enviar el email de prueba de recolección con el idioma especificado
       const emailSent = await emailService.sendFeeCollectionEmail(
-        testCollectionData, 
-        testUserInfo, 
-        testPositionData
+        testCollectionData,
+        testUserInfo,
+        testPositionData,
+        testLanguage
       );
       
       if (emailSent) {
@@ -1764,18 +1769,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (shouldSendEmail) {
         try {
           console.log('Enviando notificación por correo para la posición:', historyEntry.id);
-          
+
           // Obtener información del usuario y su IP a partir de los headers
           const userAgent = req.headers['user-agent'] || 'No disponible';
-          const ipAddress = req.headers['x-forwarded-for'] || 
-                          req.socket.remoteAddress || 
+          const ipAddress = req.headers['x-forwarded-for'] ||
+                          req.socket.remoteAddress ||
                           'No disponible';
-          
+
+          // Obtener datos del usuario (idioma y email) desde la base de datos
+          // Por defecto siempre inglés si no se detecta el idioma
+          const userData = await storage.getUserByWalletAddress(historyEntry.walletAddress);
+          const userLanguage = userData?.language || 'en';
+          const userEmail = userData?.email;
+
           // Determinar el método de pago basado en el tipo de transacción
-          const paymentMethod = historyEntry.txHash?.startsWith('bank-') 
-            ? 'Transferencia Bancaria' 
+          const paymentMethod = historyEntry.txHash?.startsWith('bank-')
+            ? 'Transferencia Bancaria'
             : (historyEntry.txHash?.startsWith('stripe_') ? 'Tarjeta de Crédito' : 'Pago con Wallet');
-          
+
           // Preparar datos para el correo
           const positionData = {
             tokenPair: historyEntry.poolName,
@@ -1788,15 +1799,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             paymentMethod: paymentMethod,
             transactionHash: historyEntry.txHash
           };
-          
+
           const userInfo = {
             walletAddress: historyEntry.walletAddress,
             ipAddress: typeof ipAddress === 'string' ? ipAddress : 'Dirección IP múltiple',
-            userAgent: userAgent
+            userAgent: userAgent,
+            email: userEmail,
+            language: userLanguage
           };
-          
-          // Enviar correo electrónico
-          await emailService.sendNewPositionEmail(positionData, userInfo);
+
+          // Enviar correo electrónico con el idioma del usuario
+          await emailService.sendNewPositionEmail(positionData, userInfo, userLanguage);
           console.log('Email de notificación enviado para la posición:', historyEntry.id);
         } catch (emailError) {
           // No bloqueamos la respuesta si hay un error al enviar el correo
@@ -3793,20 +3806,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 transactionId: feeCollection.transactionId
               };
               
+              // Obtener datos del usuario (idioma y email) desde la base de datos
+              // Por defecto siempre inglés si no se detecta el idioma
+              const userData = await storage.getUserByWalletAddress(walletAddress);
+              const userLanguage = userData?.language || 'en';
+
               const userInfo = {
                 walletAddress: walletAddress,
                 ipAddress: typeof ipAddress === 'string' ? ipAddress : 'Dirección IP múltiple',
-                userAgent: userAgent
+                userAgent: userAgent,
+                email: userData?.email,
+                language: userLanguage
               };
-              
+
               // Enviar correo electrónico
               console.log('🔔 [Email] Intentando enviar notificación de recolección de fees...');
               console.log(`📧 [Email] Destinatario: ${walletAddress}`);
               console.log(`💰 [Email] Monto: ${amount} USD`);
               console.log(`🏦 [Email] Pool: ${poolName} (${poolPair})`);
-              
+              console.log(`🌐 [Email] Idioma: ${userLanguage}`);
+
               try {
-                const emailSent = await emailService.sendFeeCollectionEmail(collectionData, userInfo, enrichedPosition);
+                const emailSent = await emailService.sendFeeCollectionEmail(collectionData, userInfo, enrichedPosition, userLanguage);
                 
                 if (emailSent) {
                   console.log('✅ [Email] Notificación de recolección de fees ENVIADA EXITOSAMENTE para posición:', positionId);

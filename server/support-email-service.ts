@@ -1,9 +1,17 @@
 import axios from 'axios';
 import { emailService } from './email-service';
+import {
+  wrapEmail,
+  getEmailHeader,
+  getDataRow,
+  COLORS,
+  COMPANY_INFO,
+  URLS
+} from './email-templates/email-base';
 
 /**
  * Envía un correo electrónico para notificar sobre un nuevo ticket de soporte
- * 
+ *
  * @param ticketData Datos del ticket creado
  * @param userInfo Información adicional del usuario
  * @returns Promesa que se resuelve a true si el correo se envió correctamente
@@ -14,21 +22,21 @@ export async function sendNewSupportTicketEmail(ticketData: any, userInfo: any):
       console.warn('[Support Email] Warning: RESEND_API_KEY not found in environment variables');
       return false;
     }
-    
+
     const apiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    
+
     // Generar el contenido HTML del correo
     const html = generateSupportTicketEmailHTML(ticketData, userInfo);
     const toEmail = 'info@elysiumdubai.net'; // Destinatario (administrador)
     const subject = `Nuevo Ticket de Soporte #${ticketData.ticketNumber} - ${ticketData.subject}`;
-    
+
     // Log para depuración
     console.log('[Support Email] Sending support ticket notification email with Resend');
     console.log(`- From: ${fromEmail}`);
     console.log(`- To: ${toEmail}`);
     console.log(`- Subject: ${subject}`);
-    
+
     try {
       // Enviar el correo usando la API de Resend
       const response = await axios.post(
@@ -46,7 +54,7 @@ export async function sendNewSupportTicketEmail(ticketData: any, userInfo: any):
           }
         }
       );
-      
+
       // Verificar si la respuesta es exitosa
       if (response.status === 200 || response.status === 201) {
         console.log('[Support Email] Support ticket email sent successfully via Resend!', response.data);
@@ -71,8 +79,8 @@ export async function sendNewSupportTicketEmail(ticketData: any, userInfo: any):
 
 /**
  * Envía un correo electrónico para notificar sobre una nueva respuesta en un ticket de soporte
- * 
- * @param ticketData Datos del ticket 
+ *
+ * @param ticketData Datos del ticket
  * @param messageData Datos del mensaje/respuesta
  * @param userInfo Información adicional del usuario
  * @returns Promesa que se resuelve a true si el correo se envió correctamente
@@ -83,21 +91,21 @@ export async function sendTicketReplyEmail(ticketData: any, messageData: any, us
       console.warn('[Support Email] Warning: RESEND_API_KEY not found in environment variables');
       return false;
     }
-    
+
     const apiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    
+
     // Generar el contenido HTML del correo
     const html = generateTicketReplyEmailHTML(ticketData, messageData, userInfo);
     const toEmail = 'info@elysiumdubai.net'; // Destinatario (administrador)
     const subject = `Respuesta en Ticket #${ticketData.ticketNumber} - ${ticketData.subject}`;
-    
+
     // Log para depuración
     console.log('[Support Email] Sending ticket reply notification email with Resend');
     console.log(`- From: ${fromEmail}`);
     console.log(`- To: ${toEmail}`);
     console.log(`- Subject: ${subject}`);
-    
+
     try {
       // Enviar el correo usando la API de Resend
       const response = await axios.post(
@@ -115,7 +123,7 @@ export async function sendTicketReplyEmail(ticketData: any, messageData: any, us
           }
         }
       );
-      
+
       // Verificar si la respuesta es exitosa
       if (response.status === 200 || response.status === 201) {
         console.log('[Support Email] Ticket reply email sent successfully via Resend!', response.data);
@@ -139,379 +147,238 @@ export async function sendTicketReplyEmail(ticketData: any, messageData: any, us
 }
 
 /**
+ * Get priority color based on ticket priority
+ */
+function getPriorityColor(priority: string): string {
+  switch (priority) {
+    case 'low': return COLORS.success;
+    case 'medium': return COLORS.secondary;
+    case 'high': return COLORS.warning;
+    case 'urgent': return COLORS.danger;
+    default: return COLORS.textMuted;
+  }
+}
+
+/**
+ * Get priority label in Spanish
+ */
+function getPriorityLabel(priority: string): string {
+  switch (priority) {
+    case 'low': return 'Baja';
+    case 'medium': return 'Media';
+    case 'high': return 'Alta';
+    case 'urgent': return 'Urgente';
+    default: return priority || 'N/A';
+  }
+}
+
+/**
+ * Truncate wallet address for display
+ */
+function formatWalletAddress(address: string): string {
+  if (!address || address.length < 10) return address || 'N/A';
+  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+}
+
+/**
  * Genera el HTML para el correo de notificación de nuevo ticket de soporte
- * 
+ *
  * @param ticketData Datos del ticket
  * @param userInfo Información del usuario
  * @returns String HTML formateado
  */
 function generateSupportTicketEmailHTML(ticketData: any, userInfo: any): string {
-  const date = new Date().toISOString().split('T')[0];
-  const time = new Date().toISOString().split('T')[1].substring(0, 8);
-  
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Nuevo Ticket de Soporte</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          margin: 0;
-          padding: 0;
-          background-color: #0a0e17;
-          color: #e6e6e6;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          text-align: center;
-          padding: 20px 0;
-          border-bottom: 1px solid #2a3044;
-        }
-        .logo {
-          font-size: 24px;
-          font-weight: bold;
-          color: #3498db;
-        }
-        .content {
-          padding: 20px 0;
-        }
-        .ticket-details {
-          background-color: #1a1f2e;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-          border-left: 4px solid #3498db;
-        }
-        .user-details {
-          background-color: #1a1f2e;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-          border-left: 4px solid #27ae60;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #2a3044;
-        }
-        .detail-label {
-          font-weight: bold;
-          color: #8a8d93;
-        }
-        .detail-value {
-          color: #ffffff;
-        }
-        .highlight {
-          color: #3498db;
-          font-weight: bold;
-        }
-        .success {
-          color: #27ae60;
-        }
-        .warning {
-          color: #e67e22;
-        }
-        .danger {
-          color: #e74c3c;
-        }
-        .description {
-          margin-top: 15px;
-          padding: 15px;
-          background-color: #0c1221;
-          border-radius: 6px;
-          white-space: pre-wrap;
-        }
-        .footer {
-          text-align: center;
-          padding: 20px 0;
-          font-size: 12px;
-          color: #8a8d93;
-          border-top: 1px solid #2a3044;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">WayBank</div>
-          <p>Notificación de Nuevo Ticket de Soporte</p>
+  const date = new Date().toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const priorityColor = getPriorityColor(ticketData.priority);
+  const priorityLabel = getPriorityLabel(ticketData.priority);
+
+  const content = `
+    ${getEmailHeader('WayPool', 'Admin Notification')}
+    <tr>
+      <td style="padding: 32px 24px;">
+        <!-- Alert Badge -->
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="display: inline-block; background-color: ${COLORS.primary}20; color: ${COLORS.primary}; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+            New Support Ticket
+          </span>
         </div>
-        
-        <div class="content">
-          <p>Se ha recibido un nuevo ticket de soporte en la plataforma WayBank.</p>
-          
-          <div class="ticket-details">
-            <h2>Detalles del Ticket</h2>
-            
-            <div class="detail-row">
-              <span class="detail-label">Número de Ticket:</span>
-              <span class="detail-value highlight">#${ticketData.ticketNumber || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Asunto:</span>
-              <span class="detail-value">${ticketData.subject || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Categoría:</span>
-              <span class="detail-value">${ticketData.category || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Prioridad:</span>
-              <span class="detail-value ${
-                ticketData.priority === 'low' ? 'success' : 
-                ticketData.priority === 'medium' ? 'highlight' : 
-                ticketData.priority === 'high' ? 'warning' : 
-                ticketData.priority === 'urgent' ? 'danger' : ''
-              }">
-                ${ticketData.priority === 'low' ? 'Baja' : 
-                  ticketData.priority === 'medium' ? 'Media' : 
-                  ticketData.priority === 'high' ? 'Alta' : 
-                  ticketData.priority === 'urgent' ? 'Urgente' : 
-                  ticketData.priority || 'N/A'}
-              </span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Estado:</span>
-              <span class="detail-value">${ticketData.status || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Fecha y Hora:</span>
-              <span class="detail-value">${date} ${time}</span>
-            </div>
-            
-            <h3>Descripción:</h3>
-            <div class="description">${ticketData.description || 'Sin descripción'}</div>
-          </div>
-          
-          <div class="user-details">
-            <h2>Información del Usuario</h2>
-            
-            <div class="detail-row">
-              <span class="detail-label">Dirección de Wallet:</span>
-              <span class="detail-value">${userInfo.walletAddress || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Dirección IP:</span>
-              <span class="detail-value">${userInfo.ipAddress || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">User Agent:</span>
-              <span class="detail-value" style="font-size: 11px;">${userInfo.userAgent || 'N/A'}</span>
-            </div>
+
+        <!-- Title -->
+        <h2 style="color: ${COLORS.text}; font-size: 22px; margin: 0 0 8px 0; text-align: center; font-weight: 600;">
+          Ticket #${ticketData.ticketNumber || 'N/A'}
+        </h2>
+        <p style="color: ${COLORS.textMuted}; font-size: 14px; margin: 0 0 24px 0; text-align: center;">
+          ${ticketData.subject || 'Sin asunto'}
+        </p>
+
+        <!-- Ticket Details Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 24px; border: 1px solid ${COLORS.border}; margin-bottom: 20px;">
+          <h3 style="color: ${COLORS.text}; font-size: 16px; margin: 0 0 16px 0; font-weight: 600; border-bottom: 1px solid ${COLORS.border}; padding-bottom: 12px;">
+            Detalles del Ticket
+          </h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${getDataRow('Número de Ticket', `#${ticketData.ticketNumber || 'N/A'}`, true)}
+            ${getDataRow('Categoría', ticketData.category || 'N/A')}
+            <tr>
+              <td style="padding: 12px 0; color: ${COLORS.textMuted}; font-size: 14px; border-bottom: 1px solid ${COLORS.border};">
+                Prioridad
+              </td>
+              <td style="padding: 12px 0; text-align: right; border-bottom: 1px solid ${COLORS.border};">
+                <span style="background-color: ${priorityColor}20; color: ${priorityColor}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                  ${priorityLabel}
+                </span>
+              </td>
+            </tr>
+            ${getDataRow('Estado', ticketData.status || 'Abierto')}
+            ${getDataRow('Fecha', date)}
+          </table>
+        </div>
+
+        <!-- Description Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 24px; border: 1px solid ${COLORS.border}; margin-bottom: 20px;">
+          <h3 style="color: ${COLORS.text}; font-size: 16px; margin: 0 0 16px 0; font-weight: 600;">
+            Descripción
+          </h3>
+          <div style="background-color: ${COLORS.darkCard}; border-radius: 8px; padding: 16px; border-left: 3px solid ${COLORS.primary};">
+            <p style="color: ${COLORS.text}; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">
+              ${ticketData.description || 'Sin descripción'}
+            </p>
           </div>
         </div>
-        
-        <div class="footer">
-          <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
-          <p>Para responder a este ticket, inicie sesión en el panel de administración de WayBank.</p>
-          <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
+
+        <!-- User Info Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 24px; border: 1px solid ${COLORS.border};">
+          <h3 style="color: ${COLORS.text}; font-size: 16px; margin: 0 0 16px 0; font-weight: 600; border-bottom: 1px solid ${COLORS.border}; padding-bottom: 12px;">
+            Información del Usuario
+          </h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${getDataRow('Wallet', formatWalletAddress(userInfo.walletAddress))}
+            ${getDataRow('IP Address', userInfo.ipAddress || 'N/A')}
+            <tr>
+              <td style="padding: 12px 0; color: ${COLORS.textMuted}; font-size: 14px;">
+                User Agent
+              </td>
+              <td style="padding: 12px 0; color: ${COLORS.text}; font-size: 11px; text-align: right; word-break: break-all;">
+                ${userInfo.userAgent || 'N/A'}
+              </td>
+            </tr>
+          </table>
         </div>
-      </div>
-    </body>
-    </html>
+
+        <!-- Admin Notice -->
+        <p style="color: ${COLORS.textMuted}; font-size: 12px; text-align: center; margin: 24px 0 0 0;">
+          Para responder a este ticket, inicie sesión en el panel de administración de WayPool.
+        </p>
+      </td>
+    </tr>
   `;
+
+  return wrapEmail(content, { includeDisclaimer: false, includeUnsubscribe: false });
 }
 
 /**
  * Genera el HTML para el correo de notificación de respuesta en ticket de soporte
- * 
+ *
  * @param ticketData Datos del ticket
  * @param messageData Datos del mensaje/respuesta
  * @param userInfo Información del usuario
  * @returns String HTML formateado
  */
 function generateTicketReplyEmailHTML(ticketData: any, messageData: any, userInfo: any): string {
-  const date = new Date().toISOString().split('T')[0];
-  const time = new Date().toISOString().split('T')[1].substring(0, 8);
-  
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Nueva Respuesta en Ticket</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          margin: 0;
-          padding: 0;
-          background-color: #0a0e17;
-          color: #e6e6e6;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          text-align: center;
-          padding: 20px 0;
-          border-bottom: 1px solid #2a3044;
-        }
-        .logo {
-          font-size: 24px;
-          font-weight: bold;
-          color: #3498db;
-        }
-        .content {
-          padding: 20px 0;
-        }
-        .ticket-details {
-          background-color: #1a1f2e;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-          border-left: 4px solid #3498db;
-        }
-        .message-details {
-          background-color: #1a1f2e;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-          border-left: 4px solid #e67e22;
-        }
-        .user-details {
-          background-color: #1a1f2e;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-          border-left: 4px solid #27ae60;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #2a3044;
-        }
-        .detail-label {
-          font-weight: bold;
-          color: #8a8d93;
-        }
-        .detail-value {
-          color: #ffffff;
-        }
-        .highlight {
-          color: #3498db;
-          font-weight: bold;
-        }
-        .success {
-          color: #27ae60;
-        }
-        .warning {
-          color: #e67e22;
-        }
-        .danger {
-          color: #e74c3c;
-        }
-        .message-content {
-          margin-top: 15px;
-          padding: 15px;
-          background-color: #0c1221;
-          border-radius: 6px;
-          white-space: pre-wrap;
-        }
-        .footer {
-          text-align: center;
-          padding: 20px 0;
-          font-size: 12px;
-          color: #8a8d93;
-          border-top: 1px solid #2a3044;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">WayBank</div>
-          <p>Notificación de Nueva Respuesta en Ticket</p>
+  const date = new Date().toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const senderLabel = messageData.sender === 'user' ? 'Usuario' :
+                      messageData.sender === 'admin' ? 'Administrador' : 'Sistema';
+  const senderColor = messageData.sender === 'user' ? COLORS.secondary :
+                      messageData.sender === 'admin' ? COLORS.success : COLORS.warning;
+
+  const content = `
+    ${getEmailHeader('WayPool', 'Admin Notification')}
+    <tr>
+      <td style="padding: 32px 24px;">
+        <!-- Alert Badge -->
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="display: inline-block; background-color: ${COLORS.warning}20; color: ${COLORS.warning}; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+            Nueva Respuesta en Ticket
+          </span>
         </div>
-        
-        <div class="content">
-          <p>Se ha recibido una nueva respuesta en un ticket de soporte de la plataforma WayBank.</p>
-          
-          <div class="ticket-details">
-            <h2>Detalles del Ticket</h2>
-            
-            <div class="detail-row">
-              <span class="detail-label">Número de Ticket:</span>
-              <span class="detail-value highlight">#${ticketData.ticketNumber || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Asunto:</span>
-              <span class="detail-value">${ticketData.subject || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Estado:</span>
-              <span class="detail-value">${ticketData.status || 'N/A'}</span>
-            </div>
+
+        <!-- Title -->
+        <h2 style="color: ${COLORS.text}; font-size: 22px; margin: 0 0 8px 0; text-align: center; font-weight: 600;">
+          Ticket #${ticketData.ticketNumber || 'N/A'}
+        </h2>
+        <p style="color: ${COLORS.textMuted}; font-size: 14px; margin: 0 0 24px 0; text-align: center;">
+          ${ticketData.subject || 'Sin asunto'}
+        </p>
+
+        <!-- Ticket Status Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 20px; border: 1px solid ${COLORS.border}; margin-bottom: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${getDataRow('Estado del Ticket', ticketData.status || 'Abierto')}
+          </table>
+        </div>
+
+        <!-- New Reply Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 24px; border: 1px solid ${COLORS.border}; border-left: 4px solid ${senderColor}; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="color: ${COLORS.text}; font-size: 16px; margin: 0; font-weight: 600;">
+              Nueva Respuesta
+            </h3>
+            <span style="background-color: ${senderColor}20; color: ${senderColor}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+              ${senderLabel}
+            </span>
           </div>
-          
-          <div class="message-details">
-            <h2>Nueva Respuesta</h2>
-            
-            <div class="detail-row">
-              <span class="detail-label">Remitente:</span>
-              <span class="detail-value">${
-                messageData.sender === 'user' ? 'Usuario' : 
-                messageData.sender === 'admin' ? 'Administrador' : 
-                'Sistema'
-              }</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Fecha y Hora:</span>
-              <span class="detail-value">${date} ${time}</span>
-            </div>
-            
-            <h3>Contenido:</h3>
-            <div class="message-content">${messageData.message || 'Sin contenido'}</div>
-          </div>
-          
-          <div class="user-details">
-            <h2>Información del Usuario</h2>
-            
-            <div class="detail-row">
-              <span class="detail-label">Dirección de Wallet:</span>
-              <span class="detail-value">${userInfo.walletAddress || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Dirección IP:</span>
-              <span class="detail-value">${userInfo.ipAddress || 'N/A'}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">User Agent:</span>
-              <span class="detail-value" style="font-size: 11px;">${userInfo.userAgent || 'N/A'}</span>
-            </div>
+
+          <p style="color: ${COLORS.textMuted}; font-size: 12px; margin: 0 0 16px 0;">
+            ${date}
+          </p>
+
+          <div style="background-color: ${COLORS.darkCard}; border-radius: 8px; padding: 16px;">
+            <p style="color: ${COLORS.text}; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">
+              ${messageData.message || 'Sin contenido'}
+            </p>
           </div>
         </div>
-        
-        <div class="footer">
-          <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
-          <p>Para responder a este ticket, inicie sesión en el panel de administración de WayBank.</p>
-          <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
+
+        <!-- User Info Card -->
+        <div style="background-color: ${COLORS.dark}; border-radius: 12px; padding: 24px; border: 1px solid ${COLORS.border};">
+          <h3 style="color: ${COLORS.text}; font-size: 16px; margin: 0 0 16px 0; font-weight: 600; border-bottom: 1px solid ${COLORS.border}; padding-bottom: 12px;">
+            Información del Usuario
+          </h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${getDataRow('Wallet', formatWalletAddress(userInfo.walletAddress))}
+            ${getDataRow('IP Address', userInfo.ipAddress || 'N/A')}
+            <tr>
+              <td style="padding: 12px 0; color: ${COLORS.textMuted}; font-size: 14px;">
+                User Agent
+              </td>
+              <td style="padding: 12px 0; color: ${COLORS.text}; font-size: 11px; text-align: right; word-break: break-all;">
+                ${userInfo.userAgent || 'N/A'}
+              </td>
+            </tr>
+          </table>
         </div>
-      </div>
-    </body>
-    </html>
+
+        <!-- Admin Notice -->
+        <p style="color: ${COLORS.textMuted}; font-size: 12px; text-align: center; margin: 24px 0 0 0;">
+          Para responder a este ticket, inicie sesión en el panel de administración de WayPool.
+        </p>
+      </td>
+    </tr>
   `;
+
+  return wrapEmail(content, { includeDisclaimer: false, includeUnsubscribe: false });
 }

@@ -1,6 +1,13 @@
 import axios from 'axios';
 import { Request, Response } from 'express';
 import nodemailer from 'nodemailer';
+import {
+  EmailLanguage,
+  getEmailLanguage,
+  isRTL,
+  feeCollectionTranslations,
+  newPositionTranslations
+} from './email-templates/email-translations';
 
 interface EmailData {
   to: string;
@@ -288,18 +295,22 @@ class EmailService {
   /**
    * Envía un correo electrónico de notificación para una nueva posición de liquidez
    * utilizando SMTP o la API de Resend
-   * 
+   *
    * @param positionData Datos de la posición creada
    * @param userInfo Información del usuario
+   * @param language Idioma del usuario (opcional, por defecto 'en')
    * @returns Promesa que se resuelve a true si el correo se envió correctamente
    */
-  public async sendNewPositionEmail(positionData: any, userInfo: any): Promise<boolean> {
+  public async sendNewPositionEmail(positionData: any, userInfo: any, language?: string): Promise<boolean> {
     try {
+      const lang = getEmailLanguage(language || userInfo.language);
+      const translations = newPositionTranslations[lang];
+
       // Generar el contenido HTML del correo
-      const html = this.generateNewPositionEmailHTML(positionData, userInfo);
+      const html = this.generateNewPositionEmailHTML(positionData, userInfo, lang);
       const toEmail = userInfo.email || 'test@example.com'; // Email del usuario o uno de prueba
-      const subject = `Nueva Posición de Liquidez - Detalles de la Operación`;
-      
+      const subject = translations.subject;
+
       // Usar el método genérico para enviar el correo
       return await this.sendEmail({
         to: toEmail,
@@ -315,46 +326,50 @@ class EmailService {
   /**
    * Envía un correo electrónico de notificación para la recolección de fees
    * utilizando SMTP o la API de Resend
-   * 
+   *
    * @param collectionData Datos de la recolección de fees
    * @param userInfo Información del usuario
    * @param positionData Datos de la posición asociada
+   * @param language Idioma del usuario (opcional, por defecto 'en')
    * @returns Promesa que se resuelve a true si el correo se envió correctamente
    */
-  public async sendFeeCollectionEmail(collectionData: any, userInfo: any, positionData: any): Promise<boolean> {
+  public async sendFeeCollectionEmail(collectionData: any, userInfo: any, positionData: any, language?: string): Promise<boolean> {
     try {
+      const lang = getEmailLanguage(language || userInfo.language);
+      const translations = feeCollectionTranslations[lang];
+
       // Generar el contenido HTML del correo para el usuario
-      const htmlUser = this.generateFeeCollectionEmailHTML(collectionData, userInfo, positionData);
-      
-      // Generar el contenido HTML para el correo al administrador
+      const htmlUser = this.generateFeeCollectionEmailHTML(collectionData, userInfo, positionData, lang);
+
+      // Generar el contenido HTML para el correo al administrador (siempre en inglés)
       const htmlAdmin = this.generateAdminFeeCollectionEmailHTML(collectionData, userInfo, positionData);
-      
+
       // Email de destino para el usuario
       const toEmail = userInfo.email || process.env.ADMIN_EMAIL || 'info@elysiumdubai.net';
-      
+
       // Email de destino para el administrador
       const adminEmail = process.env.ADMIN_EMAIL || 'info@elysiumdubai.net';
-      
-      // Asunto para el correo al usuario
-      const subject = `Recolección de Fees de Liquidez - Detalles de la Operación`;
-      
-      // Asunto para el correo al administrador con info identificativa
-      const adminSubject = `🔔 ALERTA: Recolección de fees por usuario (${userInfo.walletAddress})`;
-      
+
+      // Asunto para el correo al usuario (en su idioma)
+      const subject = translations.subject;
+
+      // Asunto para el correo al administrador con info identificativa (siempre en inglés)
+      const adminSubject = `Fee Collection Alert - User (${userInfo.walletAddress})`;
+
       // Enviar correo al usuario
       const userEmailSent = await this.sendEmail({
         to: toEmail,
         subject: subject,
         html: htmlUser
       });
-      
+
       // Enviar correo al administrador
       const adminEmailSent = await this.sendEmail({
         to: adminEmail,
         subject: adminSubject,
         html: htmlAdmin
       });
-      
+
       // Solo necesitamos que uno de los dos correos se envíe correctamente
       return userEmailSent || adminEmailSent;
     } catch (error) {
@@ -365,622 +380,410 @@ class EmailService {
   
   /**
    * Genera el HTML para el correo de notificación al administrador sobre recolección de fees
-   * 
+   *
    * @param collectionData Datos de la recolección
    * @param userInfo Información del usuario
    * @param positionData Datos de la posición asociada
    * @returns String HTML formateado
    */
   private generateAdminFeeCollectionEmailHTML(collectionData: any, userInfo: any, positionData: any): string {
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toISOString().split('T')[1].substring(0, 8);
-    
+    const dateTime = new Date().toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Dubai'
+    });
+
     // Formatear cantidades monetarias con 2 decimales
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount: number | string | undefined) => {
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+      if (isNaN(numAmount)) return '$0.00';
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      }).format(amount);
+      }).format(numAmount);
     };
-    
+
     // Obtener valores de los datos o valores por defecto
-    const amount = collectionData.amount || 0;
+    const amount = collectionData?.amount || 0;
     const formattedAmount = formatCurrency(amount);
-    const poolName = positionData?.poolName || 'Pool desconocido';
-    const poolTokens = positionData?.poolPair || 'Token par desconocido';
-    const positionId = positionData?.id || 'ID desconocido';
-    const walletAddress = userInfo?.walletAddress || 'Dirección desconocida';
-    const ipAddress = userInfo?.ipAddress || 'IP desconocida';
-    const userAgent = userInfo?.userAgent || 'Agente desconocido';
-    
-    return `
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Alerta de Recolección de Fees</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #0a0e17;
-            color: #e6e6e6;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3498db;
-          }
-          .alert-banner {
-            background-color: #e74c3c;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            font-weight: bold;
-            margin: 10px 0;
-            border-radius: 5px;
-          }
-          .content {
-            padding: 20px 0;
-          }
-          .collection-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #e74c3c;
-          }
-          .user-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #3498db;
-          }
-          .position-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #27ae60;
-          }
-          .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .detail-label {
-            font-weight: bold;
-            color: #8a8d93;
-          }
-          .detail-value {
-            color: #ffffff;
-            word-break: break-all;
-          }
-          .highlight {
-            color: #e74c3c;
-            font-weight: bold;
-          }
-          .success {
-            color: #27ae60;
-          }
-          .warning {
-            color: #e67e22;
-          }
-          .danger {
-            color: #e74c3c;
-          }
-          .footer {
-            text-align: center;
-            padding: 20px 0;
-            font-size: 12px;
-            color: #8a8d93;
-            border-top: 1px solid #2a3044;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="font-size: 28px; color: white; margin: 0;">WayBank - Panel Administrador</h1>
-            <p>Sistema de Alertas</p>
-          </div>
-          
-          <div class="alert-banner">
-            ¡ALERTA DE RECOLECCIÓN DE FEES!
-          </div>
-          
-          <div class="content">
-            <p>Se ha registrado una recolección de fees por parte de un usuario:</p>
-            
-            <div class="collection-details">
-              <h2>Detalles de la Recolección</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">Monto total recolectado:</span>
-                <span class="detail-value highlight">${formattedAmount}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Fecha de recolección:</span>
-                <span class="detail-value">${date}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Hora de recolección:</span>
-                <span class="detail-value">${time}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">ID de transacción:</span>
-                <span class="detail-value">${collectionData.transactionId || 'No disponible'}</span>
-              </div>
-            </div>
-            
-            <div class="user-details">
-              <h2>Información del Usuario</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">Dirección de wallet:</span>
-                <span class="detail-value">${walletAddress}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Dirección IP:</span>
-                <span class="detail-value">${ipAddress}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Navegador/Dispositivo:</span>
-                <span class="detail-value">${userAgent}</span>
-              </div>
-            </div>
-            
-            <div class="position-details">
-              <h2>Información de la Posición</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">ID de Posición:</span>
-                <span class="detail-value">${positionId}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Pool:</span>
-                <span class="detail-value">${poolName}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Par de tokens:</span>
-                <span class="detail-value">${poolTokens}</span>
-              </div>
-            </div>
-            
-            <p>
-              <b>Nota:</b> Este es un mensaje automático del sistema de alertas. 
-              Por favor, verifique esta actividad en el panel de administración.
-            </p>
-          </div>
-          
-          <div class="footer">
-            <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
-            <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const poolName = positionData?.poolName || 'Unknown Pool';
+    const poolTokens = positionData?.poolPair || 'Unknown Pair';
+    const positionId = positionData?.id || 'N/A';
+    const walletAddress = userInfo?.walletAddress || 'Unknown';
+    const ipAddress = userInfo?.ipAddress || 'Unknown';
+
+    const year = new Date().getFullYear();
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fee Collection Alert - WayPool Admin</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #1e293b; border-radius: 12px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">WayPool Admin Alert</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Fee Collection Detected</p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #334155; border-radius: 8px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #94a3b8; font-size: 12px; text-transform: uppercase; margin: 0 0 8px 0;">Amount Collected</p>
+                    <p style="color: #22c55e; font-size: 32px; font-weight: 700; margin: 0;">${formattedAmount}</p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155;">Position ID</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: right; border-bottom: 1px solid #334155;">#${positionId}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155;">Pool</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: right; border-bottom: 1px solid #334155;">${poolName}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155;">Token Pair</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: right; border-bottom: 1px solid #334155;">${poolTokens}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155;">Date/Time (Dubai)</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: right; border-bottom: 1px solid #334155;">${dateTime}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155;">Wallet</td><td style="padding: 12px 0; color: #3b82f6; font-size: 12px; text-align: right; border-bottom: 1px solid #334155; font-family: monospace;">${walletAddress}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px;">IP Address</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: right;">${ipAddress}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 24px; border-top: 1px solid #334155; text-align: center;">
+              <p style="color: #64748b; font-size: 11px; margin: 0;">This is an automated admin notification from WayPool.</p>
+              <p style="color: #64748b; font-size: 11px; margin: 8px 0 0 0;">&copy; ${year} Elysium Media FZCO. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   }
 
   /**
    * Genera el HTML para el correo de recolección de fees
-   * 
+   *
    * @param collectionData Datos de la recolección
    * @param userInfo Información del usuario
    * @param positionData Datos de la posición asociada
+   * @param lang Idioma del email
    * @returns String HTML formateado
    */
-  private generateFeeCollectionEmailHTML(collectionData: any, userInfo: any, positionData: any): string {
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toISOString().split('T')[1].substring(0, 8);
-    
+  private generateFeeCollectionEmailHTML(collectionData: any, userInfo: any, positionData: any, lang: EmailLanguage = 'en'): string {
+    const t = feeCollectionTranslations[lang];
+    const rtl = isRTL(lang);
+    const dir = rtl ? 'rtl' : 'ltr';
+    const textAlign = rtl ? 'right' : 'left';
+    const textAlignOpposite = rtl ? 'left' : 'right';
+
+    const dateTime = new Date().toLocaleString(lang === 'ar' ? 'ar-AE' : lang === 'zh' ? 'zh-CN' : lang === 'hi' ? 'hi-IN' : lang === 'ru' ? 'ru-RU' : `${lang}-${lang.toUpperCase()}`, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Dubai'
+    });
+
     // Formatear cantidades monetarias con 2 decimales
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount: number | string | undefined) => {
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+      if (isNaN(numAmount)) return '$0.00';
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      }).format(amount);
+      }).format(numAmount);
     };
-    
+
     // Obtener valores de los datos o valores por defecto
-    const amount = collectionData.amount || 0;
+    const amount = collectionData?.amount || 0;
     const formattedAmount = formatCurrency(amount);
-    const poolName = positionData?.poolName || 'Pool desconocido';
-    const poolTokens = positionData?.poolPair || 'Token par desconocido';
-    const risk = positionData?.risk || 'Desconocido';
-    
-    // Función para determinar la clase CSS basada en el nivel de riesgo
-    const getRiskClass = (risk: string): string => {
-      switch (risk.toLowerCase()) {
-        case 'bajo':
-        case 'low':
-          return 'success';
-        case 'medio':
-        case 'medium':
-          return 'warning';
-        case 'alto':
-        case 'high':
-          return 'danger';
-        default:
-          return '';
-      }
-    };
-    
-    const riskClass = getRiskClass(risk);
-    const positionId = positionData?.id || 'ID desconocido';
-    
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Recolección de Fees</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #0a0e17;
-            color: #e6e6e6;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3498db;
-          }
-          .content {
-            padding: 20px 0;
-          }
-          .collection-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #3498db;
-          }
-          .position-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #27ae60;
-          }
-          .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .detail-label {
-            font-weight: bold;
-            color: #8a8d93;
-          }
-          .detail-value {
-            color: #ffffff;
-          }
-          .highlight {
-            color: #3498db;
-            font-weight: bold;
-          }
-          .success {
-            color: #27ae60;
-          }
-          .warning {
-            color: #e67e22;
-          }
-          .danger {
-            color: #e74c3c;
-          }
-          .footer {
-            text-align: center;
-            padding: 20px 0;
-            font-size: 12px;
-            color: #8a8d93;
-            border-top: 1px solid #2a3044;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="font-size: 28px; color: white; margin: 0;">WayBank</h1>
-            <p>Recolección de Fees de Liquidez</p>
-          </div>
-          
-          <div class="content">
-            <p>Se ha completado la recolección de fees para tu posición de liquidez</p>
-            
-            <div class="collection-details">
-              <h2>Detalles de la Recolección</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">Monto total recolectado:</span>
-                <span class="detail-value highlight">${formattedAmount}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Fecha de recolección:</span>
-                <span class="detail-value">${date}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Hora de recolección:</span>
-                <span class="detail-value">${time}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">ID de transacción:</span>
-                <span class="detail-value">${collectionData.transactionId || 'No disponible'}</span>
-              </div>
-            </div>
-            
-            <div class="position-details">
-              <h2>Información de la Posición</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">ID de Posición:</span>
-                <span class="detail-value">${positionId}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Pool:</span>
-                <span class="detail-value">${poolName}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Par de tokens:</span>
-                <span class="detail-value">${poolTokens}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Nivel de riesgo:</span>
-                <span class="detail-value ${riskClass}">${risk}</span>
-              </div>
-            </div>
-            
-            <p>
-              Gracias por utilizar WayBank para la gestión de tus posiciones de liquidez.
-              Puedes revisar más detalles en tu panel de control.
-            </p>
-          </div>
-          
-          <div class="footer">
-            <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
-            <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const poolName = positionData?.poolName || 'Liquidity Pool';
+    const poolTokens = positionData?.poolPair || 'Token Pair';
+    const positionId = positionData?.id || 'N/A';
+    const transactionId = collectionData?.transactionId || 'N/A';
+
+    const year = new Date().getFullYear();
+
+    return `<!DOCTYPE html>
+<html lang="${lang}" dir="${dir}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t.subject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #0f172a; direction: ${dir};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #1e293b; border-radius: 12px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">WayPool</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">${t.subtitle}</p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px 24px;">
+              <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0; text-align: ${textAlign};">
+                ${t.greeting}
+              </p>
+              <!-- Amount Card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%); border-radius: 12px; margin-bottom: 24px; border: 1px solid #334155;">
+                <tr>
+                  <td style="padding: 24px; text-align: center;">
+                    <p style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">${t.amountLabel}</p>
+                    <p style="color: #22c55e; font-size: 36px; font-weight: 700; margin: 0;">${formattedAmount}</p>
+                  </td>
+                </tr>
+              </table>
+              <!-- Details Table -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.positionId}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">#${positionId}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.pool}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${poolName}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.tokenPair}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${poolTokens}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.dateTime}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${dateTime}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; text-align: ${textAlign};">${t.transactionId}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 12px; text-align: ${textAlignOpposite}; font-family: monospace;">${transactionId}</td></tr>
+              </table>
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" style="margin: 24px auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); border-radius: 8px;">
+                    <a href="https://waypool.net/dashboard" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">${t.ctaButton}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Crypto Disclaimer -->
+          <tr>
+            <td style="padding: 0 24px 24px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #334155; border-radius: 8px; border-${rtl ? 'right' : 'left'}: 3px solid #f59e0b;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="color: #f59e0b; font-size: 11px; font-weight: 600; margin: 0 0 8px 0; text-transform: uppercase; text-align: ${textAlign};">Risk Disclaimer</p>
+                    <p style="color: #94a3b8; font-size: 11px; line-height: 1.5; margin: 0; text-align: ${textAlign};">${t.disclaimer}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 32px 24px; border-top: 1px solid #334155;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <p style="color: #e2e8f0; font-size: 14px; font-weight: 600; margin: 0;">Elysium Media FZCO</p>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Dubai Digital Park, Dubai Silicon Oasis, Dubai, UAE</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <p style="color: #64748b; font-size: 11px; margin: 0; line-height: 1.6;">License No: 58510 | TRN: 104956612600003<br>Free Zone Company - Dubai, UAE</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <a href="https://waypool.net/terms" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Terms</a>
+                    <span style="color: #334155;">|</span>
+                    <a href="https://waypool.net/privacy" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Privacy</a>
+                    <span style="color: #334155;">|</span>
+                    <a href="mailto:info@elysiumdubai.net" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Contact</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 12px;">
+                    <a href="mailto:unsubscribe@elysiumdubai.net?subject=Unsubscribe" style="color: #64748b; font-size: 11px; text-decoration: underline;">Unsubscribe from these emails</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center;">
+                    <p style="color: #64748b; font-size: 11px; margin: 0;">&copy; ${year} Elysium Media FZCO. All rights reserved.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   }
 
   /**
    * Genera el HTML para el correo de una nueva posición de liquidez
-   * 
+   *
    * @param positionData Datos de la posición
    * @param userInfo Información del usuario
+   * @param lang Idioma del email
    * @returns String HTML formateado
    */
-  private generateNewPositionEmailHTML(positionData: any, userInfo: any): string {
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toISOString().split('T')[1].substring(0, 8);
-    
+  private generateNewPositionEmailHTML(positionData: any, userInfo: any, lang: EmailLanguage = 'en'): string {
+    const t = newPositionTranslations[lang];
+    const rtl = isRTL(lang);
+    const dir = rtl ? 'rtl' : 'ltr';
+    const textAlign = rtl ? 'right' : 'left';
+    const textAlignOpposite = rtl ? 'left' : 'right';
+
+    const dateTime = new Date().toLocaleString(lang === 'ar' ? 'ar-AE' : lang === 'zh' ? 'zh-CN' : lang === 'hi' ? 'hi-IN' : lang === 'ru' ? 'ru-RU' : `${lang}-${lang.toUpperCase()}`, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Dubai'
+    });
+
     // Formatear cantidades monetarias con 2 decimales
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount: number | string | undefined) => {
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+      if (isNaN(numAmount)) return '$0.00';
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      }).format(amount);
+      }).format(numAmount);
     };
-    
+
     // Obtener valores de los datos o valores por defecto
-    const amount = positionData.amount || 0;
+    const amount = positionData?.amount || positionData?.depositedUSDC || 0;
     const formattedAmount = formatCurrency(amount);
-    const poolName = positionData.poolName || 'Pool desconocido';
-    const poolTokens = positionData.poolPair || 'Token par desconocido';
-    const risk = positionData.risk || 'Desconocido';
-    const riskClass = getRiskClass(risk);
-    const positionId = positionData.id || 'ID desconocido';
-    const strategy = positionData.strategy || 'Estrategia desconocida';
-    
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Nueva Posición de Liquidez</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #0a0e17;
-            color: #e6e6e6;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3498db;
-          }
-          .content {
-            padding: 20px 0;
-          }
-          .position-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #3498db;
-          }
-          .strategy-details {
-            background-color: #1a1f2e;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #27ae60;
-          }
-          .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #2a3044;
-          }
-          .detail-label {
-            font-weight: bold;
-            color: #8a8d93;
-          }
-          .detail-value {
-            color: #ffffff;
-          }
-          .highlight {
-            color: #3498db;
-            font-weight: bold;
-          }
-          .success {
-            color: #27ae60;
-          }
-          .warning {
-            color: #e67e22;
-          }
-          .danger {
-            color: #e74c3c;
-          }
-          .footer {
-            text-align: center;
-            padding: 20px 0;
-            font-size: 12px;
-            color: #8a8d93;
-            border-top: 1px solid #2a3044;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="font-size: 28px; color: white; margin: 0;">WayBank</h1>
-            <p>Nueva Posición de Liquidez</p>
-          </div>
-          
-          <div class="content">
-            <p>Tu posición de liquidez ha sido creada con éxito.</p>
-            
-            <div class="position-details">
-              <h2>Detalles de la Posición</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">ID de Posición:</span>
-                <span class="detail-value">${positionId}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Monto invertido:</span>
-                <span class="detail-value highlight">${formattedAmount}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Pool:</span>
-                <span class="detail-value">${poolName}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Par de tokens:</span>
-                <span class="detail-value">${poolTokens}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Nivel de riesgo:</span>
-                <span class="detail-value ${riskClass}">${risk}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Fecha de creación:</span>
-                <span class="detail-value">${date}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Hora de creación:</span>
-                <span class="detail-value">${time}</span>
-              </div>
-            </div>
-            
-            <div class="strategy-details">
-              <h2>Detalles de la Estrategia</h2>
-              
-              <div class="detail-row">
-                <span class="detail-label">Estrategia seleccionada:</span>
-                <span class="detail-value">${strategy}</span>
-              </div>
-              
-              <div class="detail-row">
-                <span class="detail-label">Estado:</span>
-                <span class="detail-value success">Activa</span>
-              </div>
-            </div>
-            
-            <p>
-              Gracias por utilizar WayBank para la gestión de tus posiciones de liquidez.
-              Puedes revisar más detalles en tu panel de control.
-            </p>
-          </div>
-          
-          <div class="footer">
-            <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
-            <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const tokenPair = positionData?.tokenPair || positionData?.poolPair || 'USDC/ETH';
+    const period = positionData?.period || '30 days';
+    const apr = positionData?.estimatedAPR || positionData?.apr || 'Variable';
+    const risk = positionData?.impermanentLossRisk || positionData?.risk || 'Medium';
+    const positionId = positionData?.id || 'Pending';
+
+    // Color del riesgo
+    const riskColor = risk.toLowerCase().includes('low') || risk.toLowerCase().includes('bajo') ? '#22c55e' :
+                      risk.toLowerCase().includes('high') || risk.toLowerCase().includes('alto') ? '#ef4444' : '#f59e0b';
+
+    const year = new Date().getFullYear();
+
+    return `<!DOCTYPE html>
+<html lang="${lang}" dir="${dir}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t.subject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #0f172a; direction: ${dir};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #1e293b; border-radius: 12px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">WayPool</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">${t.subtitle}</p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px 24px;">
+              <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0; text-align: ${textAlign};">
+                ${t.greeting}
+              </p>
+              <!-- Amount Card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%); border-radius: 12px; margin-bottom: 24px; border: 1px solid #334155;">
+                <tr>
+                  <td style="padding: 24px; text-align: center;">
+                    <p style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">${t.amountLabel}</p>
+                    <p style="color: #7c3aed; font-size: 36px; font-weight: 700; margin: 0;">${formattedAmount}</p>
+                    <p style="color: #94a3b8; font-size: 14px; margin: 8px 0 0 0;">${tokenPair}</p>
+                  </td>
+                </tr>
+              </table>
+              <!-- Details Table -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.positionId}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">#${positionId}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.tokenPair}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${tokenPair}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.period}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${period}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.estimatedApr}</td><td style="padding: 12px 0; color: #22c55e; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155; font-weight: 600;">${apr}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.ilRisk}</td><td style="padding: 12px 0; color: ${riskColor}; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155;">${risk}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; text-align: ${textAlign};">${t.status}</td><td style="padding: 12px 0; color: #22c55e; font-size: 14px; text-align: ${textAlignOpposite}; border-bottom: 1px solid #334155; font-weight: 600;">${t.statusActive}</td></tr>
+                <tr><td style="padding: 12px 0; color: #94a3b8; font-size: 14px; text-align: ${textAlign};">${t.created}</td><td style="padding: 12px 0; color: #e2e8f0; font-size: 14px; text-align: ${textAlignOpposite};">${dateTime}</td></tr>
+              </table>
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" style="margin: 24px auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); border-radius: 8px;">
+                    <a href="https://waypool.net/dashboard" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px;">${t.ctaButton}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Crypto Disclaimer -->
+          <tr>
+            <td style="padding: 0 24px 24px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #334155; border-radius: 8px; border-${rtl ? 'right' : 'left'}: 3px solid #f59e0b;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="color: #f59e0b; font-size: 11px; font-weight: 600; margin: 0 0 8px 0; text-transform: uppercase; text-align: ${textAlign};">Risk Disclaimer</p>
+                    <p style="color: #94a3b8; font-size: 11px; line-height: 1.5; margin: 0; text-align: ${textAlign};">${t.disclaimer}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 32px 24px; border-top: 1px solid #334155;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <p style="color: #e2e8f0; font-size: 14px; font-weight: 600; margin: 0;">Elysium Media FZCO</p>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Dubai Digital Park, Dubai Silicon Oasis, Dubai, UAE</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <p style="color: #64748b; font-size: 11px; margin: 0; line-height: 1.6;">License No: 58510 | TRN: 104956612600003<br>Free Zone Company - Dubai, UAE</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 16px;">
+                    <a href="https://waypool.net/terms" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Terms</a>
+                    <span style="color: #334155;">|</span>
+                    <a href="https://waypool.net/privacy" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Privacy</a>
+                    <span style="color: #334155;">|</span>
+                    <a href="mailto:info@elysiumdubai.net" style="color: #7c3aed; font-size: 12px; text-decoration: none; margin: 0 8px;">Contact</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 12px;">
+                    <a href="mailto:unsubscribe@elysiumdubai.net?subject=Unsubscribe" style="color: #64748b; font-size: 11px; text-decoration: underline;">Unsubscribe from these emails</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center;">
+                    <p style="color: #64748b; font-size: 11px; margin: 0;">&copy; ${year} Elysium Media FZCO. All rights reserved.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   }
 }
 

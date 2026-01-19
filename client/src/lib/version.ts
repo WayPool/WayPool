@@ -3,8 +3,8 @@
  * Actualizar este archivo cada vez que se sube a producción
  */
 
-export const APP_VERSION = "1.0.9";
-export const BUILD_DATE = "2026-01-18";
+export const APP_VERSION = "1.1.0";
+export const BUILD_DATE = "2026-01-19";
 
 // Formato: vX.X.X (YYYY-MM-DD)
 export const VERSION_STRING = `v${APP_VERSION}`;

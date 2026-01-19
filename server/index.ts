@@ -8,6 +8,8 @@ import { seoMiddleware } from "./seo";
 import { registerHealthRoutes } from "./health-routes";
 import { replicationMiddleware, startSyncMonitor } from "./dual-write-middleware.js";
 
+// Version 1.1.3 - Force rebuild with currentApr field support
+
 const MemoryStoreSession = MemoryStore(session);
 
 const app = express();

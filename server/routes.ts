@@ -384,6 +384,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create NFT for a position using deployer wallet (public endpoint for users)
+  // This allows users to create NFTs for their own positions without needing tokens
+  app.post('/api/nft-creation/create/:positionId', async (req: Request, res: Response) => {
+    try {
+      const positionId = parseInt(req.params.positionId);
+      const { walletAddress } = req.body;
+
+      if (isNaN(positionId)) {
+        return res.status(400).json({ success: false, error: "ID de posición no válido" });
+      }
+
+      if (!walletAddress) {
+        return res.status(400).json({ success: false, error: "walletAddress es requerido" });
+      }
+
+      // Get the position
+      const position = await storage.getPositionHistoryById(positionId);
+      if (!position) {
+        return res.status(404).json({ success: false, error: "Posición no encontrada" });
+      }
+
+      // Verify that the requesting wallet matches the position owner
+      if (position.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          error: "No tienes permiso para crear NFT para esta posición"
+        });
+      }
+
+      // Verify that the position is active
+      if (position.status !== 'Active') {
+        return res.status(400).json({
+          success: false,
+          error: "La posición debe estar en estado Active",
+          currentStatus: position.status
+        });
+      }
+
+      // Verify that it doesn't already have an NFT
+      if (position.nftTokenId && position.nftTokenId.trim() !== '') {
+        return res.status(400).json({
+          success: false,
+          error: "La posición ya tiene un NFT asociado",
+          nftTokenId: position.nftTokenId
+        });
+      }
+
+      console.log(`[NFT-Creation] User ${walletAddress} requesting NFT for position ${positionId}`);
+
+      // Use the function that creates NFT for any wallet
+      const result = await nftPoolService.createNFTForAnyWallet(
+        positionId,
+        position.walletAddress,
+        position.depositedUSDC?.toString() || '0'
+      );
+
+      if (result.success) {
+        console.log(`[NFT-Creation] Successfully created NFT for position ${positionId}: tokenId ${result.tokenId}`);
+        return res.json({
+          success: true,
+          message: "NFT creado exitosamente",
+          tokenId: result.tokenId,
+          transactionHash: result.transactionHash,
+          polygonScanUrl: result.polygonScanUrl,
+          uniswapUrl: result.uniswapUrl
+        });
+      } else {
+        console.error(`[NFT-Creation] Failed to create NFT for position ${positionId}: ${result.error}`);
+        return res.status(500).json({
+          success: false,
+          error: result.error || "Error desconocido al crear NFT"
+        });
+      }
+    } catch (error) {
+      console.error("[NFT-Creation] Error creating NFT:", error);
+      return res.status(500).json({ success: false, error: "Error interno del servidor" });
+    }
+  });
+
   console.log('✅ NFT Pool Creation routes registered successfully');
 
   // ============================================
@@ -1765,13 +1844,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Importamos dinámicamente el servicio de posiciones reales
         const { RealPositionsService } = await import('./real-positions-service');
-        
+
         // Creamos una posición real asociada a la posición virtual
         // Esto ocurre de forma asíncrona y no bloqueará la respuesta
         RealPositionsService.createRealPositionFromVirtual(historyEntry)
           .then(realPosition => {
             console.log(`Created real position ${realPosition.id} for virtual position ${historyEntry.id}`);
-            
+
             // Simulamos la transacción en la blockchain (en un entorno real, esto sería un proceso asíncrono)
             setTimeout(() => {
               RealPositionsService.simulateBlockchainTransaction(realPosition.id)
@@ -1786,7 +1865,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // No bloqueamos la respuesta si hay un error creando la posición real
         console.error(`Error importing or using RealPositionsService:`, error);
       }
-      
+
+      // Si la posición se crea con status "Active", manejar la creación del NFT
+      if (historyEntry.status === 'Active' && !historyEntry.nftTokenId) {
+        try {
+          const valueUsdc = historyEntry.depositedUSDC?.toString() || '0';
+          const result = await nftPoolService.handlePositionActivation(
+            historyEntry.id,
+            historyEntry.walletAddress,
+            valueUsdc
+          );
+
+          if (result?.success) {
+            console.log(`Position ${historyEntry.id}: NFT created automatically for custodial wallet, tokenId: ${result.tokenId}`);
+          } else if (result === null) {
+            console.log(`Position ${historyEntry.id}: Marked for manual NFT creation (external wallet)`);
+          } else {
+            console.log(`Position ${historyEntry.id}: NFT creation failed: ${result?.error}`);
+          }
+        } catch (nftError) {
+          console.error(`Error handling NFT creation for new position ${historyEntry.id}:`, nftError);
+        }
+      }
+
       return res.status(201).json(historyEntry);
     } catch (error) {
       console.error("Error creating position history entry:", error);
@@ -2861,6 +2962,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint para marcar manualmente una posición para creación de NFT
+  // Útil para posiciones que se crearon con status "Active" antes del fix
+  app.post("/api/admin/positions/:id/mark-for-nft", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const positionId = parseInt(req.params.id);
+
+      if (isNaN(positionId)) {
+        return res.status(400).json({ error: "ID de posición no válido" });
+      }
+
+      // Obtener la posición
+      const position = await storage.getPositionHistoryById(positionId);
+      if (!position) {
+        return res.status(404).json({ error: "Posición no encontrada" });
+      }
+
+      // Verificar que la posición esté activa y no tenga NFT
+      if (position.status !== 'Active') {
+        return res.status(400).json({
+          error: "La posición debe estar en estado Active",
+          currentStatus: position.status
+        });
+      }
+
+      if (position.nftTokenId) {
+        return res.status(400).json({
+          error: "La posición ya tiene un NFT asociado",
+          nftTokenId: position.nftTokenId
+        });
+      }
+
+      // Marcar la posición para creación de NFT
+      const valueUsdc = position.depositedUSDC?.toString() || '0';
+      const result = await nftPoolService.handlePositionActivation(
+        positionId,
+        position.walletAddress,
+        valueUsdc
+      );
+
+      if (result?.success) {
+        console.log(`Admin marked position ${positionId}: NFT created automatically, tokenId: ${result.tokenId}`);
+        return res.json({
+          success: true,
+          message: "NFT creado automáticamente para wallet custodial",
+          tokenId: result.tokenId,
+          transactionHash: result.transactionHash
+        });
+      } else if (result === null) {
+        console.log(`Admin marked position ${positionId}: Marked for manual NFT creation (external wallet)`);
+        return res.json({
+          success: true,
+          message: "Posición marcada para creación manual de NFT (wallet externo)",
+          nftCreationPending: true
+        });
+      } else {
+        console.log(`Admin marked position ${positionId}: NFT creation failed: ${result?.error}`);
+        return res.status(500).json({
+          success: false,
+          error: result?.error || "Error desconocido al crear NFT"
+        });
+      }
+    } catch (error) {
+      console.error("Error marking position for NFT:", error);
+      return res.status(500).json({ error: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para que el admin cree directamente un NFT para cualquier posición
+  // Esto usa la wallet del deployer para crear el NFT y transferirlo al usuario
+  app.post("/api/admin/positions/:id/create-nft", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const positionId = parseInt(req.params.id);
+
+      if (isNaN(positionId)) {
+        return res.status(400).json({ error: "ID de posición no válido" });
+      }
+
+      // Obtener la posición
+      const position = await storage.getPositionHistoryById(positionId);
+      if (!position) {
+        return res.status(404).json({ error: "Posición no encontrada" });
+      }
+
+      // Verificar que la posición esté activa
+      if (position.status !== 'Active') {
+        return res.status(400).json({
+          error: "La posición debe estar en estado Active",
+          currentStatus: position.status
+        });
+      }
+
+      // Verificar que no tenga ya un NFT
+      if (position.nftTokenId && position.nftTokenId.trim() !== '') {
+        return res.status(400).json({
+          error: "La posición ya tiene un NFT asociado",
+          nftTokenId: position.nftTokenId
+        });
+      }
+
+      console.log(`Admin creating NFT for position ${positionId}, wallet ${position.walletAddress}`);
+
+      // Usar la función que crea NFT para cualquier wallet
+      const result = await nftPoolService.createNFTForAnyWallet(
+        positionId,
+        position.walletAddress,
+        position.depositedUSDC?.toString() || '0'
+      );
+
+      if (result.success) {
+        console.log(`Admin successfully created NFT for position ${positionId}: tokenId ${result.tokenId}`);
+        return res.json({
+          success: true,
+          message: "NFT creado y transferido al usuario exitosamente",
+          tokenId: result.tokenId,
+          transactionHash: result.transactionHash,
+          polygonScanUrl: result.polygonScanUrl,
+          uniswapUrl: result.uniswapUrl
+        });
+      } else {
+        console.error(`Admin failed to create NFT for position ${positionId}: ${result.error}`);
+        return res.status(500).json({
+          success: false,
+          error: result.error || "Error desconocido al crear NFT"
+        });
+      }
+    } catch (error) {
+      console.error("Error creating NFT from admin:", error);
+      return res.status(500).json({ error: "Error interno del servidor" });
+    }
+  });
+
   // Ruta para obtener historial de todas las transacciones (solo para admins)
   // Endpoint para actualizar el estado de una posición (transacción)
   app.patch("/api/admin/positions/:id/status", isAdmin, async (req: Request, res: Response) => {
@@ -3304,7 +3536,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Crear la posición
       const newPosition = await storage.createPositionHistory(positionData);
       console.log("Posición creada exitosamente:", newPosition);
-      
+
+      // Si la posición se crea directamente con status "Active", manejar la creación del NFT
+      if (newPosition.status === 'Active' && !newPosition.nftTokenId) {
+        try {
+          const valueUsdc = newPosition.depositedUSDC?.toString() || '0';
+          const result = await nftPoolService.handlePositionActivation(
+            newPosition.id,
+            newPosition.walletAddress,
+            valueUsdc
+          );
+
+          if (result?.success) {
+            console.log(`Position ${newPosition.id}: NFT created automatically for custodial wallet, tokenId: ${result.tokenId}`);
+          } else if (result === null) {
+            console.log(`Position ${newPosition.id}: Marked for manual NFT creation (external wallet)`);
+          } else {
+            console.log(`Position ${newPosition.id}: NFT creation failed: ${result?.error}`);
+          }
+        } catch (nftError) {
+          console.error(`Error handling NFT creation for new position ${newPosition.id}:`, nftError);
+        }
+      }
+
       // Crear factura automáticamente para la posición creada desde el admin
       try {
         // Determinar el método de pago (por defecto Bank Transfer para posiciones admin)

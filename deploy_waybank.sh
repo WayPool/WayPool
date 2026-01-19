@@ -2,9 +2,9 @@
 # WayBank.info Final Deployment Script
 set -e
 
-SERVER="waybank.info_gv3r7tj446u@185.68.111.228"
+SERVER="waybank.info_gv3r7tj446u@waybank.info"
 PORT="50050"
-PASS="nRMOkvqht1d@i76$"
+PASS='RX9&q6yHhlh5sw~f'
 LOCAL_DIR="/Users/lorenzoballantimoran/Documents/waybank.info"
 REMOTE_APP_DIR="~/WayBank.info"
 REMOTE_PUBLIC_DIR="~/httpdocs"

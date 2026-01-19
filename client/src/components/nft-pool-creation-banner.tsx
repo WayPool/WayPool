@@ -22,6 +22,8 @@ import {
 import { Loader2, Sparkles, Wallet, ExternalLink, AlertCircle } from 'lucide-react';
 
 export function NFTPoolCreationBanner() {
+  console.log('[NFT-Banner] Component mounting...');
+
   const {
     isLoading,
     isCreating,
@@ -32,6 +34,8 @@ export function NFTPoolCreationBanner() {
     createAllPendingPools,
     hasPendingCreations,
   } = useNFTPoolCreation();
+
+  console.log('[NFT-Banner] Hook returned:', { isLoading, hasPendingCreations, pendingCreationsCount: pendingCreations?.length });
 
   const [showDialog, setShowDialog] = useState(false);
 

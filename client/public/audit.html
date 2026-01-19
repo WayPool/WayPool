@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayPool Technical Audit 2026</title>
+    <meta name="description" content="Complete technical audit of WayPool.net - DeFi Liquidity Management Platform">
+    <link rel="icon" href="/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        * { font-family: 'Inter', sans-serif; }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --dark: #0f172a;
+            --darker: #020617;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .gradient-border {
+            position: relative;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+            border-radius: 1rem;
+        }
+
+        .gradient-border::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            padding: 1px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+        }
+
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after, .nav-link.active::after {
+            width: 100%;
+        }
+
+        .section-title {
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            border-radius: 2px;
+        }
+
+        .toc-item {
+            transition: all 0.3s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .toc-item:hover, .toc-item.active {
+            border-left-color: #6366f1;
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .code-block {
+            background: #1e1e2e;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+
+        .table-modern {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-modern th {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .table-modern tr:hover td {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+            z-index: 9999;
+            transition: width 0.1s ease;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1b4b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #6366f1, #a855f7);
+            border-radius: 4px;
+        }
+
+        .diagram-box {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .risk-low { background: rgba(16, 185, 129, 0.2); border-color: #10b981; }
+        .risk-medium { background: rgba(245, 158, 11, 0.2); border-color: #f59e0b; }
+        .risk-high { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; }
+
+        .lang-btn.active {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+    <!-- Scroll Progress Indicator -->
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <!-- Language Selector -->
+    <div class="fixed top-4 right-4 z-50 flex gap-2">
+        <button onclick="setLanguage('en')" class="lang-btn active px-3 py-1.5 rounded-lg glass text-sm font-medium transition-all hover:scale-105" data-lang="en">EN</button>
+        <button onclick="setLanguage('es')" class="lang-btn px-3 py-1.5 rounded-lg glass text-sm font-medium transition-all hover:scale-105" data-lang="es">ES</button>
+        <button onclick="setLanguage('fr')" class="lang-btn px-3 py-1.5 rounded-lg glass text-sm font-medium transition-all hover:scale-105" data-lang="fr">FR</button>
+        <button onclick="setLanguage('de')" class="lang-btn px-3 py-1.5 rounded-lg glass text-sm font-medium transition-all hover:scale-105" data-lang="de">DE</button>
+    </div>
+
+    <!-- Hero Section -->
+    <header class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- Animated Background -->
+        <div class="absolute inset-0">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full filter blur-3xl animate-pulse"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+            <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/10 rounded-full filter blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        </div>
+
+        <div class="relative z-10 text-center px-4 max-w-5xl mx-auto">
+            <div class="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full glass">
+                <span class="w-2 h-2 bg-green-400 rounded-full pulse-dot"></span>
+                <span class="text-sm text-gray-300" data-i18n="hero.badge">Technical Audit Report</span>
+            </div>
+
+            <h1 class="text-5xl md:text-7xl font-bold mb-6">
+                <span class="gradient-text">WayPool.net</span>
+            </h1>
+
+            <p class="text-xl md:text-2xl text-gray-300 mb-4" data-i18n="hero.subtitle">
+                Complete Technical Audit 2026
+            </p>
+
+            <p class="text-lg text-gray-400 mb-8 max-w-2xl mx-auto" data-i18n="hero.description">
+                DeFi Liquidity Management Platform - Comprehensive analysis of architecture, security, smart contracts, and regulatory compliance
+            </p>
+
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                <div class="stat-card glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">1.0.9</div>
+                    <div class="text-sm text-gray-400" data-i18n="hero.version">App Version</div>
+                </div>
+                <div class="stat-card glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">45K+</div>
+                    <div class="text-sm text-gray-400" data-i18n="hero.lines">Lines of Code</div>
+                </div>
+                <div class="stat-card glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">28+</div>
+                    <div class="text-sm text-gray-400" data-i18n="hero.tables">Database Tables</div>
+                </div>
+                <div class="stat-card glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">7.3/10</div>
+                    <div class="text-sm text-gray-400" data-i18n="hero.score">Maturity Score</div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#executive-summary" class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 font-semibold hover:shadow-lg hover:shadow-indigo-500/25 transition-all hover:scale-105">
+                    <i class="fas fa-book-open mr-2"></i>
+                    <span data-i18n="hero.readAudit">Read Full Audit</span>
+                </a>
+                <a href="#smart-contracts" class="px-6 py-3 rounded-xl glass font-semibold hover:bg-white/10 transition-all">
+                    <i class="fas fa-file-contract mr-2"></i>
+                    <span data-i18n="hero.smartContracts">Smart Contracts</span>
+                </a>
+            </div>
+
+            <!-- Scroll indicator -->
+            <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+                <i class="fas fa-chevron-down text-2xl text-gray-400"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative">
+        <!-- Sticky Navigation -->
+        <nav class="sticky top-0 z-40 glass-dark py-4">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-sm"></i>
+                        </div>
+                        <span class="font-semibold">WayPool Audit</span>
+                    </div>
+                    <div class="hidden md:flex items-center gap-6 text-sm">
+                        <a href="#executive-summary" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.summary">Summary</a>
+                        <a href="#architecture" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.architecture">Architecture</a>
+                        <a href="#smart-contracts" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.contracts">Contracts</a>
+                        <a href="#security" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.security">Security</a>
+                        <a href="#compliance" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.compliance">Compliance</a>
+                        <a href="#valuation" class="nav-link text-gray-300 hover:text-white" data-i18n="nav.valuation">Valuation</a>
+                    </div>
+                    <button class="md:hidden text-gray-300" onclick="toggleMobileMenu()">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/80" onclick="toggleMobileMenu()"></div>
+            <div class="absolute right-0 top-0 h-full w-64 glass-dark p-6">
+                <button class="absolute top-4 right-4 text-gray-300" onclick="toggleMobileMenu()">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                <div class="mt-12 flex flex-col gap-4">
+                    <a href="#executive-summary" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.summary">Summary</a>
+                    <a href="#architecture" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.architecture">Architecture</a>
+                    <a href="#smart-contracts" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.contracts">Contracts</a>
+                    <a href="#security" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.security">Security</a>
+                    <a href="#compliance" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.compliance">Compliance</a>
+                    <a href="#valuation" class="text-gray-300 hover:text-white py-2" onclick="toggleMobileMenu()" data-i18n="nav.valuation">Valuation</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Table of Contents Sidebar -->
+                <aside class="hidden lg:block">
+                    <div class="sticky top-24 glass rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-list text-indigo-400"></i>
+                            <span data-i18n="toc.title">Table of Contents</span>
+                        </h3>
+                        <nav class="space-y-1 text-sm" id="tableOfContents">
+                            <a href="#executive-summary" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">1. Executive Summary</a>
+                            <a href="#architecture" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">2. System Architecture</a>
+                            <a href="#tech-stack" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">3. Technology Stack</a>
+                            <a href="#smart-contracts" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">4. Smart Contracts</a>
+                            <a href="#wallets" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">5. Wallet System</a>
+                            <a href="#yields" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">6. Yield System</a>
+                            <a href="#database" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">7. Database</a>
+                            <a href="#security" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">8. Security</a>
+                            <a href="#compliance" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">9. Compliance</a>
+                            <a href="#infrastructure" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">10. Infrastructure</a>
+                            <a href="#api" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">11. API Services</a>
+                            <a href="#admin" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">12. Admin Panel</a>
+                            <a href="#risks" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">13. Risk Analysis</a>
+                            <a href="#valuation" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">14. Valuation</a>
+                            <a href="#conclusions" class="toc-item block py-2 px-3 rounded-lg text-gray-300 hover:text-white">15. Conclusions</a>
+                        </nav>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <div class="lg:col-span-3 space-y-16">
+
+                    <!-- Section 1: Executive Summary -->
+                    <section id="executive-summary" class="fade-in">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                                <i class="fas fa-clipboard-list text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-3xl font-bold section-title" data-i18n="section1.title">1. Executive Summary</h2>
+                            </div>
+                        </div>
+
+                        <div class="glass rounded-2xl p-8 mb-8">
+                            <h3 class="text-xl font-semibold mb-4 text-indigo-400" data-i18n="section1.overview">1.1 General Overview</h3>
+                            <p class="text-gray-300 leading-relaxed mb-6" data-i18n="section1.description">
+                                WayPool.net is a decentralized liquidity management platform (DeFi) that enables users to create and manage liquidity positions on Uniswap V3, with a hybrid approach that combines:
+                            </p>
+
+                            <div class="grid md:grid-cols-3 gap-4 mb-8">
+                                <div class="gradient-border p-6 rounded-xl">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <i class="fas fa-lock-open text-2xl text-green-400"></i>
+                                        <h4 class="font-semibold" data-i18n="section1.feature1.title">Non-Custodial Positions</h4>
+                                    </div>
+                                    <p class="text-sm text-gray-400" data-i18n="section1.feature1.desc">Users maintain full control of their assets through Uniswap V3 NFTs</p>
+                                </div>
+                                <div class="gradient-border p-6 rounded-xl">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <i class="fas fa-wallet text-2xl text-blue-400"></i>
+                                        <h4 class="font-semibold" data-i18n="section1.feature2.title">Custodial Wallets</h4>
+                                    </div>
+                                    <p class="text-sm text-gray-400" data-i18n="section1.feature2.desc">Alternative option for users who prefer a simplified experience</p>
+                                </div>
+                                <div class="gradient-border p-6 rounded-xl">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <i class="fas fa-chart-line text-2xl text-purple-400"></i>
+                                        <h4 class="font-semibold" data-i18n="section1.feature3.title">Automated Yields</h4>
+                                    </div>
+                                    <p class="text-sm text-gray-400" data-i18n="section1.feature3.desc">Proprietary daily APR distribution system</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Key Metrics Table -->
+                        <div class="glass rounded-2xl p-8 mb-8">
+                            <h3 class="text-xl font-semibold mb-4 text-indigo-400" data-i18n="section1.metrics">1.2 Key Metrics</h3>
+                            <div class="overflow-x-auto">
+                                <table class="table-modern w-full">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-left py-3 px-4 rounded-tl-lg" data-i18n="table.metric">Metric</th>
+                                            <th class="text-left py-3 px-4 rounded-tr-lg" data-i18n="table.value">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-gray-300">
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.version">Current Version</td>
+                                            <td class="py-3 px-4 font-mono text-indigo-400">1.0.9</td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.buildDate">Build Date</td>
+                                            <td class="py-3 px-4 font-mono">January 18, 2026</td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.network">Main Network</td>
+                                            <td class="py-3 px-4">
+                                                <span class="inline-flex items-center gap-2">
+                                                    <img src="https://cryptologos.cc/logos/polygon-matic-logo.png" class="w-5 h-5" alt="Polygon">
+                                                    Polygon (Chain ID: 137)
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.contract">Smart Contract</td>
+                                            <td class="py-3 px-4 font-mono text-xs">
+                                                <a href="https://polygonscan.com/address/0xf81938F926714f114D07b68dfc3b0E3bC501167B" target="_blank" class="text-indigo-400 hover:underline">
+                                                    0xf81938F926714f114D07b68dfc3b0E3bC501167B
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.deployBlock">Deploy Block</td>
+                                            <td class="py-3 px-4 font-mono">81,779,977</td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.dbTables">Database Tables</td>
+                                            <td class="py-3 px-4 font-mono text-green-400">28+</td>
+                                        </tr>
+                                        <tr class="border-b border-white/5">
+                                            <td class="py-3 px-4" data-i18n="metrics.apiEndpoints">API Endpoints</td>
+                                            <td class="py-3 px-4 font-mono text-green-400">50+</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4" data-i18n="metrics.codeLines">Lines of Code (Est.)</td>
+                                            <td class="py-3 px-4 font-mono text-green-400">45,000+</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Value Proposition -->
+                        <div class="glass rounded-2xl p-8">
+                            <h3 class="text-xl font-semibold mb-4 text-indigo-400" data-i18n="section1.valueProposition">1.3 Value Proposition</h3>
+                            <p class="text-gray-300 mb-6" data-i18n="section1.valueDesc">WayPool.net offers a comprehensive solution for:</p>
+
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="flex items-start gap-4 p-4 rounded-xl bg-white/5">
+                                    <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-cubes text-indigo-400"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-1" data-i18n="value1.title">DeFi Simplification</h4>
+                                        <p class="text-sm text-gray-400" data-i18n="value1.desc">Abstraction of Uniswap V3 technical complexity</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-4 p-4 rounded-xl bg-white/5">
+                                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-image text-purple-400"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-1" data-i18n="value2.title">NFT Position Management</h4>
+                                        <p class="text-sm text-gray-400" data-i18n="value2.desc">Creation and monitoring of liquidity positions</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-4 p-4 rounded-xl bg-white/5">
+                                    <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-percentage text-green-400"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-1" data-i18n="value3.title">Optimized Yields</h4>
+                                        <p class="text-sm text-gray-400" data-i18n="value3.desc">Automated distribution based on active pool APR</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-4 p-4 rounded-xl bg-white/5">
+                                    <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-balance-scale text-amber-400"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-1" data-i18n="value4.title">Regulatory Compliance</h4>
+                                        <p class="text-sm text-gray-400" data-i18n="value4.desc">MiCA (EU), SEC (US), and VARA (UAE) compatible design</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section 2: System Architecture -->
+                    <section id="architecture" class="fade-in">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                                <i class="fas fa-sitemap text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-3xl font-bold section-title" data-i18n="section2.title">2. System Architecture</h2>
+                            </div>
+                        </div>
+
+                        <!-- Architecture Diagram -->
+                        <div class="glass rounded-2xl p-8 mb-8">
+                            <h3 class="text-xl font-semibold mb-6 text-blue-400" data-i18n="section2.diagram">2.1 Architecture Diagram</h3>
+
+                            <div class="bg-slate-900/50 rounded-xl p-6 overflow-x-auto">
+                                <div class="diagram-box text-green-400 whitespace-pre min-w-[600px]">
+┌─────────────────────────────────────────────────────────────────────┐
+│                         <span class="text-cyan-400">CLIENT (FRONTEND)</span>                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │   <span class="text-yellow-400">React 18</span>  │  │  <span class="text-yellow-400">TypeScript</span> │  │ <span class="text-yellow-400">TailwindCSS</span> │  │   <span class="text-yellow-400">Vite</span>      │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │
+│  │   <span class="text-yellow-400">Wagmi</span>     │  │   <span class="text-yellow-400">ethers.js</span> │  │ <span class="text-yellow-400">TanStack</span>    │                  │
+│  │   <span class="text-gray-500">(Web3)</span>    │  │   <span class="text-gray-500">(6.13+)</span>   │  │   <span class="text-gray-500">Query</span>     │                  │
+│  └─────────────┘  └─────────────┘  └─────────────┘                  │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │ <span class="text-purple-400">HTTPS/WSS</span>
+                             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         <span class="text-cyan-400">SERVER (BACKEND)</span>                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │  <span class="text-yellow-400">Express.js</span> │  │  <span class="text-yellow-400">TypeScript</span> │  │   <span class="text-yellow-400">Drizzle</span>   │  │  <span class="text-yellow-400">Node.js</span>    │ │
+│  │   <span class="text-gray-500">Server</span>    │  │   <span class="text-gray-500">Runtime</span>   │  │     <span class="text-gray-500">ORM</span>     │  │   <span class="text-gray-500">20.x</span>      │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │
+│  │   <span class="text-yellow-400">PM2</span>       │  │   <span class="text-yellow-400">Sessions</span>  │  │   <span class="text-yellow-400">Cron</span>      │                  │
+│  │  <span class="text-gray-500">(Process)</span>  │  │   <span class="text-gray-500">(Auth)</span>    │  │   <span class="text-gray-500">Jobs</span>      │                  │
+│  └─────────────┘  └─────────────┘  └─────────────┘                  │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐  ┌─────────────────┐  ┌─────────────────────┐
+│  <span class="text-blue-400">PostgreSQL</span>   │  │    <span class="text-blue-400">Alchemy</span>      │  │   <span class="text-blue-400">Uniswap V3</span>        │
+│    <span class="text-gray-500">(Neon)</span>     │  │   <span class="text-gray-500">RPC Node</span>      │  │   <span class="text-gray-500">Position Manager</span>  │
+│  <span class="text-gray-500">Serverless</span>   │  │   <span class="text-gray-500">Multi-chain</span>   │  │   <span class="text-gray-500">(Polygon)</span>         │
+└───────────────┘  └─────────────────┘  └─────────────────────┘
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Directory Structure -->
+                        <div class="glass rounded-2xl p-8 mb-8">
+                            <h3 class="text-xl font-semibold mb-6 text-blue-400" data-i18n="section2.structure">2.2 Directory Structure</h3>
+
+                            <div class="code-block p-4">
+                                <pre class="text-green-400"><code>waypool.net/
+├── <span class="text-cyan-400">client/</span>                      <span class="text-gray-500"># Frontend React</span>
+│   ├── src/
+│   │   ├── <span class="text-yellow-400">components/</span>          <span class="text-gray-500"># UI Components (~150 files)</span>
+│   │   │   ├── admin/           <span class="text-gray-500"># Admin panel</span>
+│   │   │   ├── algorithm/       <span class="text-gray-500"># Algorithm visualization</span>
+│   │   │   ├── layout/          <span class="text-gray-500"># Main layout</span>
+│   │   │   ├── modals/          <span class="text-gray-500"># Application modals</span>
+│   │   │   ├── nft/             <span class="text-gray-500"># NFT components</span>
+│   │   │   └── ui/              <span class="text-gray-500"># Base components (shadcn/ui)</span>
+│   │   ├── <span class="text-yellow-400">hooks/</span>               <span class="text-gray-500"># Custom React hooks (~20 files)</span>
+│   │   ├── <span class="text-yellow-400">lib/</span>                 <span class="text-gray-500"># Utilities and services</span>
+│   │   ├── <span class="text-yellow-400">pages/</span>               <span class="text-gray-500"># Application pages</span>
+│   │   ├── <span class="text-yellow-400">translations/</span>        <span class="text-gray-500"># i18n (9 languages)</span>
+│   │   └── <span class="text-yellow-400">utils/</span>               <span class="text-gray-500"># Helper functions</span>
+│   └── public/                  <span class="text-gray-500"># Static assets</span>
+├── <span class="text-cyan-400">server/</span>                      <span class="text-gray-500"># Backend Express</span>
+│   ├── migrations/              <span class="text-gray-500"># DB migrations</span>
+│   ├── wallet-transfer/         <span class="text-gray-500"># Transfer service</span>
+│   └── seo/                     <span class="text-gray-500"># SEO configuration</span>
+├── <span class="text-cyan-400">contracts/</span>                   <span class="text-gray-500"># Solidity Smart Contracts</span>
+│   └── WayPoolPositionCreator.sol
+├── <span class="text-cyan-400">shared/</span>                      <span class="text-gray-500"># Shared code</span>
+│   └── schema.ts               <span class="text-gray-500"># Database schema</span>
+├── <span class="text-cyan-400">deployments/</span>                 <span class="text-gray-500"># Deployment configs</span>
+│   └── polygon-mainnet.json
+└── <span class="text-cyan-400">docs/</span>                        <span class="text-gray-500"># Documentation</span></code></pre>
+                            </div>
+                        </div>
+
+                        <!-- Data Flow -->
+                        <div class="glass rounded-2xl p-8">
+                            <h3 class="text-xl font-semibold mb-6 text-blue-400" data-i18n="section2.dataFlow">2.3 Main Data Flow</h3>
+
+                            <div class="flex flex-wrap items-center justify-center gap-4 text-center">
+                                <div class="glass p-4 rounded-xl">
+                                    <i class="fas fa-user text-2xl text-indigo-400 mb-2"></i>
+                                    <div class="text-sm" data-i18n="flow.user">User</div>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                <div class="glass p-4 rounded-xl">
+                                    <i class="fas fa-desktop text-2xl text-blue-400 mb-2"></i>
+                                    <div class="text-sm">Frontend</div>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                <div class="glass p-4 rounded-xl">
+                                    <i class="fas fa-server text-2xl text-green-400 mb-2"></i>
+                                    <div class="text-sm">API Backend</div>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                <div class="glass p-4 rounded-xl">
+                                    <i class="fas fa-database text-2xl text-purple-400 mb-2"></i>
+                                    <div class="text-sm" data-i18n="flow.database">Database</div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center my-4">
+                                <i class="fas fa-arrow-down text-gray-500 text-xl"></i>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-center gap-4 text-center">
+                                <div class="glass p-4 rounded-xl border border-purple-500/30">
+                                    <i class="fas fa-link text-2xl text-purple-400 mb-2"></i>
+                                    <div class="text-sm">Blockchain (Polygon)</div>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                <div class="glass p-4 rounded-xl border border-pink-500/30">
+                                    <img src="https://cryptologos.cc/logos/uniswap-uni-logo.png" class="w-8 h-8 mx-auto mb-2" alt="Uniswap">
+                                    <div class="text-sm">Uniswap V3</div>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                <div class="glass p-4 rounded-xl border border-amber-500/30">
+                                    <i class="fas fa-image text-2xl text-amber-400 mb-2"></i>
+                                    <div class="text-sm" data-i18n="flow.nft">NFT Position</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Placeholder for remaining sections - will continue in next file -->
+                    <div id="remaining-sections"></div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-dark py-12 mt-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <span class="text-xl font-bold">WayPool Audit</span>
+                    </div>
+                    <p class="text-gray-400 text-sm" data-i18n="footer.description">
+                        Complete technical audit of the WayPool.net DeFi platform for investment fund due diligence.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4" data-i18n="footer.quickLinks">Quick Links</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#executive-summary" class="hover:text-white transition-colors" data-i18n="nav.summary">Executive Summary</a></li>
+                        <li><a href="#smart-contracts" class="hover:text-white transition-colors" data-i18n="nav.contracts">Smart Contracts</a></li>
+                        <li><a href="#security" class="hover:text-white transition-colors" data-i18n="nav.security">Security Analysis</a></li>
+                        <li><a href="#valuation" class="hover:text-white transition-colors" data-i18n="nav.valuation">Valuation</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4" data-i18n="footer.resources">Resources</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li>
+                            <a href="https://polygonscan.com/address/0xf81938F926714f114D07b68dfc3b0E3bC501167B" target="_blank" class="hover:text-white transition-colors flex items-center gap-2">
+                                <i class="fas fa-external-link-alt"></i>
+                                PolygonScan Contract
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://waypool.net" target="_blank" class="hover:text-white transition-colors flex items-center gap-2">
+                                <i class="fas fa-globe"></i>
+                                WayPool.net
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-sm text-gray-500">
+                    <span data-i18n="footer.generated">Document generated:</span> January 18, 2026
+                </p>
+                <p class="text-sm text-gray-500" data-i18n="footer.confidential">
+                    Confidential - For internal use and due diligence processes only
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Translations
+        const translations = {
+            en: {
+                'hero.badge': 'Technical Audit Report',
+                'hero.subtitle': 'Complete Technical Audit 2026',
+                'hero.description': 'DeFi Liquidity Management Platform - Comprehensive analysis of architecture, security, smart contracts, and regulatory compliance',
+                'hero.version': 'App Version',
+                'hero.lines': 'Lines of Code',
+                'hero.tables': 'Database Tables',
+                'hero.score': 'Maturity Score',
+                'hero.readAudit': 'Read Full Audit',
+                'hero.smartContracts': 'Smart Contracts',
+                'nav.summary': 'Summary',
+                'nav.architecture': 'Architecture',
+                'nav.contracts': 'Contracts',
+                'nav.security': 'Security',
+                'nav.compliance': 'Compliance',
+                'nav.valuation': 'Valuation',
+                'toc.title': 'Table of Contents',
+                'section1.title': '1. Executive Summary',
+                'section1.overview': '1.1 General Overview',
+                'section1.description': 'WayPool.net is a decentralized liquidity management platform (DeFi) that enables users to create and manage liquidity positions on Uniswap V3, with a hybrid approach that combines:',
+                'section1.feature1.title': 'Non-Custodial Positions',
+                'section1.feature1.desc': 'Users maintain full control of their assets through Uniswap V3 NFTs',
+                'section1.feature2.title': 'Custodial Wallets',
+                'section1.feature2.desc': 'Alternative option for users who prefer a simplified experience',
+                'section1.feature3.title': 'Automated Yields',
+                'section1.feature3.desc': 'Proprietary daily APR distribution system',
+                'section1.metrics': '1.2 Key Metrics',
+                'section1.valueProposition': '1.3 Value Proposition',
+                'section1.valueDesc': 'WayPool.net offers a comprehensive solution for:',
+                'section2.title': '2. System Architecture',
+                'section2.diagram': '2.1 Architecture Diagram',
+                'section2.structure': '2.2 Directory Structure',
+                'section2.dataFlow': '2.3 Main Data Flow',
+                'table.metric': 'Metric',
+                'table.value': 'Value',
+                'metrics.version': 'Current Version',
+                'metrics.buildDate': 'Build Date',
+                'metrics.network': 'Main Network',
+                'metrics.contract': 'Smart Contract',
+                'metrics.deployBlock': 'Deploy Block',
+                'metrics.dbTables': 'Database Tables',
+                'metrics.apiEndpoints': 'API Endpoints',
+                'metrics.codeLines': 'Lines of Code (Est.)',
+                'value1.title': 'DeFi Simplification',
+                'value1.desc': 'Abstraction of Uniswap V3 technical complexity',
+                'value2.title': 'NFT Position Management',
+                'value2.desc': 'Creation and monitoring of liquidity positions',
+                'value3.title': 'Optimized Yields',
+                'value3.desc': 'Automated distribution based on active pool APR',
+                'value4.title': 'Regulatory Compliance',
+                'value4.desc': 'MiCA (EU), SEC (US), and VARA (UAE) compatible design',
+                'flow.user': 'User',
+                'flow.database': 'Database',
+                'flow.nft': 'NFT Position',
+                'footer.description': 'Complete technical audit of the WayPool.net DeFi platform for investment fund due diligence.',
+                'footer.quickLinks': 'Quick Links',
+                'footer.resources': 'Resources',
+                'footer.generated': 'Document generated:',
+                'footer.confidential': 'Confidential - For internal use and due diligence processes only'
+            },
+            es: {
+                'hero.badge': 'Informe de Auditoría Técnica',
+                'hero.subtitle': 'Auditoría Técnica Completa 2026',
+                'hero.description': 'Plataforma de Gestión de Liquidez DeFi - Análisis completo de arquitectura, seguridad, contratos inteligentes y cumplimiento normativo',
+                'hero.version': 'Versión App',
+                'hero.lines': 'Líneas de Código',
+                'hero.tables': 'Tablas BD',
+                'hero.score': 'Puntuación',
+                'hero.readAudit': 'Leer Auditoría',
+                'hero.smartContracts': 'Smart Contracts',
+                'nav.summary': 'Resumen',
+                'nav.architecture': 'Arquitectura',
+                'nav.contracts': 'Contratos',
+                'nav.security': 'Seguridad',
+                'nav.compliance': 'Cumplimiento',
+                'nav.valuation': 'Valoración',
+                'toc.title': 'Índice',
+                'section1.title': '1. Resumen Ejecutivo',
+                'section1.overview': '1.1 Descripción General',
+                'section1.description': 'WayPool.net es una plataforma de gestión de liquidez descentralizada (DeFi) que permite a los usuarios crear y gestionar posiciones de liquidez en Uniswap V3, con un enfoque híbrido que combina:',
+                'section1.feature1.title': 'Posiciones No Custodiadas',
+                'section1.feature1.desc': 'Los usuarios mantienen control total de sus activos a través de NFTs de Uniswap V3',
+                'section1.feature2.title': 'Wallets Custodiados',
+                'section1.feature2.desc': 'Opción alternativa para usuarios que prefieren una experiencia simplificada',
+                'section1.feature3.title': 'Rendimientos Automatizados',
+                'section1.feature3.desc': 'Sistema propietario de distribución diaria de APR',
+                'section1.metrics': '1.2 Métricas Clave',
+                'section1.valueProposition': '1.3 Propuesta de Valor',
+                'section1.valueDesc': 'WayPool.net ofrece una solución integral para:',
+                'section2.title': '2. Arquitectura del Sistema',
+                'section2.diagram': '2.1 Diagrama de Arquitectura',
+                'section2.structure': '2.2 Estructura de Directorios',
+                'section2.dataFlow': '2.3 Flujo de Datos Principal',
+                'table.metric': 'Métrica',
+                'table.value': 'Valor',
+                'metrics.version': 'Versión Actual',
+                'metrics.buildDate': 'Fecha de Build',
+                'metrics.network': 'Red Principal',
+                'metrics.contract': 'Smart Contract',
+                'metrics.deployBlock': 'Bloque de Deploy',
+                'metrics.dbTables': 'Tablas en BD',
+                'metrics.apiEndpoints': 'Endpoints API',
+                'metrics.codeLines': 'Líneas de Código (Est.)',
+                'value1.title': 'Simplificación DeFi',
+                'value1.desc': 'Abstracción de la complejidad técnica de Uniswap V3',
+                'value2.title': 'Gestión de Posiciones NFT',
+                'value2.desc': 'Creación y monitoreo de posiciones de liquidez',
+                'value3.title': 'Rendimientos Optimizados',
+                'value3.desc': 'Distribución automatizada basada en APR de pools activos',
+                'value4.title': 'Cumplimiento Normativo',
+                'value4.desc': 'Diseño compatible con MiCA (EU), SEC (US) y VARA (UAE)',
+                'flow.user': 'Usuario',
+                'flow.database': 'Base de Datos',
+                'flow.nft': 'Posición NFT',
+                'footer.description': 'Auditoría técnica completa de la plataforma DeFi WayPool.net para due diligence de fondos de inversión.',
+                'footer.quickLinks': 'Enlaces Rápidos',
+                'footer.resources': 'Recursos',
+                'footer.generated': 'Documento generado:',
+                'footer.confidential': 'Confidencial - Solo para uso interno y procesos de due diligence'
+            },
+            fr: {
+                'hero.badge': 'Rapport d\'Audit Technique',
+                'hero.subtitle': 'Audit Technique Complet 2026',
+                'hero.description': 'Plateforme de Gestion de Liquidité DeFi - Analyse complète de l\'architecture, sécurité, contrats intelligents et conformité réglementaire',
+                'hero.version': 'Version App',
+                'hero.lines': 'Lignes de Code',
+                'hero.tables': 'Tables BD',
+                'hero.score': 'Score Maturité',
+                'hero.readAudit': 'Lire l\'Audit',
+                'hero.smartContracts': 'Smart Contracts',
+                'nav.summary': 'Résumé',
+                'nav.architecture': 'Architecture',
+                'nav.contracts': 'Contrats',
+                'nav.security': 'Sécurité',
+                'nav.compliance': 'Conformité',
+                'nav.valuation': 'Évaluation',
+                'toc.title': 'Table des Matières',
+                'section1.title': '1. Résumé Exécutif',
+                'section1.overview': '1.1 Aperçu Général',
+                'section1.description': 'WayPool.net est une plateforme de gestion de liquidité décentralisée (DeFi) qui permet aux utilisateurs de créer et gérer des positions de liquidité sur Uniswap V3, avec une approche hybride qui combine:',
+                'footer.description': 'Audit technique complet de la plateforme DeFi WayPool.net pour la due diligence des fonds d\'investissement.',
+                'footer.quickLinks': 'Liens Rapides',
+                'footer.resources': 'Ressources',
+                'footer.generated': 'Document généré:',
+                'footer.confidential': 'Confidentiel - Usage interne et processus de due diligence uniquement'
+            },
+            de: {
+                'hero.badge': 'Technischer Prüfbericht',
+                'hero.subtitle': 'Vollständige Technische Prüfung 2026',
+                'hero.description': 'DeFi-Liquiditätsmanagement-Plattform - Umfassende Analyse von Architektur, Sicherheit, Smart Contracts und regulatorischer Compliance',
+                'hero.version': 'App-Version',
+                'hero.lines': 'Codezeilen',
+                'hero.tables': 'DB-Tabellen',
+                'hero.score': 'Reifepunktzahl',
+                'hero.readAudit': 'Audit Lesen',
+                'hero.smartContracts': 'Smart Contracts',
+                'nav.summary': 'Zusammenfassung',
+                'nav.architecture': 'Architektur',
+                'nav.contracts': 'Verträge',
+                'nav.security': 'Sicherheit',
+                'nav.compliance': 'Compliance',
+                'nav.valuation': 'Bewertung',
+                'toc.title': 'Inhaltsverzeichnis',
+                'section1.title': '1. Executive Summary',
+                'section1.overview': '1.1 Allgemeiner Überblick',
+                'footer.description': 'Vollständige technische Prüfung der WayPool.net DeFi-Plattform für Investment-Due-Diligence.',
+                'footer.quickLinks': 'Schnelllinks',
+                'footer.resources': 'Ressourcen',
+                'footer.generated': 'Dokument erstellt:',
+                'footer.confidential': 'Vertraulich - Nur für internen Gebrauch und Due-Diligence-Prozesse'
+            }
+        };
+
+        let currentLang = 'en';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.lang === lang) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update all translatable elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                } else if (translations.en[key]) {
+                    el.textContent = translations.en[key];
+                }
+            });
+
+            // Save preference
+            localStorage.setItem('audit-lang', lang);
+        }
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Scroll progress indicator
+        window.addEventListener('scroll', () => {
+            const scrollTop = document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const progress = (scrollTop / scrollHeight) * 100;
+            document.getElementById('scrollIndicator').style.width = progress + '%';
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved language
+            const savedLang = localStorage.getItem('audit-lang');
+            if (savedLang && translations[savedLang]) {
+                setLanguage(savedLang);
+            }
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+
+            // Load remaining sections
+            loadRemainingSections();
+        });
+
+        // Load remaining sections dynamically
+        async function loadRemainingSections() {
+            const container = document.getElementById('remaining-sections');
+            try {
+                // Load first batch of sections (3-8)
+                const response1 = await fetch('/audit-sections.html');
+                if (response1.ok) {
+                    const html1 = await response1.text();
+                    container.innerHTML = html1;
+                }
+
+                // Load second batch of sections (9-15)
+                const response2 = await fetch('/audit-sections-2.html');
+                if (response2.ok) {
+                    const html2 = await response2.text();
+                    container.innerHTML += html2;
+                }
+
+                // Re-apply translations after loading
+                setLanguage(currentLang);
+
+                // Initialize charts if Chart.js is loaded
+                initializeCharts();
+            } catch (e) {
+                console.log('Loading sections inline:', e);
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            const ctx = document.getElementById('maturityChart');
+            if (ctx && typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Code Quality', 'Architecture', 'Security', 'Documentation', 'Testing', 'DevOps', 'UX/UI'],
+                        datasets: [{
+                            label: 'Maturity Score',
+                            data: [8, 8, 7, 7, 6, 7, 8],
+                            fill: true,
+                            backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                            borderColor: 'rgb(99, 102, 241)',
+                            pointBackgroundColor: 'rgb(99, 102, 241)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(99, 102, 241)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            r: {
+                                angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                pointLabels: { color: 'rgba(255, 255, 255, 0.7)' },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    backdropColor: 'transparent',
+                                    stepSize: 2
+                                },
+                                min: 0,
+                                max: 10
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

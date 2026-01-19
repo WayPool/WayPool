@@ -20,7 +20,9 @@ const NFTFlowProcess = lazy(() => import("@/components/dashboard/nft-flow-proces
 const NFTPoolCreationBanner = lazy(() => import("@/components/nft-pool-creation-banner"));
 
 const Dashboard: React.FC = () => {
+  console.log('[Dashboard] Component rendering...');
   const { address, setIsModalOpen } = useWallet();
+  console.log('[Dashboard] address from useWallet:', address);
   const { t, language } = useTranslation();
   const { data: nfts = [] } = useUserNFTs();
   const { dbPositions = [] } = usePositions();
@@ -52,6 +54,7 @@ const Dashboard: React.FC = () => {
       {/* Only show portfolio section if wallet is connected */}
       {address && (
         <>
+          {console.log('[Dashboard] Rendering NFT banner section for address:', address)}
           {/* NFT Pool Creation Banner - shows when user has pending NFT creations */}
           <Suspense fallback={null}>
             <NFTPoolCreationBanner />

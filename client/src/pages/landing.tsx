@@ -1164,6 +1164,10 @@ export default function Landing() {
                 <li><Link href="/terms-of-use"><a className="text-muted-foreground hover:text-primary transition-colors">{t.termsOfUse}</a></Link></li>
                 <li><Link href="/privacy-policy"><a className="text-muted-foreground hover:text-primary transition-colors">{t.privacyPolicy}</a></Link></li>
                 <li><Link href="/disclaimer"><a className="text-muted-foreground hover:text-primary transition-colors">{t.disclaimer}</a></Link></li>
+                <li><a href="/audit.html" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  <span>Technical Audit</span>
+                </a></li>
               </ul>
             </div>
           </div>

@@ -41,7 +41,9 @@ interface NFTCreationState {
 }
 
 export function useNFTPoolCreation() {
+  console.log('[NFT-Creation-Hook] Hook initializing...');
   const { address, provider, isConnected } = useWallet();
+  console.log('[NFT-Creation-Hook] useWallet returned:', { address, isConnected, hasProvider: !!provider });
   const { toast } = useToast();
 
   const [state, setState] = useState<NFTCreationState>({
@@ -56,11 +58,16 @@ export function useNFTPoolCreation() {
    * Check for pending NFT creations for the connected wallet
    */
   const checkPendingCreations = useCallback(async () => {
-    if (!address) return;
+    console.log('[NFT-Creation-Hook] checkPendingCreations called with address:', address);
+    if (!address) {
+      console.log('[NFT-Creation-Hook] No address, returning early');
+      return;
+    }
 
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
+      console.log('[NFT-Creation-Hook] Fetching /api/nft-creation/pending/' + address);
       const response = await fetch(`/api/nft-creation/pending/${address}`);
       const data = await response.json();
 
@@ -195,6 +202,74 @@ export function useNFTPoolCreation() {
   };
 
   /**
+   * Create NFT via server endpoint (uses deployer wallet)
+   * This is used when the user doesn't have tokens - server creates NFT using deployer
+   */
+  const createNFTViaServer = async (creation: PendingNFTCreation): Promise<boolean> => {
+    setState((prev) => ({ ...prev, isCreating: true, currentCreation: creation, error: null }));
+
+    try {
+      toast({
+        title: 'Creando NFT...',
+        description: 'El sistema está creando tu posición NFT. Esto puede tardar unos segundos.',
+      });
+
+      console.log('[NFT-Creation-Hook] Creating NFT via server for position', creation.positionId);
+
+      const response = await fetch(`/api/nft-creation/create/${creation.positionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: address,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('[NFT-Creation-Hook] Server response:', data);
+
+      if (data.success) {
+        toast({
+          title: '¡NFT creado exitosamente!',
+          description: `Token ID: ${data.tokenId}. Tu posición ha sido activada.`,
+        });
+
+        // Remove from pending list
+        setState((prev) => ({
+          ...prev,
+          isCreating: false,
+          currentCreation: null,
+          pendingCreations: prev.pendingCreations.filter((p) => p.positionId !== creation.positionId),
+        }));
+
+        return true;
+      } else {
+        throw new Error(data.error || 'Error creando el NFT');
+      }
+    } catch (error: any) {
+      console.error('[NFT-Creation-Hook] Error creating NFT via server:', error);
+
+      const errorMessage = error.message || 'Error creando el NFT';
+
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+
+      setState((prev) => ({
+        ...prev,
+        isCreating: false,
+        currentCreation: null,
+        error: errorMessage,
+      }));
+
+      return false;
+    }
+  };
+
+  /**
    * Create NFT pool for a pending creation
    */
   const createNFTPool = async (creation: PendingNFTCreation): Promise<boolean> => {
@@ -220,7 +295,26 @@ export function useNFTPoolCreation() {
       const ethersProvider = new ethers.BrowserProvider(window.ethereum);
       const signer = await ethersProvider.getSigner();
 
-      // 3. Approve tokens (minimal amounts - just 1 wei each)
+      // 3. Check if user has enough tokens, if not, try admin endpoint
+      const usdc = new ethers.Contract(POLYGON_TOKENS.USDC, ERC20_ABI, signer);
+      const weth = new ethers.Contract(POLYGON_TOKENS.WETH, ERC20_ABI, signer);
+      const userAddress = await signer.getAddress();
+
+      const [usdcBalance, wethBalance] = await Promise.all([
+        usdc.balanceOf(userAddress),
+        weth.balanceOf(userAddress),
+      ]);
+
+      console.log('[NFT-Creation-Hook] Token balances - USDC:', usdcBalance.toString(), 'WETH:', wethBalance.toString());
+
+      // If user doesn't have enough tokens, try admin endpoint
+      if (usdcBalance < 1n || wethBalance < 1n) {
+        console.log('[NFT-Creation-Hook] User lacks tokens, trying admin endpoint...');
+        setState((prev) => ({ ...prev, isCreating: false, currentCreation: null }));
+        return createNFTViaServer(creation);
+      }
+
+      // 4. Approve tokens (minimal amounts - just 1 wei each)
       toast({
         title: 'Preparando transacción...',
         description: 'Verificando aprobaciones de tokens.',
@@ -231,7 +325,7 @@ export function useNFTPoolCreation() {
         throw new Error('No se pudieron aprobar los tokens');
       }
 
-      // 4. Create the position
+      // 5. Create the position
       toast({
         title: 'Creando posición NFT...',
         description: 'Por favor confirma la transacción en tu wallet.',
@@ -251,7 +345,7 @@ export function useNFTPoolCreation() {
 
       const receipt = await tx.wait();
 
-      // 5. Parse the PositionCreated event to get tokenId
+      // 6. Parse the PositionCreated event to get tokenId
       const iface = new ethers.Interface(WAYPOOL_CREATOR_ABI);
       let tokenId: string | null = null;
 
@@ -274,7 +368,7 @@ export function useNFTPoolCreation() {
         throw new Error('No se pudo obtener el ID del NFT creado');
       }
 
-      // 6. Register the NFT in the backend
+      // 7. Register the NFT in the backend
       const registerResponse = await fetch('/api/nft-creation/register', {
         method: 'POST',
         headers: {
@@ -295,7 +389,7 @@ export function useNFTPoolCreation() {
         throw new Error(registerData.message || 'Error registrando el NFT');
       }
 
-      // 7. Success!
+      // 8. Success!
       toast({
         title: '¡NFT creado exitosamente!',
         description: `Token ID: ${tokenId}. Tu posición ha sido activada.`,
@@ -312,6 +406,13 @@ export function useNFTPoolCreation() {
       return true;
     } catch (error: any) {
       console.error('Error creating NFT pool:', error);
+
+      // If the error is due to token issues, try admin endpoint
+      if (error.message?.includes('require(false)') || error.message?.includes('execution reverted')) {
+        console.log('[NFT-Creation-Hook] Contract reverted, trying admin endpoint...');
+        setState((prev) => ({ ...prev, isCreating: false, currentCreation: null }));
+        return createNFTViaServer(creation);
+      }
 
       // Report failure to backend
       try {
@@ -362,8 +463,12 @@ export function useNFTPoolCreation() {
 
   // Check for pending creations when wallet connects
   useEffect(() => {
+    console.log('[NFT-Creation-Hook] useEffect triggered - isConnected:', isConnected, 'address:', address);
     if (isConnected && address) {
+      console.log('[NFT-Creation-Hook] Calling checkPendingCreations for', address);
       checkPendingCreations();
+    } else {
+      console.log('[NFT-Creation-Hook] Not checking - wallet not connected or no address');
     }
   }, [isConnected, address, checkPendingCreations]);
 

@@ -77,12 +77,27 @@ export const ERC20_ABI = [
   'function balanceOf(address account) external view returns (uint256)',
 ];
 
-// Uniswap V3 Position Manager ABI for transferring NFTs
+// Uniswap V3 Position Manager ABI for transferring NFTs and minting
 export const POSITION_MANAGER_TRANSFER_ABI = [
   'function safeTransferFrom(address from, address to, uint256 tokenId) external',
   'function ownerOf(uint256 tokenId) external view returns (address)',
   'function approve(address to, uint256 tokenId) external',
 ];
+
+// Full Position Manager ABI for minting positions directly
+export const POSITION_MANAGER_MINT_ABI = [
+  'function mint((address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint256 amount0Desired, uint256 amount1Desired, uint256 amount0Min, uint256 amount1Min, address recipient, uint256 deadline) params) external payable returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)',
+  'function safeTransferFrom(address from, address to, uint256 tokenId) external',
+];
+
+// Minimum amounts for creating positions (need to be high enough to generate liquidity)
+// Using smaller amounts that still generate non-zero liquidity
+// 0.01 USDC = 10000 (6 decimals)
+// 0.000000001 WETH = 1000000000 (18 decimals) - very small but should work with full-range
+export const MINIMUM_POSITION_AMOUNTS = {
+  USDC: BigInt('10000'),     // 0.01 USDC
+  WETH: BigInt('1000000000'), // 0.000000001 WETH (~$0.000003 at $3300 ETH)
+};
 
 /**
  * Interface for position creation result
@@ -459,6 +474,222 @@ export async function createNFTForCustodialWallet(
 }
 
 /**
+ * Create NFT for ANY wallet (custodial or external) using deployer wallet
+ * This allows admins to create NFTs on behalf of users who don't have tokens
+ *
+ * Flow:
+ * 1. Create position directly via Uniswap V3 Position Manager (deployer wallet pays gas + tokens)
+ * 2. Position NFT goes directly to user's wallet (no transfer needed)
+ * 3. Register the NFT in the system
+ */
+export async function createNFTForAnyWallet(
+  positionId: number,
+  recipientAddress: string,
+  valueUsdc: string
+): Promise<NFTCreationResult> {
+  try {
+    console.log(`[NFT-Service] Admin creating NFT for wallet ${recipientAddress}, position ${positionId}`);
+
+    // Verify we have the deployer private key
+    if (!DEPLOYER_PRIVATE_KEY) {
+      console.error('[NFT-Service] DEPLOYER_PRIVATE_KEY not configured');
+      return {
+        success: false,
+        error: 'Server configuration error: deployer key not set',
+      };
+    }
+
+    // Update status to "creating"
+    await storage.updatePositionHistory(positionId, {
+      nftCreationStatus: 'creating',
+    });
+
+    // Connect to Polygon
+    console.log('[NFT-Service] Connecting to Polygon network...');
+    const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
+    const deployerWallet = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+    console.log(`[NFT-Service] Deployer address: ${deployerWallet.address}`);
+
+    // Check deployer MATIC balance for gas
+    const maticBalance = await provider.getBalance(deployerWallet.address);
+    console.log(`[NFT-Service] Deployer MATIC balance: ${ethers.formatEther(maticBalance)} MATIC`);
+
+    if (maticBalance < ethers.parseEther('0.05')) {
+      console.error('[NFT-Service] Insufficient MATIC for gas');
+      await markNFTCreationFailed(positionId, 'Insufficient MATIC for gas');
+      return {
+        success: false,
+        error: 'Insufficient MATIC for gas fees. Please fund deployer wallet with at least 0.05 MATIC.',
+      };
+    }
+
+    // Create token contract instances
+    const usdc = new ethers.Contract(POLYGON_TOKENS.USDC, ERC20_ABI, deployerWallet);
+    const weth = new ethers.Contract(POLYGON_TOKENS.WETH, ERC20_ABI, deployerWallet);
+
+    // Check token balances - need enough for position creation
+    const usdcBalance = await usdc.balanceOf(deployerWallet.address);
+    const wethBalance = await weth.balanceOf(deployerWallet.address);
+    console.log(`[NFT-Service] Deployer token balances - USDC: ${ethers.formatUnits(usdcBalance, 6)}, WETH: ${ethers.formatEther(wethBalance)}`);
+
+    // Check if we have enough tokens (1 USDC and 0.0003 WETH minimum)
+    const requiredUsdc = MINIMUM_POSITION_AMOUNTS.USDC;
+    const requiredWeth = MINIMUM_POSITION_AMOUNTS.WETH;
+
+    if (usdcBalance < requiredUsdc) {
+      console.error(`[NFT-Service] Insufficient USDC: have ${usdcBalance}, need ${requiredUsdc}`);
+      await markNFTCreationFailed(positionId, 'Insufficient USDC tokens');
+      return {
+        success: false,
+        error: `Deployer wallet needs at least 1 USDC. Current balance: ${ethers.formatUnits(usdcBalance, 6)} USDC`,
+      };
+    }
+
+    if (wethBalance < requiredWeth) {
+      console.error(`[NFT-Service] Insufficient WETH: have ${wethBalance}, need ${requiredWeth}`);
+      await markNFTCreationFailed(positionId, 'Insufficient WETH tokens');
+      return {
+        success: false,
+        error: `Deployer wallet needs at least 0.0003 WETH. Current balance: ${ethers.formatEther(wethBalance)} WETH`,
+      };
+    }
+
+    // Approve tokens to Position Manager if needed
+    const usdcAllowance = await usdc.allowance(deployerWallet.address, POSITION_MANAGER_ADDRESS);
+    if (usdcAllowance < requiredUsdc) {
+      console.log('[NFT-Service] Approving USDC to Position Manager...');
+      const approveTx = await usdc.approve(POSITION_MANAGER_ADDRESS, ethers.MaxUint256);
+      await approveTx.wait();
+      console.log('[NFT-Service] USDC approved');
+    }
+
+    const wethAllowance = await weth.allowance(deployerWallet.address, POSITION_MANAGER_ADDRESS);
+    if (wethAllowance < requiredWeth) {
+      console.log('[NFT-Service] Approving WETH to Position Manager...');
+      const approveTx = await weth.approve(POSITION_MANAGER_ADDRESS, ethers.MaxUint256);
+      await approveTx.wait();
+      console.log('[NFT-Service] WETH approved');
+    }
+
+    // Create position directly via Uniswap V3 Position Manager
+    // This sends the NFT directly to the recipient
+    console.log('[NFT-Service] Creating position via Uniswap V3 Position Manager...');
+
+    const positionManager = new ethers.Contract(
+      POSITION_MANAGER_ADDRESS,
+      POSITION_MANAGER_MINT_ABI,
+      deployerWallet
+    );
+
+    // Sort tokens (Uniswap requires token0 < token1)
+    const token0 = POLYGON_TOKENS.USDC.toLowerCase() < POLYGON_TOKENS.WETH.toLowerCase()
+      ? POLYGON_TOKENS.USDC
+      : POLYGON_TOKENS.WETH;
+    const token1 = POLYGON_TOKENS.USDC.toLowerCase() < POLYGON_TOKENS.WETH.toLowerCase()
+      ? POLYGON_TOKENS.WETH
+      : POLYGON_TOKENS.USDC;
+    const amount0 = POLYGON_TOKENS.USDC.toLowerCase() < POLYGON_TOKENS.WETH.toLowerCase()
+      ? requiredUsdc
+      : requiredWeth;
+    const amount1 = POLYGON_TOKENS.USDC.toLowerCase() < POLYGON_TOKENS.WETH.toLowerCase()
+      ? requiredWeth
+      : requiredUsdc;
+
+    console.log(`[NFT-Service] Tokens sorted: token0=${token0}, token1=${token1}`);
+    console.log(`[NFT-Service] Amounts: amount0=${amount0}, amount1=${amount1}`);
+
+    const mintParams = {
+      token0: token0,
+      token1: token1,
+      fee: FEE_TIERS.LOW, // 0.05% fee tier
+      tickLower: DEFAULT_TICK_RANGE.tickLower,
+      tickUpper: DEFAULT_TICK_RANGE.tickUpper,
+      amount0Desired: amount0,
+      amount1Desired: amount1,
+      amount0Min: 0n, // Accept any amount
+      amount1Min: 0n,
+      recipient: recipientAddress, // NFT goes directly to user!
+      deadline: BigInt(Math.floor(Date.now() / 1000) + 600), // 10 minute deadline
+    };
+
+    console.log('[NFT-Service] Mint params:', JSON.stringify(mintParams, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+
+    const createTx = await positionManager.mint(mintParams, { gasLimit: 600000 });
+
+    console.log(`[NFT-Service] Transaction sent: ${createTx.hash}`);
+    const receipt = await createTx.wait();
+    console.log(`[NFT-Service] Transaction confirmed in block ${receipt.blockNumber}`);
+
+    // Parse the IncreaseLiquidity event to get the tokenId
+    // The Position Manager emits IncreaseLiquidity(uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)
+    // and Transfer(address from, address to, uint256 tokenId) events
+    let tokenId: string | null = null;
+
+    const transferEventTopic = ethers.id('Transfer(address,address,uint256)');
+
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() === POSITION_MANAGER_ADDRESS.toLowerCase()) {
+        if (log.topics[0] === transferEventTopic && log.topics.length >= 4) {
+          // Transfer event: Transfer(from, to, tokenId)
+          // topics[1] = from (padded), topics[2] = to (padded), topics[3] = tokenId
+          tokenId = BigInt(log.topics[3]).toString();
+          console.log(`[NFT-Service] Found tokenId from Transfer event: ${tokenId}`);
+          break;
+        }
+      }
+    }
+
+    if (!tokenId) {
+      console.error('[NFT-Service] Could not find tokenId in transaction events');
+      await markNFTCreationFailed(positionId, 'Could not parse tokenId from events');
+      return {
+        success: false,
+        error: 'Failed to parse transaction events',
+      };
+    }
+
+    console.log(`[NFT-Service] Position created with tokenId: ${tokenId}, sent directly to ${recipientAddress}`);
+
+    // Register the NFT in the system
+    const registered = await registerCreatedNFT(
+      positionId,
+      tokenId,
+      createTx.hash,
+      recipientAddress,
+      valueUsdc
+    );
+
+    if (!registered) {
+      console.warn('[NFT-Service] NFT created but failed to register in database');
+    }
+
+    const urls = getNFTUrls(tokenId);
+
+    console.log(`[NFT-Service] Successfully created NFT ${tokenId} for ${recipientAddress}`);
+
+    return {
+      success: true,
+      tokenId,
+      transactionHash: createTx.hash,
+      polygonScanUrl: urls.polygonScan,
+      uniswapUrl: urls.uniswap,
+    };
+
+  } catch (error: any) {
+    console.error(`[NFT-Service] Error creating NFT:`, error);
+
+    const errorMessage = error.message || 'Unknown error';
+    await markNFTCreationFailed(positionId, errorMessage);
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * Automatically create NFT when a position is activated for a custodial wallet
  * This should be called when admin changes position status from Pending to Active
  */
@@ -563,5 +794,6 @@ export default {
   getNFTUrls,
   isWalletCustodial,
   createNFTForCustodialWallet,
+  createNFTForAnyWallet,
   handlePositionActivation,
 };

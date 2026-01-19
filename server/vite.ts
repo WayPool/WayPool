@@ -105,6 +105,19 @@ export function serveStatic(app: Express) {
       console.log(`[serveStatic] Passing /api or /ws route to next middleware: ${req.originalUrl}`);
       return next();
     }
+
+    // Check if requesting a specific HTML file (like audit.html)
+    if (req.originalUrl.endsWith('.html')) {
+      const htmlFile = path.resolve(distPath, req.originalUrl.slice(1)); // Remove leading /
+      if (fs.existsSync(htmlFile)) {
+        console.log(`[serveStatic] Serving specific HTML file: ${htmlFile}`);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        return res.sendFile(htmlFile);
+      }
+    }
+
     console.log(`[serveStatic] Serving index.html for: ${req.originalUrl}`);
     // ANTI-CACHE: Headers para que el HTML siempre se recargue
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

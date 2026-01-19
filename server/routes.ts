@@ -1659,6 +1659,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEMPORAL: Endpoint de diagnóstico para verificar currentApr
+  app.get("/api/debug/position-apr/:positionId", async (req: Request, res: Response) => {
+    try {
+      const { positionId } = req.params;
+      const result = await pool.query(
+        `SELECT id, apr, current_apr, last_apr_update FROM position_history WHERE id = $1`,
+        [positionId]
+      );
+      return res.json({
+        raw: result.rows[0],
+        message: "Direct DB query - showing raw values"
+      });
+    } catch (error) {
+      console.error("Debug error:", error);
+      return res.status(500).json({ error: String(error) });
+    }
+  });
+
   // API routes for position history
   app.get("/api/position-history/:walletAddress", async (req: Request, res: Response) => {
     try {

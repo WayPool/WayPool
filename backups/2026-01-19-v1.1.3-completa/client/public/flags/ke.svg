@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#fff"/>
+  <rect width="900" height="180" fill="#000"/>
+  <rect width="900" height="180" fill="#b41530" y="180"/>
+  <rect width="900" height="60" fill="#fff" y="360"/>
+  <rect width="900" height="180" fill="#006600" y="420"/>
+  <g transform="translate(450, 300)">
+    <path d="M -150,0 C -150,82.8 -82.8,150 0,150 C 82.8,150 150,82.8 150,0 C 150,-82.8 82.8,-150 0,-150 C -82.8,-150 -150,-82.8 -150,0 Z" fill="#b41530"/>
+    <path d="M -120,0 C -120,66.3 -66.3,120 0,120 C 66.3,120 120,66.3 120,0 C 120,-66.3 66.3,-120 0,-120 C -66.3,-120 -120,-66.3 -120,0 Z" fill="#000"/>
+    <g id="shield" fill="#fff">
+      <path d="M -25,-40 L 25,-40 L 25,40 L 0,55 L -25,40 Z"/>
+      <rect width="16" height="80" x="-8" y="-40" fill="#b41530"/>
+    </g>
+    <g id="spears">
+      <path d="M -80,-10 L 80,-10" stroke="#000" stroke-width="8"/>
+      <path d="M -50,-10 L -90,-50 L -75,-60 L -40,-25 L -50,-15 Z" fill="#000"/>
+      <path d="M 50,-10 L 90,-50 L 75,-60 L 40,-25 L 50,-15 Z" fill="#000"/>
+      <path d="M -50,-10 L -50,60 M 50,-10 L 50,60" stroke="#000" stroke-width="6"/>
+    </g>
+  </g>
+</svg>

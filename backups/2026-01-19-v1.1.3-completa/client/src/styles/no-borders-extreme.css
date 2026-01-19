@@ -1,0 +1,42 @@
+/**
+ * Estilos ultra-agresivos para eliminar todos los bordes en la versión móvil
+ * IMPORTANTE: Esto solo se aplica a pantallas móviles
+ */
+
+@media (max-width: 767px) {
+  /* Reset completo de bordes - versión extrema */
+  .dark *,
+  .dark *::before,
+  .dark *::after {
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline-width: 0 !important;
+    outline-style: none !important;
+    outline-color: transparent !important;
+  }
+  
+  /* Específicamente para la sección de resultados estimados */
+  .dark div.bg-indigo-900\/10 * {
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Sobresecribir cualquier estilo inline que pueda estar añadiendo bordes */
+  .dark [style*="border"] {
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+  }
+  
+  /* Eliminar bordes de los elementos seleccionados */
+  .dark .text-center.bg-slate-800\/40.p-5.rounded-lg.shadow-lg.border-0,
+  .dark .mt-6.pt-5.bg-slate-800\/20.p-4.rounded-lg.shadow-lg.border-0 {
+    border: none !important;
+    border-width: 0 !important;
+  }
+}

@@ -1,0 +1,148 @@
+/* Estilos para las banderas en el selector de países */
+.country-flag {
+  width: 24px;
+  height: 16px;
+  border-radius: 2px;
+  object-fit: cover;
+  display: inline-block;
+  margin-right: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  vertical-align: middle;
+}
+
+.country-flag-large {
+  width: 36px;
+  height: 24px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.country-selector-flag {
+  width: 22px;
+  height: 15px;
+  margin-right: 7px;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.phone-prefix-flag {
+  width: 24px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para el dropdown del selector de países */
+.country-dropdown {
+  max-height: 280px;
+  overflow-y: auto;
+  width: 300px;
+  z-index: 50;
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.country-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.country-dropdown-item:hover {
+  background-color: hsl(var(--muted));
+}
+
+.country-dropdown-item.selected {
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+.country-name {
+  margin-left: 8px;
+  flex-grow: 1;
+}
+
+.country-code {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+/* Estilos para el input de búsqueda de países */
+.country-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  position: sticky;
+  top: 0;
+  background-color: hsl(var(--background));
+  z-index: 2;
+}
+
+.country-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--input));
+  border-radius: var(--radius);
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+}
+
+.country-search input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3);
+}
+
+/* Modificador para el modo oscuro */
+[data-theme="dark"] .country-dropdown {
+  background-color: hsl(var(--background));
+  border-color: hsl(var(--border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .country-dropdown-item:hover {
+  background-color: hsl(var(--muted));
+}
+
+[data-theme="dark"] .country-search input {
+  background-color: hsl(var(--background));
+  border-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+
+/* No results message */
+.no-countries-found {
+  padding: 12px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+
+/* Botón para alternar el dropdown */
+.toggle-country-dropdown {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid hsl(var(--input));
+  border-radius: var(--radius);
+  background-color: hsl(var(--background));
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.toggle-country-dropdown:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.toggle-country-dropdown:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}

@@ -1,0 +1,32 @@
+/**
+ * Corrección del espaciado y distribución del header en versión móvil
+ * - Añade margen superior al contenido para evitar el solapamiento con el header
+ * - Separa el logo del botón Dashboard colocándolos en extremos opuestos
+ */
+
+@media (max-width: 768px) {
+  /* Header con distribución flex para separar elementos */
+  .mobile-header-container {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 1rem 1rem !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    position: relative !important;
+    z-index: 50 !important;
+  }
+
+  /* Añade espacio entre el header y el contenido principal */
+  .mobile-content-container {
+    margin-top: 1.5rem !important;
+    padding-top: 1rem !important;
+  }
+
+  /* Asegura que el h1 del título principal no se solape con el header */
+  .mobile-content-container > h1:first-child,
+  .mobile-content-container > h2:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#00247d"/>
+  <g transform="translate(450, 300)">
+    <g id="southern-cross">
+      <polygon points="0,-30 6,-10 25,-10 10,5 15,25 0,15 -15,25 -10,5 -25,-10 -6,-10" fill="#fff"/>
+    </g>
+    <use href="#southern-cross" transform="scale(0.75) translate(120, 0)"/>
+    <use href="#southern-cross" transform="scale(0.75) translate(0, 120)"/>
+    <use href="#southern-cross" transform="scale(0.75) translate(-120, 0)"/>
+  </g>
+  <g transform="translate(150, 150)">
+    <rect width="300" height="150" fill="#00247d"/>
+    <path d="M 0,0 L 300,150 M 300,0 L 0,150" stroke="#fff" stroke-width="30"/>
+    <path d="M 0,0 L 300,150 M 300,0 L 0,150" stroke="#cc142b" stroke-width="10"/>
+    <path d="M 150,0 L 150,150 M 0,75 L 300,75" stroke="#fff" stroke-width="50"/>
+    <path d="M 150,0 L 150,150 M 0,75 L 300,75" stroke="#cc142b" stroke-width="30"/>
+  </g>
+</svg>

@@ -1,0 +1,417 @@
+import { Invoice } from '../shared/schema';
+import { storage } from './storage';
+import { format } from 'date-fns';
+
+/**
+ * Servicio para generar PDFs de facturas
+ */
+export class InvoicePdfService {
+  /**
+   * Genera un PDF para una factura específica
+   * @param invoiceId ID de la factura
+   * @returns Buffer con el PDF generado
+   */
+  static async generatePdf(invoiceId: number): Promise<Buffer> {
+    try {
+      // Obtener la factura de la base de datos
+      const invoice = await storage.getInvoice(invoiceId);
+      
+      if (!invoice) {
+        throw new Error(`Invoice with ID ${invoiceId} not found`);
+      }
+      
+      // Validación básica del objeto invoice
+      if (!invoice || typeof invoice !== 'object') {
+        console.error('Invalid invoice data: not an object');
+        throw new Error('Invalid invoice data');
+      }
+      
+      // Generamos un HTML que el navegador pueda renderizar como PDF 
+      const html = this.renderPdfAsHtml(invoice);
+      
+      // Convertir a buffer
+      return Buffer.from(html, 'utf-8');
+    } catch (error) {
+      console.error(`Error generando PDF para la factura ${invoiceId}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Renderiza el PDF como un documento HTML que pueda ser visualizado como PDF
+   * @param invoice Datos de la factura
+   * @returns Documento HTML para PDF
+   */
+  private static renderPdfAsHtml(invoice: Invoice): string {
+    const {
+      id,
+      invoiceNumber,
+      walletAddress,
+      positionId,
+      amount,
+      status,
+      paymentMethod,
+      transactionHash,
+      bankReference,
+      issueDate,
+      paidDate,
+      dueDate,
+      notes,
+      clientName,
+      clientAddress,
+      clientCity,
+      clientCountry,
+      clientTaxId,
+      clientEmail,
+      clientPhone
+    } = invoice;
+    
+    // Formateamos las fechas
+    const issueDateFormatted = issueDate ? format(new Date(issueDate), 'dd/MM/yyyy') : 'N/A';
+    const paymentDateFormatted = paidDate ? format(new Date(paidDate), 'dd/MM/yyyy') : 'N/A';
+    const dueDateFormatted = dueDate ? format(new Date(dueDate), 'dd/MM/yyyy') : 'N/A';
+    
+    // Generar el contenido HTML del PDF
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice ${invoiceNumber}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #1a202c;
+            line-height: 1.6;
+            background-color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .company-info {
+            flex: 0 0 40%;
+        }
+        .invoice-details {
+            flex: 0 0 58%;
+            text-align: right;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+        .logo-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #000;
+            margin: 0;
+        }
+        .logo-subtitle {
+            font-size: 12px;
+            color: #4a5568;
+            margin-top: 5px;
+        }
+        .invoice-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        .invoice-number {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .invoice-date {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .status-paid {
+            background-color: #c6f6d5;
+            color: #2f855a;
+        }
+        .status-pending {
+            background-color: #feebc8;
+            color: #c05621;
+        }
+        .status-cancelled {
+            background-color: #fed7d7;
+            color: #c53030;
+        }
+        .section {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 20px;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .section-content {
+            padding-left: 15px;
+        }
+        .details-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .details-label {
+            width: 40%;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .details-value {
+            width: 60%;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #718096;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .truncate {
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th, table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .amount-box {
+            background-color: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border: 1px solid #e2e8f0;
+        }
+        .amount-title {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+        .amount-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        /* SVG Logo Inline */
+        .svg-logo {
+            width: 120px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="invoice-header">
+            <div class="company-info">
+                <!-- Logo Elysium como imagen base64 -->
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAYAAAB/HSuDAAAACXBIWXMAABYlAAAWJQFJUiTwAAAGL2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDUgNzkuMTYzNDk5LCAyMDE4LzA4LzEzLTE2OjQwOjIyICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczpleGlmPSJodHRwOi8vbnMuYWRvYmUuY29tL2V4aWYvMS4wLyIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIGV4aWY6UGl4ZWxYRGltZW5zaW9uPSIxMDI0IiBleGlmOlBpeGVsWURpbWVuc2lvbj0iMTAyNCIgeG1wOkNyZWF0ZURhdGU9IjIwMjUtMDQtMDFUMTc6MzE6NDArMDI6MDAiIHhtcDpNb2RpZnlEYXRlPSIyMDI1LTA0LTA0VDIxOjU5OjE5KzAyOjAwIiB4bXA6TWV0YWRhdGFEYXRlPSIyMDI1LTA0LTA0VDIxOjU5OjE5KzAyOjAwIiBkYzpmb3JtYXQ9ImltYWdlL3BuZyIgcGhvdG9zaG9wOkNvbG9yTW9kZT0iMyIgcGhvdG9zaG9wOklDQ1Byb2ZpbGU9InNSR0IgSUVDNjE5NjYtMi4xIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOmUwNzU0Y2MxLWVhYzQtMDc0MC1hYzI5LWY5ZTk3NTU1MWI4NyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo5YWFmMTk0NC0wYmQyLWRiNDctYTIwZC01NjllODBkYjAyZjQiIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDo5YWFmMTk0NC0wYmQyLWRiNDctYTIwZC01NjllODBkYjAyZjQiPiA8eG1wTU06SGlzdG9yeT4gPHJkZjpTZXE+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJjcmVhdGVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjlhYWYxOTQ0LTBiZDItZGI0Ny1hMjBkLTU2OWU4MGRiMDJmNCIgc3RFdnQ6d2hlbj0iMjAyNS0wNC0wMVQxNzozMTo0MCswMjowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTkgKE1hY2ludG9zaCkiLz4gPHJkZjpsaSBzdEV2dDphY3Rpb249InNhdmVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOmUwNzU0Y2MxLWVhYzQtMDc0MC1hYzI5LWY5ZTk3NTU1MWI4NyIgc3RFdnQ6d2hlbj0iMjAyNS0wNC0wNFQyMTo1OToxOSswMjowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTkgKE1hY2ludG9zaCkiIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+eLEBZgAADzJJREFUeJzt3XmwZXddB/DvvXe2TGaSZJIQAoRICJgIYV8MYVMQKRAXcKGgKlWKaLkgKlquLChosSKLUILILsoWQEBkC3vCFsgCYQtbgJgQk0yS2Wfu9Y8zgSFMkrlz33vvnPt5vap603n33PObc9+c3/d8f7/fOUuDwSAAQNEsTfsCAAB2n4AAAApIQABAASys9wI7d+58+mAw+O7BYHDgYDA4YDAY7KH7AwC2sKVMnO4YDAY3LC0tvb7f76/7msumFX6XDgaDByilHxg+DtxNNwkAZE8vpdSnUsrfpZTesmPHjnXv9o8HgL/v9/vP2bFjx8J63gcAKIter/flnTt3Pnux55ZLKf2kBw8A1LaQUr5jMBjcPu0LITPLKaVlT2UwDct3eSpjExDG5TkMYxucYzCP/HyAcRmc91zzMxrGtl5G8HMBxuV5DGMbnOPnNIzLzwUYmzNIZoaAwCI5Pmdse1pK6XbTvggA6JJla/0wtv0Gg8F7Ukr3n/aFdNTeW1IBADM1TCWvvNdyMABjEhAAUEAGdABQQAICwDgWa39I1uybUsoXUsomSQFwHhMj7KGPpZQunfZFdNQHUkonT/si6KQrp5S+c9oXAUC3CQgA40gpvXzaF9FhV6WUDpj2RQBQ30JK6Y4ppT+d9oUAtETxNDYXB2MzxMm4bk0pXZJSunzaFwJLw53dJ697W5sWChlbK6X0+JTSnZdSSvdO5oUAgHYxMQIABSQgAKCABAQAFJCAME+uSSm9O6X00WlfCABMg8ViNqNNKaVfSin9WUrphrG+8rqU0q+nlN44pXvbr0tNDABMx1JK6fIpX4NpMG3ZAW1cHByJTMrnp5Qek1I6PKWU7pZ3pxcvHAwGT+v1ep+b9oUAALvHUkrpi1O+hj21G3qHlNI/Dh8HzfA698Q3pJS+bdoXQWddl1K6JKX05WlfCNRgL5/5M6oVPSml/aY9+7CHFGvtAcPHrPnhYU8EbXG3lNKfpJTuOO0LoTPukFK6LKV0atqi+wAATWMviM26Miv6wWkP7xnNYy+f+bMjbe7jgLHZy2f+WS4GAAWU0hZ+aCMAYNN8QiMwtssGg8EHpn0RAHSXgAAw3vG0n9sCwOYJCAAjjwZlV94x7QtJKR0z7QuALbDE6IEppddP+yI67AXTvoAOe/xgMDh/2hcBLXaXlNIV074IOqmXUvp02jgBAQA0nYkRACggAQEABSQgAKCABAQAFJCAMC6Fknwrc6n1v8H8MVwMALCJoZsNkfm1nFK63bQvggKz3BgARSQgAKCALBcDMJ5XpJQ+OO2LYC6sHDJ6w/C/f55Seti0LogtNzhf0wgIAOO5U7L/z+67U0rpZcP//kpaQ3vM2iG3lFLaL5mCBMZkMwiA8QlVm/fjw7+PSEIBANgMAQHAWlbuQb0kDaGm+yYBCgC2TEAAANIWtiAAGA3t3LBj3g0ppWuGfz/YsRCUj4kRACN/mFI6c9oXQad9Y/h40bQvhK0TEObjjZ6ZUvqLtDHm8btZJKU8P59S+v1pXwRzZSml9LppXwQFISDA2C5LOxydfMxlKaW9pn0RdNahSQFAw6UkzADA2AQEABSQ5WIAxvPrlhnh/9PGAwVpOAEBwHgOmfYF0EqHDx8vTilNtyEWKllKKT0ypfSXU74OAKAd9kspXZo5ZPEGgPmoFYvGAKCA9iQgfD6l9KKU0i8nPb8BYK79dOKgUrbO0h7M3v76lNJLLh4Mbj/rNwMAmnXEcJK/dKnf7x87GAwuTDYlAIDN+mhK6bLU7/f/YzAYHJvMMAPQPT+VUvrxaV8EnfW7KaXjU8P2gHAoBACbM2juYYsAAEvNvSUAgObeEgDA0sxvCQCg3+A7AgBIKaWPTvsC2FpVu1B+PqX0YlGEtvkPWxeydRZSBwAAAABJRU5ErkJggg==" width="80" height="80" alt="Elysium Logo" style="max-width: 80px; margin: 10px 0;">
+                
+                <div class="logo-subtitle">
+                    ELYSIUM MEDIA - FZCO<br>
+                    ID: 58510, Premises no. 58510 - 001<br>
+                    IFZA Business Park, DDP, DUBAI, UAE<br>
+                    Tax Reg. No.: 100437930500003
+                </div>
+            </div>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" style="width: 120px; height: auto; margin-right: 20px;" alt="Elysium Logo">
+                
+                <div class="logo-subtitle">
+                    ELYSIUM MEDIA - FZCO<br>
+                    ID: 58510, Premises no. 58510 - 001<br>
+                    IFZA Business Park, DDP, DUBAI, UAE<br>
+                    Tax Reg. No.: 100437930500003
+                </div>
+            </div>
+            
+            <div class="invoice-details">
+                <div class="invoice-title">INVOICE / FACTURA</div>
+                <div class="invoice-number">${invoiceNumber}</div>
+                <div class="invoice-date">Date: ${issueDateFormatted}</div>
+                <div class="status status-${status.toLowerCase() === 'paid' ? 'paid' : status.toLowerCase() === 'pending' ? 'pending' : 'cancelled'}">
+                    ${status.toUpperCase()}
+                </div>
+            </div>
+        </div>
+    
+        <!-- Dividir en 2 columnas: información del cliente y detalles de la factura -->
+        <div style="display: flex; gap: 30px; margin-bottom: 30px;">
+            <!-- Columna 1: Información del cliente -->
+            <div style="flex: 1;">
+                <div class="section">
+                    <div class="section-title">CLIENT / CLIENTE</div>
+                    <div class="section-content">
+                        ${clientName ? `<p><strong>${clientName}</strong></p>` : ''}
+                        ${clientAddress ? `<p>${clientAddress}</p>` : ''}
+                        ${clientCity || clientCountry ? `<p>${[clientCity, clientCountry].filter(Boolean).join(', ')}</p>` : ''}
+                        ${clientTaxId ? `<p>Tax ID: ${clientTaxId}</p>` : ''}
+                        ${clientEmail ? `<p>Email: ${clientEmail}</p>` : ''}
+                        ${clientPhone ? `<p>Phone: ${clientPhone}</p>` : ''}
+                        <p class="truncate">Wallet: ${walletAddress}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Columna 2: Resumen de factura -->
+            <div style="flex: 1;">
+                <div class="section">
+                    <div class="section-title">SUMMARY / RESUMEN</div>
+                    <div class="section-content">
+                        <div class="amount-box">
+                            <div class="amount-title">TOTAL AMOUNT / IMPORTE TOTAL</div>
+                            <div class="amount-value">${amount} USD</div>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <div class="details-row">
+                                <div class="details-label">Position ID:</div>
+                                <div class="details-value">${positionId || 'N/A'}</div>
+                            </div>
+                            <div class="details-row">
+                                <div class="details-label">Payment Method:</div>
+                                <div class="details-value">${paymentMethod}</div>
+                            </div>
+                            <div class="details-row">
+                                <div class="details-label">Issue Date:</div>
+                                <div class="details-value">${issueDateFormatted}</div>
+                            </div>
+                            <div class="details-row">
+                                <div class="details-label">Due Date:</div>
+                                <div class="details-value">${dueDateFormatted}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detalles de transacción -->
+        <div class="section">
+            <div class="section-title">TRANSACTION DETAILS / DETALLES DE TRANSACCIÓN</div>
+            <div class="section-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Description / Descripción</th>
+                            <th>Amount / Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                WayBank Liquidity Position - ${positionId ? `Position ID: ${positionId}` : 'New position'}
+                                ${notes ? `<br><span style="font-size: 12px; color: #718096;">${notes}</span>` : ''}
+                            </td>
+                            <td style="font-weight: bold;">${amount} USD</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="text-align: right; font-weight: bold;">Total:</td>
+                            <td style="font-weight: bold;">${amount} USD</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                ${transactionHash || bankReference ? `
+                <div style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 15px;">
+                    <p style="margin: 0; font-weight: 600; color: #4a5568;">Payment References / Referencias de Pago:</p>
+                    ${transactionHash ? `<p style="margin-top: 5px; font-size: 13px;">Transaction Hash: <span class="truncate" style="display: inline-block; max-width: 400px;">${transactionHash}</span></p>` : ''}
+                    ${bankReference ? `<p style="margin-top: 5px; font-size: 13px;">Bank Reference: ${bankReference}</p>` : ''}
+                    ${paidDate ? `<p style="margin-top: 5px; font-size: 13px;">Payment Date: ${paymentDateFormatted}</p>` : ''}
+                </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        <!-- Información de pago y instrucciones bancarias -->
+        <div class="section">
+            <div class="section-title">PAYMENT INFORMATION / INFORMACIÓN DE PAGO</div>
+            <div class="section-content" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <p style="margin-top: 0;"><strong>Bank Transfer Details:</strong></p>
+                    <p style="margin: 0;">Beneficiary: ELYSIUM MEDIA - FZCO</p>
+                    <p style="margin: 0;">IBAN: AE590860000009839365601</p>
+                    <p style="margin: 0;">BIC/SWIFT: WIOBAEADXXX</p>
+                    <p style="margin: 0;">Bank: Wio Bank PJSC</p>
+                    <p style="margin: 0;">Bank Address: Etihad Airways Centre 5th Floor, Abu Dhabi, UAE</p>
+                </div>
+                <div style="flex: 1;">
+                    <p style="margin-top: 0;"><strong>Payment Instructions:</strong></p>
+                    <p style="margin: 0;">• Please include the invoice number in all payments</p>
+                    <p style="margin: 0;">• All payments must be made in USD</p>
+                    <p style="margin: 0;">• Bank charges are the responsibility of the payer</p>
+                    <p style="margin: 0;">• For crypto payments, contact support@waybank.info</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">TERMS AND CONDITIONS / TÉRMINOS Y CONDICIONES</div>
+            <div class="section-content">
+                <p>This invoice is subject to the terms and conditions of the WayBank service. Please review our complete terms of service at <a href="https://waybank.info/terms-of-use">waybank.info/terms-of-use</a>.</p>
+                <p>Esta factura está sujeta a los términos y condiciones del servicio WayBank. Revise nuestros términos de servicio completos en <a href="https://waybank.info/terms-of-use">waybank.info/terms-of-use</a>.</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">LEGAL NOTICE / AVISO LEGAL</div>
+            <div class="section-content">
+                <p>This document is an official invoice issued by ELYSIUM MEDIA - FZCO, a company registered in the UAE under license number 58510. This invoice complies with UAE tax regulations.</p>
+                <p>Este documento es una factura oficial emitida por ELYSIUM MEDIA - FZCO, una empresa registrada en EAU con número de licencia 58510. Esta factura cumple con las regulaciones fiscales de EAU.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>WayBank - Blockchain Liquidity Management Services</strong></p>
+            <p>www.waybank.info | support@waybank.info</p>
+            <p style="margin-top: 10px; font-size: 10px; color: #a0aec0;">Invoice generated electronically. No signature required.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+}

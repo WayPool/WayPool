@@ -1,0 +1,502 @@
+import { Router, Request } from 'express';
+import { custodialWalletService } from './service';
+import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { emailService } from '../email-service';
+
+// Crear equivalentes a __dirname y __filename para ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Extender Request de Express para incluir walletSession
+declare global {
+  namespace Express {
+    interface Request {
+      walletSession?: {
+        walletId: number;
+        address: string;
+        expiresAt: Date;
+      };
+    }
+  }
+}
+
+// Creamos un nuevo router para las rutas de billeteras custodiadas
+const custodialWalletRouter = Router();
+
+// Esquemas de validación
+const registerSchema = z.object({
+  email: z.string().email("Email inválido"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Email inválido"),
+  password: z.string().min(1, "Contraseña requerida"),
+});
+
+const recoveryRequestSchema = z.object({
+  email: z.string().email("Email inválido"),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Contraseña actual requerida"),
+  newPassword: z.string()
+    .min(8, "La nueva contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una letra mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una letra minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número")
+    .regex(/[^A-Za-z0-9]/, "Debe contener al menos un carácter especial"),
+});
+
+const signMessageSchema = z.object({
+  address: z.string(),
+  message: z.string(),
+});
+
+// Middleware para verificar el token de sesión
+const verifySession = async (req: Request, res: any, next: any) => {
+  try {
+    // Obtener el token de sesión de las cookies o headers
+    const sessionToken = req.cookies?.custodialSession || req.headers['x-custodial-session'];
+    
+    if (!sessionToken) {
+      return res.status(401).json({ error: 'No hay sesión activa' });
+    }
+    
+    // Verificar la sesión
+    const session = await custodialWalletService.verifySession(sessionToken);
+    if (!session) {
+      return res.status(401).json({ error: 'Sesión inválida o expirada' });
+    }
+    
+    // Añadir datos de la sesión al request
+    req.walletSession = session;
+    next();
+  } catch (error) {
+    console.error('Error al verificar sesión:', error);
+    res.status(500).json({ error: 'Error al verificar la sesión' });
+  }
+};
+
+// Ruta para registrar una nueva billetera custodiada
+custodialWalletRouter.post('/register', async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = registerSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos de registro inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { email, password } = validationResult.data;
+    
+    // Crear billetera
+    const wallet = await custodialWalletService.createWallet(email, password);
+    
+    // Iniciar sesión automáticamente
+    const session = await custodialWalletService.authenticate(email, password);
+    
+    // Configurar cookie segura con el token de sesión
+    res.cookie('custodialSession', session.sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+    });
+    
+    // Devolver información de la billetera y el token de sesión
+    res.status(201).json({
+      success: true,
+      walletAddress: wallet.address,
+      sessionToken: session.sessionToken, // Incluir el token para cliente
+      createdAt: wallet.createdAt,
+    });
+  } catch (error) {
+    console.error('Error al registrar billetera:', error);
+    res.status(500).json({ error: 'Error al crear la billetera custodiada' });
+  }
+});
+
+// Ruta para iniciar sesión
+custodialWalletRouter.post('/login', async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = loginSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos de inicio de sesión inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { email, password } = validationResult.data;
+    
+    // Autenticar usuario
+    const session = await custodialWalletService.authenticate(email, password);
+    
+    // Configurar cookie segura con el token de sesión
+    res.cookie('custodialSession', session.sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+    });
+    
+    // Devolver información de la sesión y el token para el cliente
+    res.status(200).json({
+      success: true,
+      walletAddress: session.address,
+      sessionToken: session.sessionToken, // Incluir el token para el cliente
+      expiresAt: session.expiresAt,
+    });
+  } catch (error) {
+    console.error('Error al iniciar sesión:', error);
+    res.status(401).json({ error: 'Credenciales inválidas' });
+  }
+});
+
+// Ruta para verificar sesión actual
+custodialWalletRouter.get('/session', async (req, res) => {
+  try {
+    // Obtener el token de sesión de las cookies o headers
+    const sessionToken = req.cookies?.custodialSession || req.headers['x-custodial-session'];
+    
+    if (!sessionToken) {
+      return res.status(200).json({ authenticated: false });
+    }
+    
+    // Verificar la sesión
+    const session = await custodialWalletService.verifySession(sessionToken);
+    if (!session) {
+      return res.status(200).json({ authenticated: false });
+    }
+    
+    // Obtener detalles de la billetera
+    const walletInfo = await custodialWalletService.getWalletDetails(session.address);
+    
+    // Devolver información de la sesión
+    res.status(200).json({
+      authenticated: true,
+      walletInfo,
+    });
+  } catch (error) {
+    console.error('Error al verificar sesión:', error);
+    res.status(500).json({ error: 'Error al verificar la sesión' });
+  }
+});
+
+// Ruta para cerrar sesión
+custodialWalletRouter.post('/logout', async (req, res) => {
+  try {
+    // Obtener el token de sesión de las cookies o headers
+    const sessionToken = req.cookies?.custodialSession || req.headers['x-custodial-session'];
+    
+    if (sessionToken) {
+      // Cerrar sesión
+      await custodialWalletService.logout(sessionToken);
+    }
+    
+    // Eliminar cookie de sesión
+    res.clearCookie('custodialSession');
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
+    res.status(500).json({ error: 'Error al cerrar la sesión' });
+  }
+});
+
+// Ruta para validar una billetera custodiada (usado por el wallet provider)
+custodialWalletRouter.get('/:address/validate', async (req, res) => {
+  try {
+    const { address } = req.params;
+    
+    // Obtener el token de sesión de las cookies o headers
+    const sessionToken = req.cookies?.custodialSession || req.headers['x-custodial-session'] || req.query.sessionToken;
+    
+    if (!sessionToken) {
+      return res.status(401).json({ error: 'No se proporcionó token de sesión', valid: false });
+    }
+    
+    // Verificar la sesión
+    const session = await custodialWalletService.verifySession(sessionToken as string);
+    if (!session) {
+      return res.status(401).json({ error: 'Sesión inválida o expirada', valid: false });
+    }
+    
+    // Verificar que la dirección coincida con la de la sesión
+    if (address !== session.address) {
+      return res.status(403).json({ 
+        error: 'La dirección no coincide con la sesión', 
+        valid: false,
+        requestedAddress: address,
+        sessionAddress: session.address
+      });
+    }
+    
+    // Si llegamos aquí, la sesión es válida
+    res.status(200).json({ 
+      valid: true, 
+      address: session.address,
+      expiresAt: session.expiresAt
+    });
+  } catch (error) {
+    console.error('Error al validar billetera custodiada:', error);
+    res.status(500).json({ error: 'Error al validar la billetera custodiada', valid: false });
+  }
+});
+
+// Ruta para obtener detalles de billetera
+custodialWalletRouter.get('/:address', verifySession, async (req, res) => {
+  try {
+    const { address } = req.params;
+    
+    // Verificar que la dirección coincida con la de la sesión
+    if (!req.walletSession || address !== req.walletSession.address) {
+      return res.status(403).json({ error: 'No tienes permiso para acceder a esta billetera' });
+    }
+    
+    // Obtener detalles de la billetera
+    const walletInfo = await custodialWalletService.getWalletDetails(address);
+    
+    if (!walletInfo) {
+      return res.status(404).json({ error: 'Billetera no encontrada' });
+    }
+    
+    res.status(200).json(walletInfo);
+  } catch (error) {
+    console.error('Error al obtener detalles de billetera:', error);
+    res.status(500).json({ error: 'Error al obtener los detalles de la billetera' });
+  }
+});
+
+// Ruta para iniciar recuperación de billetera
+custodialWalletRouter.post('/recovery/request', async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = recoveryRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { email } = validationResult.data;
+    
+    // Iniciar recuperación
+    const recovery = await custodialWalletService.initiateRecovery(email);
+    
+    // Construir enlace de recuperación
+    const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+    const resetLink = `${baseUrl}/reset-password?token=${recovery.recoveryToken}`;
+    
+    // Leer plantilla de email
+    // En ESM, __dirname apunta a la carpeta custodial-wallet, necesitamos ir un nivel arriba
+    const templatePath = path.join(__dirname, "..", "email-templates", "password-recovery.html");
+    
+    console.log('[Password Recovery] Reading template from path:', templatePath);
+    let emailTemplate = fs.readFileSync(templatePath, "utf8");
+    
+    // Reemplazar variables en la plantilla
+    emailTemplate = emailTemplate.replace(/\[RECOVERY_CODE\]/g, recovery.recoveryToken.substring(0, 6).toUpperCase());
+    
+    // Enviar email
+    console.log('[Password Recovery] Sending recovery email to:', email);
+    // DEBUG: Mostrar contenido del email en consola
+    console.log("====== CONTENIDO DEL EMAIL DE RECUPERACIÓN ======");
+    console.log(`Para: ${email}`);
+    console.log(`Asunto: Recuperación de acceso a tu billetera WayBank`);
+    console.log(`De: ${process.env.SMTP_FROM || "info@elysiumdubai.net"}`);
+    console.log("= CUERPO HTML =");
+    console.log(emailTemplate);
+    console.log("=================================================");
+    
+    // Enviar email usando el servicio de email configurado (SMTP o Resend)
+    // Con SMTP podemos enviar a cualquier dirección, con Resend solo a direcciones verificadas
+    const emailSent = await emailService.sendEmail({
+      to: email,
+      subject: "Recuperación de acceso a tu billetera WayBank",
+      html: emailTemplate,
+      from: process.env.SMTP_FROM || "info@elysiumdubai.net"
+    });
+    
+    if (!emailSent) {
+      console.error(`[Password Recovery] Error al enviar email de recuperación a: ${email}`);
+    } else {
+      console.log(`[Password Recovery] Email de recuperación enviado con éxito a: ${email}`);
+    }
+    
+    // Devolver respuesta exitosa (por seguridad, no revelamos si el email existe)
+    res.status(200).json({
+      success: true,
+      message: 'Si el email existe, se ha enviado un enlace de recuperación',
+      // Solo incluimos el token en desarrollo o para pruebas
+      ...(process.env.NODE_ENV !== 'production' ? { recoveryInfo: recovery } : {}),
+    });
+  } catch (error) {
+    console.error('Error al solicitar recuperación:', error);
+    // Siempre devolver éxito por seguridad, para no revelar si el email existe
+    res.status(200).json({
+      success: true,
+      message: 'Si el email existe, se ha enviado un enlace de recuperación',
+    });
+  }
+});
+
+// Ruta para verificar token de recuperación
+custodialWalletRouter.get('/recovery/verify/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Verificar token
+    const recovery = await custodialWalletService.verifyRecoveryToken(token);
+    
+    if (!recovery) {
+      return res.status(400).json({ error: 'Token inválido o expirado' });
+    }
+    
+    res.status(200).json({
+      success: true,
+      email: recovery.email,
+      expiresAt: recovery.expiresAt,
+    });
+  } catch (error) {
+    console.error('Error al verificar token de recuperación:', error);
+    res.status(500).json({ error: 'Error al verificar el token de recuperación' });
+  }
+});
+
+// Ruta para restablecer contraseña
+custodialWalletRouter.post('/recovery/reset', async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = resetPasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { token, password } = validationResult.data;
+    
+    // Restablecer contraseña
+    const result = await custodialWalletService.resetPassword(token, password);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
+  }
+});
+
+// Ruta para firmar mensajes
+custodialWalletRouter.post('/sign', verifySession, async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = signMessageSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { address, message } = validationResult.data;
+    
+    // Verificar que la dirección coincida con la de la sesión
+    if (!req.walletSession || address !== req.walletSession.address) {
+      return res.status(403).json({ error: 'No tienes permiso para usar esta billetera' });
+    }
+    
+    // Obtener el token de sesión
+    const sessionToken = req.cookies?.custodialSession || req.headers['x-custodial-session'];
+    
+    // Firmar mensaje
+    const result = await custodialWalletService.signMessage(address, message, sessionToken);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error al firmar mensaje:', error);
+    res.status(500).json({ error: 'Error al firmar el mensaje' });
+  }
+});
+
+// Ruta para cambiar la contraseña de una wallet
+custodialWalletRouter.post('/change-password', verifySession, async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const validationResult = changePasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Datos de cambio de contraseña inválidos',
+        details: validationResult.error.format()
+      });
+    }
+    
+    const { currentPassword, newPassword } = validationResult.data;
+    
+    if (!req.walletSession) {
+      return res.status(401).json({ error: 'No hay una sesión activa' });
+    }
+    
+    // Cambiar la contraseña
+    const success = await custodialWalletService.changePassword(
+      req.walletSession.address,
+      currentPassword,
+      newPassword
+    );
+    
+    if (!success) {
+      return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+    }
+    
+    // Enviar email de notificación (opcional)
+    try {
+      const walletInfo = await custodialWalletService.getWalletDetails(req.walletSession.address);
+      if (walletInfo && walletInfo.email) {
+        // Enviar notificación por email del cambio de contraseña
+        await emailService.sendEmail({
+          to: walletInfo.email,
+          subject: "Tu contraseña de WayBank ha sido actualizada",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+              <h2 style="color: #333;">Cambio de contraseña exitoso</h2>
+              <p>Hola,</p>
+              <p>Te informamos que la contraseña de tu billetera WayBank ha sido actualizada correctamente.</p>
+              <p>Si no realizaste este cambio, por favor contacta inmediatamente a nuestro equipo de soporte.</p>
+              <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+              <p style="color: #666; font-size: 12px;">Este es un mensaje automático, por favor no respondas a este correo.</p>
+            </div>
+          `,
+          from: process.env.SMTP_FROM || "info@elysiumdubai.net"
+        });
+      }
+    } catch (emailError) {
+      // No interrumpimos el flujo principal si falla el envío del email
+      console.error('Error al enviar email de notificación de cambio de contraseña:', emailError);
+    }
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Contraseña actualizada correctamente'
+    });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
+export default custodialWalletRouter;

@@ -1,0 +1,39 @@
+/**
+ * Ajustes específicos para el encabezado móvil
+ * Asegura suficiente espacio para el logo y elementos en la barra de navegación
+ */
+
+@media (max-width: 767px) {
+  /* Ajustes para todos los dispositivos móviles */
+  header.sticky.top-0 {
+    padding-top: 1.5rem !important; /* Aumentado espacio superior */
+  }
+  
+  /* iOS Safe Area Fix */
+  @supports (-webkit-touch-callout: none) {
+    header.sticky.top-0 {
+      padding-top: calc(env(safe-area-inset-top, 1.5rem) + 0.75rem) !important; /* Aumentado espacio para iOS */
+    }
+  }
+  
+  /* Ajuste para el contenedor del logo */
+  header .flex.items-center img {
+    height: 2.5rem !important;
+    margin-top: 0.25rem !important;
+  }
+  
+  /* Espacio adicional para el contenedor */
+  header .container {
+    padding-top: 1rem !important; /* Aumentado el padding superior */
+    padding-bottom: 0.75rem !important;
+    margin-top: 0.75rem !important; /* Aumentado el margen superior */
+  }
+  
+  /* Aumentamos el espacio para el texto del logo */
+  header .flex.items-center span.font-bold,
+  header .flex.items-center span.text-xl,
+  header .flex.items-center span.text-2xl {
+    margin-top: 0.5rem !important;
+    display: inline-block !important;
+  }
+}

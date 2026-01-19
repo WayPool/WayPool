@@ -1,0 +1,583 @@
+import axios from 'axios';
+import { Request, Response } from 'express';
+
+/**
+ * Servicio para envío de correos electrónicos utilizando la API de Resend
+ */
+class EmailService {
+  private initialized: boolean = false;
+  private apiKey: string = '';
+  private fromEmail: string = 'onboarding@resend.dev'; // Email válido verificado en Resend por defecto
+
+  constructor() {
+    this.initialized = false;
+    this.initialize();
+  }
+
+  /**
+   * Inicializa el servicio con la clave API de Resend
+   */
+  public initialize(): boolean {
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      
+      if (!resendApiKey) {
+        console.warn('[Email Service] Warning: RESEND_API_KEY not found in environment variables');
+        this.initialized = false;
+        return false;
+      }
+
+      this.apiKey = resendApiKey;
+      
+      // Configurar el email de envío (se debe verificar el dominio en Resend)
+      // Por defecto usamos onboarding@resend.dev que está disponible para pruebas
+      this.fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      
+      this.initialized = true;
+      console.log('[Email Service] Initialized successfully with Resend API');
+      return true;
+    } catch (error) {
+      console.error('[Email Service] Error initializing email service:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Envía un correo electrónico de notificación para una nueva posición de liquidez
+   * utilizando la API de Resend
+   * 
+   * @param positionData Datos de la posición creada
+   * @param userInfo Información del usuario
+   * @returns Promesa que se resuelve a true si el correo se envió correctamente
+   */
+  public async sendNewPositionEmail(positionData: any, userInfo: any): Promise<boolean> {
+    try {
+      // Si no está inicializado, intentar inicializar
+      if (!this.initialized) {
+        const initialized = this.initialize();
+        if (!initialized) {
+          console.error('[Email Service] Could not initialize, position email will not be sent');
+          return false;
+        }
+      }
+      
+      // Generar el contenido HTML del correo
+      const html = this.generateNewPositionEmailHTML(positionData, userInfo);
+      const toEmail = userInfo.email || 'test@example.com'; // Email del usuario o uno de prueba
+      const subject = `Nueva Posición de Liquidez - Detalles de la Operación`;
+      
+      // Log para depuración
+      console.log('[Email Service] Sending new position email with Resend');
+      console.log(`- From: ${this.fromEmail}`);
+      console.log(`- To: ${toEmail}`);
+      console.log(`- Subject: ${subject}`);
+      
+      try {
+        // Enviar el correo usando la API de Resend
+        const response = await axios.post(
+          'https://api.resend.com/emails',
+          {
+            from: this.fromEmail,
+            to: toEmail,
+            subject: subject,
+            html: html,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        // Verificar si la respuesta es exitosa
+        if (response.status === 200 || response.status === 201) {
+          console.log('[Email Service] Email sent successfully via Resend!', response.data);
+          return true;
+        } else {
+          console.error('[Email Service] Error response from Resend API:', response.status, response.statusText);
+          return false;
+        }
+      } catch (apiError: any) {
+        console.error('[Email Service] Error sending email via Resend API:', apiError.message);
+        if (apiError.response) {
+          console.error('Response data:', apiError.response.data);
+          console.error('Response status:', apiError.response.status);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('[Email Service] General error in sendNewPositionEmail:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Envía un correo electrónico de notificación para la recolección de fees
+   * utilizando la API de Resend
+   * 
+   * @param collectionData Datos de la recolección de fees
+   * @param userInfo Información del usuario
+   * @param positionData Datos de la posición asociada
+   * @returns Promesa que se resuelve a true si el correo se envió correctamente
+   */
+  public async sendFeeCollectionEmail(collectionData: any, userInfo: any, positionData: any): Promise<boolean> {
+    try {
+      // Si no está inicializado, intentar inicializar
+      if (!this.initialized) {
+        const initialized = this.initialize();
+        if (!initialized) {
+          console.error('[Email Service] Could not initialize, fee collection email will not be sent');
+          return false;
+        }
+      }
+      
+      // Generar el contenido HTML del correo
+      const html = this.generateFeeCollectionEmailHTML(collectionData, userInfo, positionData);
+      const toEmail = userInfo.email || 'test@example.com'; // Email del usuario o uno de prueba
+      const subject = `Recolección de Fees de Liquidez - Detalles de la Operación`;
+      
+      // Log para depuración
+      console.log('[Email Service] Sending fee collection email with Resend');
+      console.log(`- From: ${this.fromEmail}`);
+      console.log(`- To: ${toEmail}`);
+      console.log(`- Subject: ${subject}`);
+      
+      try {
+        // Enviar el correo usando la API de Resend
+        const response = await axios.post(
+          'https://api.resend.com/emails',
+          {
+            from: this.fromEmail,
+            to: toEmail,
+            subject: subject,
+            html: html,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        // Verificar si la respuesta es exitosa
+        if (response.status === 200 || response.status === 201) {
+          console.log('[Email Service] Fee collection email sent successfully via Resend!', response.data);
+          return true;
+        } else {
+          console.error('[Email Service] Error response from Resend API:', response.status, response.statusText);
+          return false;
+        }
+      } catch (apiError: any) {
+        console.error('[Email Service] Error sending fee collection email via Resend API:', apiError.message);
+        if (apiError.response) {
+          console.error('Response data:', apiError.response.data);
+          console.error('Response status:', apiError.response.status);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('[Email Service] General error in sendFeeCollectionEmail:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Genera el HTML para el correo de recolección de fees
+   * 
+   * @param collectionData Datos de la recolección
+   * @param userInfo Información del usuario
+   * @param positionData Datos de la posición asociada
+   * @returns String HTML formateado
+   */
+  private generateFeeCollectionEmailHTML(collectionData: any, userInfo: any, positionData: any): string {
+    const date = new Date().toISOString().split('T')[0];
+    const time = new Date().toISOString().split('T')[1].substring(0, 8);
+    
+    // Formatear cantidades monetarias con 2 decimales
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    };
+    
+    // Obtener valores de los datos o valores por defecto
+    const amount = collectionData.amount || 0;
+    const formattedAmount = formatCurrency(amount);
+    const poolName = positionData?.poolName || 'Pool desconocido';
+    const poolTokens = positionData?.poolPair || 'Token par desconocido';
+    const risk = positionData?.risk || 'Desconocido';
+    const riskClass = getRiskClass(risk);
+    const positionId = positionData?.id || 'ID desconocido';
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Recolección de Fees</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #0a0e17;
+            color: #e6e6e6;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #2a3044;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+          }
+          .content {
+            padding: 20px 0;
+          }
+          .collection-details {
+            background-color: #1a1f2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+          }
+          .position-details {
+            background-color: #1a1f2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a3044;
+          }
+          .detail-label {
+            font-weight: bold;
+            color: #8a8d93;
+          }
+          .detail-value {
+            color: #ffffff;
+          }
+          .highlight {
+            color: #3498db;
+            font-weight: bold;
+          }
+          .success {
+            color: #27ae60;
+          }
+          .warning {
+            color: #e67e22;
+          }
+          .danger {
+            color: #e74c3c;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 12px;
+            color: #8a8d93;
+            border-top: 1px solid #2a3044;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">WayBank</div>
+            <p>Recolección de Fees de Liquidez</p>
+          </div>
+          
+          <div class="content">
+            <p>Se ha completado la recolección de fees para tu posición de liquidez</p>
+            
+            <div class="collection-details">
+              <h2>Detalles de la Recolección</h2>
+              
+              <div class="detail-row">
+                <span class="detail-label">Monto total recolectado:</span>
+                <span class="detail-value highlight">${formattedAmount}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Fecha de recolección:</span>
+                <span class="detail-value">${date}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Hora de recolección:</span>
+                <span class="detail-value">${time}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">ID de transacción:</span>
+                <span class="detail-value">${collectionData.transactionId || 'No disponible'}</span>
+              </div>
+            </div>
+            
+            <div class="position-details">
+              <h2>Información de la Posición</h2>
+              
+              <div class="detail-row">
+                <span class="detail-label">ID de Posición:</span>
+                <span class="detail-value">${positionId}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Pool:</span>
+                <span class="detail-value">${poolName}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Par de tokens:</span>
+                <span class="detail-value">${poolTokens}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Nivel de riesgo:</span>
+                <span class="detail-value ${riskClass}">${risk}</span>
+              </div>
+            </div>
+            
+            <p>
+              Gracias por utilizar WayBank para la gestión de tus posiciones de liquidez.
+              Puedes revisar más detalles en tu panel de control.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
+            <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  /**
+   * Genera el HTML para el correo de una nueva posición de liquidez
+   * 
+   * @param positionData Datos de la posición
+   * @param userInfo Información del usuario
+   * @returns String HTML formateado
+   */
+  private generateNewPositionEmailHTML(positionData: any, userInfo: any): string {
+    const date = new Date().toISOString().split('T')[0];
+    const time = new Date().toISOString().split('T')[1].substring(0, 8);
+    
+    // Formatear cantidades monetarias con 2 decimales
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    };
+    
+    // Obtener valores de los datos o valores por defecto
+    const amount = positionData.amount || 0;
+    const formattedAmount = formatCurrency(amount);
+    const poolName = positionData.poolName || 'Pool desconocido';
+    const poolTokens = positionData.poolPair || 'Token par desconocido';
+    const risk = positionData.risk || 'Desconocido';
+    const riskClass = getRiskClass(risk);
+    const positionId = positionData.id || 'ID desconocido';
+    const strategy = positionData.strategy || 'Estrategia desconocida';
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Nueva Posición de Liquidez</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #0a0e17;
+            color: #e6e6e6;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #2a3044;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+          }
+          .content {
+            padding: 20px 0;
+          }
+          .position-details {
+            background-color: #1a1f2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+          }
+          .strategy-details {
+            background-color: #1a1f2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a3044;
+          }
+          .detail-label {
+            font-weight: bold;
+            color: #8a8d93;
+          }
+          .detail-value {
+            color: #ffffff;
+          }
+          .highlight {
+            color: #3498db;
+            font-weight: bold;
+          }
+          .success {
+            color: #27ae60;
+          }
+          .warning {
+            color: #e67e22;
+          }
+          .danger {
+            color: #e74c3c;
+          }
+          .footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 12px;
+            color: #8a8d93;
+            border-top: 1px solid #2a3044;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">WayBank</div>
+            <p>Nueva Posición de Liquidez</p>
+          </div>
+          
+          <div class="content">
+            <p>Tu posición de liquidez ha sido creada con éxito.</p>
+            
+            <div class="position-details">
+              <h2>Detalles de la Posición</h2>
+              
+              <div class="detail-row">
+                <span class="detail-label">ID de Posición:</span>
+                <span class="detail-value">${positionId}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Monto invertido:</span>
+                <span class="detail-value highlight">${formattedAmount}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Pool:</span>
+                <span class="detail-value">${poolName}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Par de tokens:</span>
+                <span class="detail-value">${poolTokens}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Nivel de riesgo:</span>
+                <span class="detail-value ${riskClass}">${risk}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Fecha de creación:</span>
+                <span class="detail-value">${date}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Hora de creación:</span>
+                <span class="detail-value">${time}</span>
+              </div>
+            </div>
+            
+            <div class="strategy-details">
+              <h2>Detalles de la Estrategia</h2>
+              
+              <div class="detail-row">
+                <span class="detail-label">Estrategia seleccionada:</span>
+                <span class="detail-value">${strategy}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Estado:</span>
+                <span class="detail-value success">Activa</span>
+              </div>
+            </div>
+            
+            <p>
+              Gracias por utilizar WayBank para la gestión de tus posiciones de liquidez.
+              Puedes revisar más detalles en tu panel de control.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo electrónico automático. Por favor, no responda a este mensaje.</p>
+            <p>&copy; ${new Date().getFullYear()} WayBank. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+}
+
+// Función auxiliar para determinar la clase CSS basada en el nivel de riesgo
+function getRiskClass(risk: string): string {
+  if (!risk) return '';
+  
+  const riskLower = risk.toLowerCase();
+  if (riskLower.includes('bajo') || riskLower.includes('low')) {
+    return 'success';
+  } else if (riskLower.includes('medio') || riskLower.includes('medium')) {
+    return 'warning';
+  } else if (riskLower.includes('alto') || riskLower.includes('high')) {
+    return 'danger';
+  }
+  
+  return '';
+}
+
+// Exportar una instancia única del servicio para ser reutilizada en toda la aplicación
+export const emailService = new EmailService();

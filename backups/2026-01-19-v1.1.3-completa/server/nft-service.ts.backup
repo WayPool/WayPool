@@ -1,0 +1,630 @@
+import axios from 'axios';
+import { storage } from './storage';
+import { ethers } from 'ethers';
+
+// Interface para representar NFTs
+export interface UniswapNFT {
+  tokenId: string;
+  contractAddress: string;
+  network: string;
+  token0Symbol: string;
+  token1Symbol: string;
+  fee: string;
+  poolAddress?: string;
+  poolValue?: string;
+  inRange?: boolean;
+  status?: string;
+  version?: string;
+  imageUrl?: string; // URL de la imagen del NFT
+  listing?: {
+    price?: string;
+    priceUsd?: string;
+    marketplace?: string;
+    isListed: boolean;
+  };
+}
+
+// Interface para detalles de listado de NFT
+export interface NFTListingDetails {
+  isListed: boolean;
+  price?: string;
+  priceUsd?: string;
+  marketplace?: string;
+}
+
+// Caché para valores de pool y listados
+const poolValueCache: Record<string, any> = {};
+const nftListingsCache: Record<string, any> = {};
+
+// Precio actual del ETH en USD (actualizado periódicamente)
+let currentEthPrice = 1600; // Valor inicial aproximado
+
+// Actualizar el precio de ETH cada 15 minutos
+async function updateEthPrice() {
+  try {
+    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+    if (response.data && response.data.ethereum && response.data.ethereum.usd) {
+      currentEthPrice = response.data.ethereum.usd;
+      console.log(`Precio ETH actualizado: $${currentEthPrice}`);
+    }
+  } catch (error) {
+    console.error('Error al actualizar el precio de ETH:', error);
+  }
+}
+
+// Iniciar la actualización periódica del precio
+updateEthPrice();
+setInterval(updateEthPrice, 15 * 60 * 1000); // Cada 15 minutos
+
+// Obtener los NFTs de un usuario consultando directamente la blockchain y nuestra base de datos
+export async function getUserUniswapNFTs(walletAddress: string): Promise<UniswapNFT[]> {
+  try {
+    const normalizedAddress = walletAddress.toLowerCase();
+    
+    // Obtener las posiciones históricas del usuario que tienen NFTs asociados
+    const positionHistory = await storage.getPositionHistoryByWalletAddress(normalizedAddress);
+    const positionsWithNFT = positionHistory.filter(pos => pos.nftTokenId);
+    
+    console.log(`Encontradas ${positionsWithNFT.length} posiciones con NFT para ${normalizedAddress}`);
+    
+    // Obtener las posiciones reales asociadas a NFTs
+    const realPositions = await storage.getRealPositionsByWalletAddress(normalizedAddress);
+    console.log(`Encontradas ${realPositions.length} posiciones reales para ${normalizedAddress}`);
+    
+    // Obtener NFTs directamente de la blockchain (simulando la respuesta real)
+    // En producción, esto se reemplazaría con una llamada real a la blockchain usando Alchemy o similar
+    const blockchainNFTs = await getBlockchainNFTs(normalizedAddress);
+    console.log(`Encontrados ${blockchainNFTs.length} NFTs en la blockchain para ${normalizedAddress}`);
+    
+    // Combinar los datos
+    let combinedNFTs: UniswapNFT[] = [];
+    
+    // Procesar posiciones de la base de datos con nftTokenId
+    for (const position of positionsWithNFT) {
+      // Si no tiene tokenId, continuar con el siguiente
+      if (!position.nftTokenId) continue;
+      
+      // Ver si podemos encontrar datos adicionales en las posiciones reales
+      const realPosition = realPositions.find(
+        rp => rp.tokenId === position.nftTokenId && 
+        rp.network === (position.network || 'ethereum')
+      );
+      
+      const nft: UniswapNFT = {
+        tokenId: position.nftTokenId,
+        contractAddress: position.contractAddress || '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+        network: position.network || 'ethereum',
+        token0Symbol: position.token0,
+        token1Symbol: position.token1,
+        fee: position.fee || '0.3%',
+        poolAddress: position.poolAddress,
+        poolValue: position.depositedUSDC ? `$${parseFloat(position.depositedUSDC.toString()).toFixed(2)}` : undefined,
+        inRange: position.inRange === null ? undefined : position.inRange,
+        status: position.status,
+        version: position.network === 'polygon' ? 'Uniswap V3' : 'Uniswap V4'
+      };
+      
+      // Intentar obtener datos de listados desde la cache o API
+      const listingDetails = await getNFTListingDetails(position.nftTokenId, position.network || 'ethereum');
+      if (listingDetails) {
+        nft.listing = listingDetails;
+      }
+      
+      combinedNFTs.push(nft);
+    }
+    
+    // Añadir NFTs encontrados en la blockchain que no estén ya en la lista
+    for (const blockchainNFT of blockchainNFTs) {
+      // Verificar si este NFT ya está en la lista combinada
+      const exists = combinedNFTs.some(nft => 
+        nft.tokenId === blockchainNFT.tokenId && 
+        nft.network === blockchainNFT.network
+      );
+      
+      if (!exists) {
+        // Intentar obtener datos de listados
+        const listingDetails = await getNFTListingDetails(blockchainNFT.tokenId, blockchainNFT.network);
+        if (listingDetails) {
+          blockchainNFT.listing = listingDetails;
+        }
+        
+        combinedNFTs.push(blockchainNFT);
+      }
+    }
+    
+    // Ordenar los NFTs por valor (mayor a menor)
+    combinedNFTs = combinedNFTs.sort((a, b) => {
+      const valueA = a.poolValue ? parseFloat(a.poolValue.replace('$', '')) : 0;
+      const valueB = b.poolValue ? parseFloat(b.poolValue.replace('$', '')) : 0;
+      return valueB - valueA;
+    });
+    
+    return combinedNFTs;
+  } catch (error) {
+    console.error('Error al obtener los NFTs del usuario:', error);
+    return [];
+  }
+}
+
+// Obtener NFTs directamente de la blockchain (real)
+async function getBlockchainNFTs(walletAddress: string): Promise<UniswapNFT[]> {
+  try {
+    const blockchainNFTs: UniswapNFT[] = [];
+    const alchemyApiKey = process.env.ALCHEMY_API_KEY;
+    
+    if (!alchemyApiKey) {
+      console.error('ALCHEMY_API_KEY no encontrada en variables de entorno');
+      return blockchainNFTs;
+    }
+    
+    // Obtener NFTs de Uniswap en Polygon (Polygon Mainnet)
+    const polygonNFTs = await getNFTsFromAlchemy(walletAddress, 'polygon', alchemyApiKey);
+    blockchainNFTs.push(...polygonNFTs);
+    
+    // Obtener NFTs de Uniswap en Ethereum (Ethereum Mainnet)
+    const ethereumNFTs = await getNFTsFromAlchemy(walletAddress, 'ethereum', alchemyApiKey);
+    blockchainNFTs.push(...ethereumNFTs);
+    
+    console.log(`Se encontraron ${blockchainNFTs.length} NFTs reales en la blockchain para ${walletAddress}`);
+    return blockchainNFTs;
+  } catch (error) {
+    console.error('Error al obtener NFTs reales de la blockchain:', error);
+    return [];
+  }
+}
+
+// Función auxiliar para obtener NFTs de Alchemy en una red específica
+async function getNFTsFromAlchemy(walletAddress: string, network: string, apiKey: string): Promise<UniswapNFT[]> {
+  try {
+    console.log(`Consultando NFTs en la red ${network} para la dirección ${walletAddress} mediante Alchemy`);
+    
+    // El contrato de Uniswap NonfungiblePositionManager NFT
+    const uniswapNFTContractAddress = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88';
+    
+    // Configurar URL base según la red
+    const baseUrl = network === 'polygon' 
+      ? 'https://polygon-mainnet.g.alchemy.com/v2/' 
+      : 'https://eth-mainnet.g.alchemy.com/v2/';
+    
+    // Construir la URL completa para debugging
+    const fullUrl = `${baseUrl}${apiKey}/getNFTs`;
+    console.log(`URL de consulta: ${fullUrl} (con parámetros owner y contractAddresses)`);
+    
+    // Realizar la llamada a la API para obtener los NFTs de Uniswap
+    const response = await axios.get(fullUrl, {
+      params: {
+        owner: walletAddress,
+        contractAddresses: [uniswapNFTContractAddress],
+        withMetadata: true
+      }
+    });
+    
+    if (!response.data) {
+      console.log(`No se recibieron datos de Alchemy para ${walletAddress} en la red ${network}`);
+      return [];
+    }
+    
+    if (!response.data.ownedNfts || !Array.isArray(response.data.ownedNfts)) {
+      console.log(`Respuesta de Alchemy no contiene un array de NFTs: ${JSON.stringify(response.data).substring(0, 200)}...`);
+      return [];
+    }
+    
+    console.log(`Se encontraron ${response.data.ownedNfts.length} NFTs para ${walletAddress} en la red ${network}`);
+    
+    // Procesar cada NFT recibido
+    const nfts = response.data.ownedNfts.map((nft: any) => {
+      // Extraer información del tokenId
+      let tokenId = '';
+      
+      try {
+        if (nft.id?.tokenId) {
+          // El tokenId puede venir en formato hexadecimal
+          tokenId = parseInt(nft.id.tokenId, 16).toString();
+        } else if (nft.tokenId) {
+          tokenId = nft.tokenId;
+        }
+        
+        console.log(`Procesando NFT con tokenId: ${tokenId}`);
+      } catch (tokenError) {
+        console.error('Error al procesar tokenId del NFT:', tokenError);
+      }
+      
+      // Extraer información de metadatos
+      let token0Symbol = 'Unknown';
+      let token1Symbol = 'Unknown';
+      let fee = '0.3%';
+      let imageUrl = ''; // URL de la imagen del NFT
+      
+      try {
+        // Algunos ejemplos para debugging
+        if (nft.metadata) {
+          console.log(`Metadatos disponibles para NFT ${tokenId}: ${JSON.stringify(nft.metadata).substring(0, 200)}...`);
+          
+          // Extraer la URL de la imagen de los metadatos
+          if (nft.metadata.image) {
+            imageUrl = nft.metadata.image;
+            console.log(`Imagen encontrada para NFT ${tokenId}: ${imageUrl}`);
+          } else if (nft.media && nft.media.length > 0 && nft.media[0].gateway) {
+            // Alternativa: usar media.gateway si está disponible
+            imageUrl = nft.media[0].gateway;
+            console.log(`Imagen alternativa encontrada para NFT ${tokenId}: ${imageUrl}`);
+          }
+        }
+        
+        if (nft.metadata?.name) {
+          console.log(`Nombre del NFT ${tokenId}: ${nft.metadata.name}`);
+          
+          // Los nombres de NFTs de Uniswap suelen seguir el formato "Uniswap - [TOKEN0]/[TOKEN1] - 0.3%"
+          const nameParts = nft.metadata.name.split(' - ');
+          if (nameParts.length >= 2) {
+            const tokenPair = nameParts[1].split('/');
+            if (tokenPair.length === 2) {
+              token0Symbol = tokenPair[0].trim();
+              token1Symbol = tokenPair[1].trim();
+              console.log(`Par de tokens detectado: ${token0Symbol}/${token1Symbol}`);
+            }
+            
+            if (nameParts.length >= 3) {
+              fee = nameParts[2].trim();
+              console.log(`Fee detectado: ${fee}`);
+            }
+          }
+        }
+      } catch (metadataError) {
+        console.error(`Error al parsear metadatos del NFT ${tokenId}:`, metadataError);
+      }
+      
+      // Si no se encontró una imagen, usar una imagen predeterminada basada en el par de tokens
+      if (!imageUrl) {
+        // Usar una URL de imagen de Uniswap V3 basada en el par de tokens
+        imageUrl = `https://app.uniswap.org/static/media/position.b05a58a8.svg`;
+        console.log(`Usando imagen predeterminada para NFT ${tokenId}`);
+      }
+      
+      return {
+        tokenId,
+        contractAddress: uniswapNFTContractAddress,
+        network,
+        token0Symbol,
+        token1Symbol,
+        fee,
+        poolAddress: '', // No podemos extraer directamente de los metadatos
+        inRange: undefined, // No podemos saber sin consultar el estado del pool
+        version: network === 'polygon' ? 'Uniswap V3' : 'Uniswap V4',
+        status: 'Activo',
+        imageUrl // Añadir URL de la imagen
+      };
+    }).filter(nft => nft.tokenId && nft.tokenId.length > 0); // Filtrar NFTs sin tokenId
+    
+    console.log(`Se procesaron ${nfts.length} NFTs válidos para ${walletAddress} en la red ${network}`);
+    return nfts;
+  } catch (error) {
+    console.error(`Error al obtener NFTs de ${network} mediante Alchemy:`, error);
+    
+    // Mostrar detalles del error para debugging
+    if (error.response) {
+      console.error(`Error de respuesta: ${JSON.stringify(error.response.data)}`);
+      console.error(`Estado HTTP: ${error.response.status}`);
+    } else if (error.request) {
+      console.error('Error de solicitud:', error.request);
+    } else {
+      console.error('Error:', error.message);
+    }
+    
+    return [];
+  }
+}
+
+// Obtener detalles de listado de un NFT (si está en venta)
+export async function getNFTListingDetails(tokenId: string, network: string = 'ethereum'): Promise<NFTListingDetails> {
+  try {
+    const cacheKey = `${tokenId}_${network}`;
+    
+    // Comprobar si tenemos datos en caché
+    if (nftListingsCache[cacheKey]) {
+      // Verificar si la caché es reciente (menos de 15 minutos)
+      const now = Date.now();
+      if (now - nftListingsCache[cacheKey].timestamp < 15 * 60 * 1000) {
+        return nftListingsCache[cacheKey].data;
+      }
+    }
+    
+    // En producción, aquí se consultaría la API de OpenSea u otro marketplace
+    // Por ahora, simularemos aleatoriamente si está listado o no
+    let isListed = false;
+    if (tokenId && tokenId.length > 0) {
+      try {
+        isListed = parseInt(tokenId) % 7 === 0;
+      } catch (parseError) {
+        console.error(`Error al analizar tokenId ${tokenId}:`, parseError);
+        isListed = false;
+      }
+    }
+    
+    let listingDetails: NFTListingDetails = {
+      isListed: isListed
+    };
+    
+    // Si está listado, añadir detalles del precio
+    if (isListed) {
+      let priceWETH = "1.0";
+      try {
+        if (tokenId && tokenId.length > 0) {
+          priceWETH = (Math.floor(parseInt(tokenId) % 5) + 1).toString();
+        }
+      } catch (parseError) {
+        console.error(`Error al calcular precio para tokenId ${tokenId}:`, parseError);
+      }
+      
+      const priceUsd = (parseFloat(priceWETH) * currentEthPrice).toFixed(2);
+      
+      listingDetails = {
+        ...listingDetails,
+        price: `${priceWETH} WETH`,
+        priceUsd: `$${priceUsd}`,
+        marketplace: 'OpenSea'
+      };
+    }
+    
+    // Guardar en caché
+    nftListingsCache[cacheKey] = {
+      data: listingDetails,
+      timestamp: Date.now()
+    };
+    
+    return listingDetails;
+  } catch (error) {
+    console.error(`Error al obtener detalles de listado para el NFT ${tokenId}:`, error);
+    return { isListed: false };
+  }
+}
+
+// Obtener detalles completos de un NFT específico
+export async function getNFTDetails(tokenId: string, network: string = 'ethereum') {
+  try {
+    // Buscar primero en la base de datos
+    const positionHistory = await storage.getPositionHistoryByNFTTokenId(tokenId);
+    const realPosition = await storage.getRealPositionByTokenId(tokenId);
+    
+    // Si encontramos la posición en la base de datos
+    if (positionHistory.length > 0 || realPosition) {
+      const position = positionHistory.length > 0 ? positionHistory[0] : {} as any;
+      const real = realPosition || {} as any;
+      
+      // Datos del pool y valor
+      const poolAddress = position.poolAddress || real.poolAddress || '';
+      const poolValue = position.depositedUSDC 
+        ? `$${parseFloat(position.depositedUSDC.toString()).toFixed(2)}`
+        : real.liquidityValue || '';
+      
+      // Datos de tokens
+      const token0 = position.token0 || real.token0 || 'WETH';
+      const token1 = position.token1 || real.token1 || 'USDC';
+      const fee = position.fee || (real.additionalData ? real.additionalData.fee : '0.3%');
+      
+      // Crear la descripción por defecto
+      let description = `This NFT represents a liquidity position in a Uniswap v4 ${token0}-${token1} pool. The owner of this NFT can modify or redeem the position.`;
+      
+      // Si existe una descripción en la posición real, usarla
+      if (real.description) {
+        description = real.description;
+      }
+      
+      // Si no hay dirección de pool pero se puede extraer de la descripción
+      if (!poolAddress) {
+        const poolAddressMatch = description.match(/Pool Address:\s*([0x][a-fA-F0-9]{40})/);
+        if (poolAddressMatch && poolAddressMatch[1]) {
+          poolAddress = poolAddressMatch[1];
+          console.log(`Dirección de pool extraída de la descripción para NFT ${tokenId}: ${poolAddress}`);
+        }
+      }
+      
+      // Intentar extraer imagen si está disponible
+      const imageUrl = position.imageUrl || real.imageUrl || '';
+      
+      // Determinar la versión del NFT dinámicamente
+      let nftVersion = "Uniswap V3"; // Valor por defecto
+      
+      // Detectar si es un NFT de Uniswap v4 basado en el contenido de la descripción
+      if (description.toLowerCase().includes("uniswap v4") || 
+          description.toLowerCase().includes("v4 pool") || 
+          description.toLowerCase().includes("hooks") ||
+          description.toLowerCase().includes("singleton") ||
+          description.toLowerCase().includes("pool manager")) {
+        nftVersion = "Uniswap V4";
+        console.log(`NFT ${tokenId} detectado como Uniswap V4 basado en la descripción`);
+      }
+      
+      // Detectar versión por el contrato Pool Manager (indicador de v4)
+      if (poolAddress && poolAddress.toLowerCase() === "0x4e68ccd3e89f51c3074ca5072bbac773960dfa36") {
+        nftVersion = "Uniswap V4";
+        console.log(`NFT ${tokenId} detectado como Uniswap V4 por dirección de pool manager`);
+      }
+      
+      // Si es una posición v4, asegurarse de usar el pool manager
+      const poolManagerAddress = nftVersion === "Uniswap V4" ? 
+        '0x4e68ccd3e89f51c3074ca5072bbac773960dfa36' : '';
+      
+      console.log(`Versión determinada para NFT ${tokenId}: ${nftVersion}`);
+      
+      // Detalles del NFT
+      const nftDetails = {
+        tokenId,
+        contractAddress: position.contractAddress || '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+        network: position.network || real.network || network,
+        token0Symbol: token0,
+        token1Symbol: token1,
+        fee,
+        poolAddress,
+        poolValue,
+        inRange: position.inRange || real.inRange || false,
+        status: position.status || real.status || 'No listado',
+        version: nftVersion, // Usar la versión detectada dinámicamente
+        // Detalles adicionales específicos para el diálogo de detalles
+        poolManagerAddress,
+        description,
+        walletAddress: position.walletAddress || real.walletAddress || '',
+        estimatedValue: poolValue,
+        imageUrl, // Incluir la URL de la imagen
+        marketplaceStatus: {
+          isListed: false,
+          price: '',
+          marketplace: ''
+        }
+      };
+      
+      // Obtener información de listado (si está en venta)
+      const listingInfo = await getNFTListingDetails(tokenId, network);
+      if (listingInfo && listingInfo.isListed) {
+        nftDetails.marketplaceStatus = {
+          isListed: true,
+          price: listingInfo.price || '',
+          marketplace: listingInfo.marketplace || 'OpenSea'
+        };
+      }
+      
+      return nftDetails;
+    }
+    
+    // Si no encontramos la posición en la base de datos, consultamos Alchemy
+    return await getAlchemyNFTDetails(tokenId, network);
+  } catch (error) {
+    console.error(`Error al obtener detalles del NFT ${tokenId}:`, error);
+    return null;
+  }
+}
+
+// Función separada para obtener detalles de NFT de Alchemy
+async function getAlchemyNFTDetails(tokenId: string, network: string) {
+  try {
+    const alchemyApiKey = process.env.ALCHEMY_API_KEY;
+    if (!alchemyApiKey) {
+      console.error('ALCHEMY_API_KEY no encontrada en variables de entorno');
+      return null;
+    }
+    
+    const uniswapNFTContractAddress = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88';
+    const baseUrl = network === 'polygon' 
+      ? 'https://polygon-mainnet.g.alchemy.com/v2/' 
+      : 'https://eth-mainnet.g.alchemy.com/v2/';
+      
+    const response = await axios.get(`${baseUrl}${alchemyApiKey}/getNFTMetadata`, {
+      params: {
+        contractAddress: uniswapNFTContractAddress,
+        tokenId: tokenId,
+        tokenType: 'ERC721'
+      }
+    });
+    
+    if (!response.data) {
+      console.error(`No se pudieron obtener los detalles del NFT ${tokenId}`);
+      return null;
+    }
+    
+    // Extraer información de los metadatos
+    let token0Symbol = 'Unknown';
+    let token1Symbol = 'Unknown';
+    let fee = '0.3%';
+    let description = `This NFT represents a Uniswap liquidity position.`;
+    let imageUrl = ''; // Inicializar la URL de la imagen
+    let poolAddress = ''; // Inicializar la dirección del pool
+    
+    try {
+      // Intentar extraer la imagen del NFT
+      if (response.data.media && response.data.media.length > 0) {
+        imageUrl = response.data.media[0].gateway;
+        console.log(`Imagen encontrada para NFT ${tokenId}: ${imageUrl}`);
+      }
+      
+      // Variable para determinar la versión del NFT
+      let nftVersion = "Uniswap V3"; // Versión por defecto
+      
+      if (response.data.metadata?.name) {
+        const nameParts = response.data.metadata.name.split(' - ');
+        if (nameParts.length >= 2) {
+          const tokenPair = nameParts[1].split('/');
+          if (tokenPair.length === 2) {
+            token0Symbol = tokenPair[0].trim();
+            token1Symbol = tokenPair[1].trim();
+            description = `This NFT represents a Uniswap liquidity position for ${token0Symbol}-${token1Symbol}.`;
+          }
+          
+          if (nameParts.length >= 3) {
+            fee = nameParts[2].trim();
+            description += ` The position has a fee tier of ${fee}.`;
+          }
+        }
+      }
+      
+      if (response.data.metadata?.description) {
+        description = response.data.metadata.description;
+        
+        // Extraer la dirección del pool de la descripción si existe
+        const poolAddressMatch = description.match(/Pool Address:\s*([0x][a-fA-F0-9]{40})/);
+        if (poolAddressMatch && poolAddressMatch[1]) {
+          poolAddress = poolAddressMatch[1];
+          console.log(`Dirección de pool encontrada para NFT ${tokenId}: ${poolAddress}`);
+        }
+        
+        // Detectar si es un NFT de Uniswap v4 basado en el contenido de la descripción
+        if (description.toLowerCase().includes("uniswap v4") || 
+            description.toLowerCase().includes("v4 pool") || 
+            description.toLowerCase().includes("hooks") ||
+            description.toLowerCase().includes("singleton") ||
+            description.toLowerCase().includes("pool manager")) {
+          nftVersion = "Uniswap V4";
+          console.log(`NFT ${tokenId} detectado como Uniswap V4 basado en la descripción`);
+        }
+      }
+      
+      // Detectar versión por el contrato Pool Manager (indicador de v4)
+      if (poolAddress && poolAddress.toLowerCase() === "0x4e68ccd3e89f51c3074ca5072bbac773960dfa36") {
+        nftVersion = "Uniswap V4";
+        console.log(`NFT ${tokenId} detectado como Uniswap V4 por dirección de pool manager`);
+      }
+      
+      console.log(`Versión determinada para NFT ${tokenId}: ${nftVersion}`);
+    } catch (metadataError) {
+      console.error('Error al parsear metadatos del NFT:', metadataError);
+    }
+    
+    const nftDetails = {
+      tokenId,
+      contractAddress: uniswapNFTContractAddress,
+      network,
+      token0Symbol,
+      token1Symbol,
+      fee,
+      poolAddress: poolAddress, // Usar la dirección del pool extraída
+      poolValue: 'Valor actualizado en tiempo real',
+      inRange: undefined,
+      status: 'Activo',
+      version: nftVersion, // Usar la versión detectada dinámicamente
+      poolManagerAddress: nftVersion === "Uniswap V4" ? '0x4e68ccd3e89f51c3074ca5072bbac773960dfa36' : '',
+      description,
+      walletAddress: '',
+      estimatedValue: 'Valor actualizado en tiempo real',
+      imageUrl, // Incluimos la URL de la imagen
+      marketplaceStatus: {
+        isListed: false,
+        price: '',
+        marketplace: ''
+      }
+    };
+  
+    // Obtener información de listado (si está en venta)
+    const listingInfo = await getNFTListingDetails(tokenId, network);
+    if (listingInfo && listingInfo.isListed) {
+      nftDetails.marketplaceStatus = {
+        isListed: true,
+        price: listingInfo.price || '',
+        marketplace: listingInfo.marketplace || 'OpenSea'
+      };
+    }
+    
+    return nftDetails;
+  } catch (error) {
+    console.error(`Error al obtener datos de Alchemy para NFT ${tokenId}:`, error);
+    return null;
+  }
+}

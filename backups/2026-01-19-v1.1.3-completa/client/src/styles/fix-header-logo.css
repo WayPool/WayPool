@@ -1,0 +1,91 @@
+/**
+ * Ajustes específicos para el encabezado móvil y el logo
+ * Soluciona el problema de logo cortado en la barra de navegación
+ */
+
+/* Estilos para dispositivos móviles */
+@media (max-width: 767px) {
+  /* Estilo general para cualquier header en la aplicación */
+  header.sticky.top-0,
+  header.border-b,
+  header.sticky,
+  nav.sticky.top-0 {
+    /* Posicionamiento para que la cabecera aparezca por encima de la barra gris */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    
+    /* Altura y apariencia adecuadas */
+    min-height: 3.5rem !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    
+    /* Estilos visuales */
+    background-color: rgba(10, 14, 35, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    border-bottom: 1px solid rgba(98, 99, 231, 0.15) !important;
+    
+    /* Flexbox para centrar contenido */
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Estilos específicos para el contenedor del logo */
+  header .container,
+  header .flex.h-16,
+  header .flex.items-center,
+  header .container .flex {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    min-height: 3.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Ajuste para logos de texto (Way + Pool) */
+  header span.text-2xl.font-bold,
+  header span.text-xl.font-bold,
+  header .flex.items-center span {
+    margin-top: 0 !important;
+    transform: translateY(0) !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Ajuste para el menú hamburguesa */
+  header button.md\\:hidden,
+  header .flex.items-center button {
+    margin-top: 0 !important;
+    transform: translateY(0) !important;
+  }
+
+  /* Asegura que los elementos de menú tengan altura suficiente */
+  header .flex,
+  header .container .flex {
+    min-height: 3rem !important;
+  }
+  
+  /* Espacio para el contenido debajo de la cabecera */
+  body {
+    margin-top: 3.5rem !important; /* Igual a la altura de la cabecera */
+    padding-top: 0 !important;
+  }
+}
+
+/* Corrección específica para iOS */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 767px) {
+    header.sticky.top-0,
+    header.border-b,
+    header.sticky,
+    nav.sticky.top-0 {
+      padding-top: calc(env(safe-area-inset-top)) !important;
+      min-height: calc(3.5rem + env(safe-area-inset-top)) !important;
+    }
+    
+    body {
+      margin-top: calc(3.5rem + env(safe-area-inset-top)) !important;
+    }
+  }
+}

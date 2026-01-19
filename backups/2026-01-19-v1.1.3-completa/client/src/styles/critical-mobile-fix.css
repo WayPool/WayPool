@@ -1,0 +1,56 @@
+/**
+ * Fix crítico para colores en móviles
+ */
+
+@media (max-width: 767px) {
+  /* Fondos generales */
+  html.dark body,
+  html.dark #root,
+  html.dark main,
+  html.dark section {
+    background-color: rgb(9, 14, 33) !important;
+  }
+  
+  /* Secciones con fondo alternativo */
+  html.dark footer,
+  html.dark section#how-it-works,
+  html.dark section#risk-return {
+    background-color: rgb(29, 35, 67) !important;
+  }
+  
+  /* Tarjetas e iconos */
+  html.dark div.rounded-lg,
+  html.dark div.rounded-full,
+  html.dark div.flex.items-center.justify-center.w-16.h-16.rounded-full,
+  html.dark div.p-3.rounded-full.w-fit {
+    background-color: rgb(19, 24, 54) !important;
+    border: 1px solid rgb(39, 46, 79) !important;
+  }
+
+  /* Textos y títulos con fondo - CORREGIR FONDOS GRISES */
+  html.dark h3,
+  html.dark .dark-feature-card h3,
+  html.dark div.flex.flex-col h3 {
+    color: #ffffff !important;
+    background-color: transparent !important;
+  }
+  
+  html.dark p.text-muted-foreground {
+    color: rgb(186, 195, 218) !important;
+    background-color: transparent !important;
+  }
+  
+  /* Contenedores de títulos - ELIMINAR FONDOS GRISES */
+  html.dark div > span.bg-slate-700,
+  html.dark div > span.rounded-lg,
+  html.dark h3 > span,
+  html.dark div[class*="rounded-lg"] {
+    background-color: rgb(19, 24, 54) !important;
+    border: 1px solid rgb(39, 46, 79) !important;
+  }
+  
+  /* Navegación */
+  html.dark nav {
+    padding: 0.5rem !important;
+  }
+}

@@ -1,0 +1,72 @@
+/**
+ * Este archivo CSS elimina ESPECÍFICAMENTE los fondos grises de 
+ * párrafos de texto en la versión móvil, sin afectar la versión desktop
+ */
+
+/* Clase específica para asegurar que NO haya fondo en el texto */
+.transparent-bg {
+  background-color: transparent !important;
+  background: none !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 767px) {
+  /* Eliminar fondo gris en el bloque de texto del héroe */
+  .dark section p,
+  .dark section .text-slate-300,
+  .dark main p.text-slate-300,
+  .dark p.text-slate-300,
+  .dark .text-slate-300 {
+    background-color: transparent !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Para el caso específico del texto del héroe */
+  .dark p.text-slate-300.mb-8.max-w-sm.mx-auto,
+  .dark .transparent-bg {
+    background-color: transparent !important;
+    background: none !important;
+    background-image: none !important;
+  }
+  
+  /* Forzar transparencia - nivel heroico */
+  .dark main p:before,
+  .dark main p:after {
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    display: none !important;
+  }
+  
+  /* ESPECÍFICAMENTE PARA EL DASHBOARD y pantalla de conexión de wallet - FONDOS TRANSPARENTES */
+  .dark p.text-xs.text-\[\#8a9fc0\],
+  .dark p.text-sm.text-\[\#8a9fc0\],
+  .dark p.text-\[\#8a9fc0\],
+  .dark .text-\[\#8a9fc0\] {
+    background-color: transparent !important;
+    background: none !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* AJUSTE ESPECÍFICO PARA LA PÁGINA DE DASHBOARD - WALLET CONNECT */
+  .dark div.flex.items-start.gap-3 div p {
+    background-color: transparent !important;
+    background: none !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* FONDOS TRANSPARENTES EN TEXTOS DE DASHBOARD */
+  .dark .bg-\[\#0b101e\] p,
+  .dark .border-\[\#1c2438\] p,
+  .dark .ml-12 p {
+    background-color: transparent !important;
+    background: none !important;
+    color: #8a9fc0 !important; 
+  }
+}

@@ -1,0 +1,29 @@
+/* CSS para la versión móvil de la conectar wallet */
+
+/* En móvil, solo mostramos la caja de conexión y ocultamos la descripción */
+@media (max-width: 768px) {
+  /* Ocultar la columna izquierda con las descripciones */
+  div.mb-6.flex div[class*="w-3/4"] {
+    display: none !important;
+  }
+  
+  /* Hacer que la columna derecha ocupe todo el ancho */
+  div.mb-6.flex div[class*="w-1/4"] {
+    width: 100% !important;
+  }
+  
+  /* Ocultar sección de información de seguridad */
+  div[class*="border-t"][class*="border-gray-800"][class*="pt-6"] {
+    display: none !important;
+  }
+  
+  /* Ocultar el párrafo de texto sobre Terms of Service */
+  div[class*="w-1/4"] p.text-xs.mt-4.text-center {
+    display: none !important;
+  }
+  
+  /* Estilos adicionales para el botón */
+  div[class*="w-1/4"] button.bg-indigo-600 {
+    margin-top: 1rem;
+  }
+}

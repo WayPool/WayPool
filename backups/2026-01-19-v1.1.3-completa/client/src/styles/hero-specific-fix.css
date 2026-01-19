@@ -1,0 +1,41 @@
+/**
+ * Reglas extremadamente específicas para eliminar el fondo gris del párrafo del héroe
+ * SOLO afecta a la versión móvil, dejando intacta la versión desktop
+ */
+
+@media (max-width: 767px) {
+  /* Super específico para el párrafo que está en la imagen */
+  section p.text-slate-300.mb-8.max-w-sm.mx-auto.transparent-bg,
+  section p.text-slate-300.mb-8.max-w-sm.mx-auto,
+  p.text-slate-300.mb-8.max-w-sm.mx-auto {
+    /* Reset de todas las propiedades relacionadas con fondos */
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* Atacar los contenedores padre */
+  section:first-of-type div.relative.z-10 {
+    background: none !important;
+  }
+  
+  /* Especificador de texto del héroe */
+  p.text-slate-300.mb-8.max-w-sm.mx-auto,
+  .hero-text-container p {
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+  
+  /* Corregir los pseudo-elementos que podrían estar añadiendo el fondo */
+  p.text-slate-300.mb-8.max-w-sm.mx-auto:before,
+  p.text-slate-300.mb-8.max-w-sm.mx-auto:after {
+    display: none !important;
+    background: none !important;
+    content: none !important;
+  }
+}

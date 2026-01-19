@@ -1,0 +1,125 @@
+/* Estilos para mejorar el menú de footer móvil y eliminar fondos grises */
+
+/* Elimina fondos grises de los ítems del menú */
+footer, 
+footer .bg-muted, 
+footer div, 
+footer ul, 
+footer li, 
+footer a, 
+#mobileMenu div,
+#mobileMenu a,
+#mobileMenu nav,
+.dashboard-footer-menu {
+  background-color: transparent !important;
+}
+
+/* Quita bordes innecesarios que causan encuadres */
+footer,
+footer div,
+footer ul,
+footer li,
+footer a,
+.dashboard-footer-menu,
+.dashboard-footer-menu div,
+.dashboard-footer-menu a {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Estilo para footer y menú del dashboard */
+.dashboard-footer-menu {
+  background-color: rgba(10, 14, 35, 0.98) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Estilo para los títulos de sección */
+.footer-section-title {
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  border-bottom: none !important;
+  background: linear-gradient(90deg, rgba(98, 99, 231, 0.1), transparent) !important;
+  padding: 8px 0;
+}
+
+/* Estilo para los ítems del menú */
+.footer-menu-item {
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  padding: 8px 0;
+  font-size: 14px;
+  display: block;
+}
+
+.footer-menu-item:hover {
+  color: #6263E7;
+}
+
+/* Elimina fondos grises específicos para menú desplegable */
+.site-mobile-menu,
+.md\:hidden[role="dialog"] div,
+.md\:hidden[role="dialog"] a,
+.md\:hidden[role="navigation"] div,
+.md\:hidden[role="navigation"] a,
+.md\:hidden[role="navigation"] nav {
+  background-color: rgba(10, 14, 35, 0.98) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Estilo específico para elementos del menú desplegable */
+.md\:hidden[role="dialog"] a,
+.md\:hidden[role="navigation"] a {
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: all 0.2s ease;
+  border-radius: 6px !important;
+}
+
+.md\:hidden[role="dialog"] a:hover,
+.md\:hidden[role="navigation"] a:hover {
+  color: #ffffff !important;
+  background-color: rgba(98, 99, 231, 0.1) !important;
+}
+
+/* Específicamente para la barra de navegación móvil del dashboard */
+.md\:hidden.fixed.bottom-0 {
+  background-color: rgba(10, 14, 35, 0.98) !important;
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Elimina encuadrados en enlaces específicos del menú móvil */
+.dashboard-nav-item span,
+.dashboard-nav-item a {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+/* Estilos específicos para la navegación inferior del dashboard en móvil que se ve en la captura de pantalla */
+.fixed.bottom-0.left-0.right-0.bg-white.dark\:bg-slate-800,
+.fixed.bottom-0.left-0.right-0,
+.fixed.bottom-0 {
+  background-color: rgba(10, 14, 35, 0.98) !important;
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(98, 99, 231, 0.2) !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estilo para los ítems de navegación en la barra inferior */
+.fixed.bottom-0 .flex.flex-col.items-center,
+.fixed.bottom-0 a,
+.fixed.bottom-0 div,
+.fixed.bottom-0 span {
+  background-color: transparent !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Ítem activo de la navegación */
+.fixed.bottom-0 .text-primary-500 {
+  color: #6263E7 !important;
+}

@@ -1,0 +1,336 @@
+/**
+ * Componente para mostrar las facturas del usuario actual
+ * con opciones para verlas en detalle y descargarlas
+ */
+
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Invoice } from '@shared/schema';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  AlertTriangle, 
+  BadgePercent,
+  CheckCircle, 
+  Clock,
+  Eye, 
+  FileText, 
+  Loader2, 
+  XCircle 
+} from 'lucide-react';
+import { formatDate, formatCurrency } from '@/lib/date-utils';
+import { InvoiceDetailView } from './invoice-detail-view';
+import { useTranslation } from '@/hooks/use-translation';
+import { InvoiceService } from '@/lib/invoice-service';
+import { useToast } from '@/hooks/use-toast';
+
+// Props para el componente
+interface UserInvoicesProps {
+  walletAddress: string;
+}
+
+/**
+ * Componente para mostrar las facturas del usuario
+ */
+export function UserInvoices({ walletAddress }: UserInvoicesProps) {
+  const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // Consultar las facturas del usuario
+  const {
+    data: invoices,
+    isLoading,
+    error,
+    refetch
+  } = useQuery<Invoice[]>({
+    queryKey: [`/api/invoices/wallet/${walletAddress}`],
+    queryFn: async () => {
+      try {
+        console.log(`Obteniendo facturas para wallet: ${walletAddress}`);
+        const response = await fetch(`/api/invoices/wallet/${walletAddress}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error de API (${response.status}):`, errorText);
+          throw new Error(`Error de servidor: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Facturas recibidas:', data);
+        
+        if (!Array.isArray(data)) {
+          console.warn('La API no devolvió un array de facturas:', data);
+          return [];
+        }
+        
+        return data as Invoice[];
+      } catch (err: any) {
+        console.error('Error fetching invoices:', err);
+        toast({
+          title: t('Error'),
+          description: t('Error al cargar las facturas: ') + (err?.message || 'Error desconocido'),
+          variant: 'destructive',
+        });
+        // Devolver un array vacío en caso de error para evitar errores de renderizado
+        return [];
+      }
+    },
+    staleTime: 1000 * 60, // 1 minuto
+    enabled: !!walletAddress,
+    retry: 2, // Reintentar 2 veces en caso de error
+  });
+
+  // Manejar la visualización de una factura
+  const handleViewInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+  };
+
+  // Cerrar el modal de detalle
+  const handleCloseDetail = () => {
+    setSelectedInvoice(null);
+  };
+
+  // Formatear el estado de la factura
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'Paid':
+      case 'Active':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+            {t(status)}
+          </span>
+        );
+      case 'Pending':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100">
+            {t(status)}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100">
+            {t(status)}
+          </span>
+        );
+    }
+  };
+
+  // Si está cargando
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Mis facturas')}</CardTitle>
+          <CardDescription>{t('Historial de facturas asociadas a tu wallet')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Si hay un error
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Mis facturas')}</CardTitle>
+          <CardDescription>{t('Historial de facturas asociadas a tu wallet')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center h-40 space-y-4">
+          <AlertTriangle className="h-12 w-12 text-amber-500" />
+          <p className="text-center text-sm text-muted-foreground">{t('Error al cargar las facturas')}</p>
+          <Button variant="outline" onClick={() => refetch()}>
+            {t('Reintentar')}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Si no hay facturas
+  if (!invoices || invoices.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Mis facturas')}</CardTitle>
+          <CardDescription>{t('Historial de facturas asociadas a tu wallet')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center h-40 p-6 text-center">
+          <p className="text-sm text-muted-foreground">{t('No tienes facturas registradas.')}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Función para calcular los totales
+  const calculateInvoiceSummary = () => {
+    if (!invoices) return {
+      total: 0,
+      pending: 0,
+      paid: 0,
+      active: 0,
+      cancelled: 0,
+      totalAmount: 0,
+      pendingAmount: 0,
+      paidAmount: 0
+    };
+
+    const summary = {
+      total: invoices.length,
+      pending: invoices.filter(inv => inv.status === 'Pending').length,
+      paid: invoices.filter(inv => inv.status === 'Paid').length,
+      active: invoices.filter(inv => inv.status === 'Active').length,
+      cancelled: invoices.filter(inv => inv.status === 'Cancelled').length,
+      totalAmount: invoices.reduce((sum, inv) => sum + Number(inv.amount), 0),
+      pendingAmount: invoices.filter(inv => inv.status === 'Pending')
+        .reduce((sum, inv) => sum + Number(inv.amount), 0),
+      paidAmount: invoices.filter(inv => ['Paid', 'Active'].includes(inv.status))
+        .reduce((sum, inv) => sum + Number(inv.amount), 0)
+    };
+
+    return summary;
+  };
+
+  const invoiceSummary = calculateInvoiceSummary();
+
+  return (
+    <div className="space-y-6">
+      {/* Tarjetas de resumen */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border-indigo-100 dark:border-indigo-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{t('Total de Facturas')}</p>
+                <h3 className="text-3xl font-bold">{invoiceSummary.total}</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {formatCurrency(invoiceSummary.totalAmount, 'USD', language)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 border-yellow-100 dark:border-yellow-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{t('Facturas Pendientes')}</p>
+                <h3 className="text-3xl font-bold">{invoiceSummary.pending}</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {formatCurrency(invoiceSummary.pendingAmount, 'USD', language)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/40 dark:to-green-950/40 border-green-100 dark:border-green-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{t('Facturas Pagadas')}</p>
+                <h3 className="text-3xl font-bold">{invoiceSummary.paid + invoiceSummary.active}</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {formatCurrency(invoiceSummary.paidAmount, 'USD', language)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/40 dark:to-red-950/40 border-red-100 dark:border-red-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{t('Facturas Canceladas')}</p>
+                <h3 className="text-3xl font-bold">{invoiceSummary.cancelled}</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <BadgePercent className="h-4 w-4 inline mr-1" />
+                  {invoiceSummary.total > 0 
+                    ? ((invoiceSummary.cancelled / invoiceSummary.total) * 100).toFixed(1) + '%' 
+                    : '0%'}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+                <XCircle className="h-6 w-6 text-rose-600 dark:text-rose-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Mis facturas')}</CardTitle>
+          <CardDescription>{t('Listado de todas tus facturas en WayBank')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('Nº Factura')}</TableHead>
+                  <TableHead>{t('Fecha')}</TableHead>
+                  <TableHead>{t('Importe')}</TableHead>
+                  <TableHead>{t('Estado')}</TableHead>
+                  <TableHead>{t('Método de pago')}</TableHead>
+                  <TableHead>{t('Acciones')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell>{invoice.invoiceNumber}</TableCell>
+                    <TableCell>{formatDate(invoice.issueDate, 'dd/MM/yyyy', language)}</TableCell>
+                    <TableCell>{formatCurrency(invoice.amount, 'USD', language)}</TableCell>
+                    <TableCell>{formatStatus(invoice.status)}</TableCell>
+                    <TableCell>{t(invoice.paymentMethod)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        {t('Ver')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+
+        {/* Modal para ver detalle de factura */}
+        {selectedInvoice && (
+          <InvoiceDetailView
+            invoice={selectedInvoice}
+            onClose={handleCloseDetail}
+          />
+        )}
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#cc0001"/>
+  <rect width="900" height="42.85" fill="#fff" y="42.85"/>
+  <rect width="900" height="42.85" fill="#fff" y="128.55"/>
+  <rect width="900" height="42.85" fill="#fff" y="214.25"/>
+  <rect width="900" height="42.85" fill="#fff" y="299.95"/>
+  <rect width="900" height="42.85" fill="#fff" y="385.65"/>
+  <rect width="900" height="42.85" fill="#fff" y="471.35"/>
+  <rect width="900" height="42.85" fill="#fff" y="557.05"/>
+  <rect width="450" height="300" fill="#010066"/>
+  <g transform="translate(225, 150)">
+    <circle cx="0" cy="0" r="75" fill="#fc0"/>
+    <path d="M 0,-50 A 50,50 0 0 0 -50,0 A 50,50 0 0 0 0,50 A 50,50 0 0 0 50,0 A 50,50 0 0 0 0,-50 Z" fill="#cc0001"/>
+    <polygon points="0,-100 5.5,-30.8 44.6,-79.6 13.7,-24.5 86.7,-43.6 26.7,-10.1 97.7,23.5 26.7,10.1 65.6,74.3 13.7,24.5 16.7,92.4 0,31.7 -16.7,92.4 -13.7,24.5 -65.6,74.3 -26.7,10.1 -97.7,23.5 -26.7,-10.1 -86.7,-43.6 -13.7,-24.5 -44.6,-79.6 -5.5,-30.8" fill="#fc0"/>
+  </g>
+</svg>

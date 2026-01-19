@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <!-- Limpiar service worker y cache obsoletos -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) caches.delete(name);
+        });
+      }
+    </script>
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-R8LV7N6C04"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-R8LV7N6C04');
+    </script>
+    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>WayBank | Optimización Inteligente de Liquidez</title>
+    <meta name="description" content="WayBank es la plataforma líder de gestión inteligente de liquidez para Uniswap que minimiza pérdidas impermanentes y maximiza rendimientos en DeFi." />
+    <meta name="keywords" content="WayBank, Uniswap V4, DeFi, liquidez concentrada, finanzas descentralizadas, crypto, blockchain, yield farming, APR, TVL, optimización" />
+    <meta name="author" content="WayBank Finance" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/dollar-favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://waybank.finance/" />
+    <meta property="og:title" content="WayBank | Plataforma de Gestión Inteligente de Liquidez" />
+    <meta property="og:description" content="Maximiza tus rendimientos en DeFi con posiciones de liquidez optimizadas. La plataforma más avanzada para Uniswap V3 y V4." />
+    <meta property="og:image" content="https://waybank.finance/og-image.jpg" />
+    <meta property="og:site_name" content="WayBank Finance" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@waybank_finance" />
+    <meta name="twitter:creator" content="@waybank_finance" />
+    <meta name="twitter:url" content="https://waybank.finance/" />
+    <meta name="twitter:title" content="WayBank | Plataforma de Gestión Inteligente de Liquidez" />
+    <meta name="twitter:description" content="Maximiza tus rendimientos en DeFi con posiciones de liquidez optimizadas. La plataforma más avanzada para Uniswap V3 y V4." />
+    <meta name="twitter:image" content="https://waybank.finance/twitter-image.jpg" />
+    
+    <!-- Theme Color for browsers -->
+    <meta name="theme-color" content="#7c3aed" />
+    
+    <!-- Canonical URL -->
+    <meta rel="canonical" href="https://waybank.finance/" />
+    
+    <!-- Preconnect to essential domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" as="image" href="/logo.svg" />
+    
+    <!-- Suppress Lit multiple versions warning -->
+    <script>
+      // Override console.warn to filter out Lit multiple versions warning
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('Multiple versions of Lit loaded') || 
+            message.includes('Loading multiple versions is not recommended')) {
+          return; // Suppress this specific warning
+        }
+        originalWarn.apply(console, args);
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+  </body>
+</html>

@@ -39,9 +39,9 @@ export async function runManagedNftsMigration(pool: Pool): Promise<void> {
         $$;
       `);
       
-      // Crear la tabla managed_nfts
+      // Crear la tabla managed_nfts - use explicit public schema
       await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS managed_nfts (
+        CREATE TABLE IF NOT EXISTS public.managed_nfts (
           id SERIAL PRIMARY KEY,
           network TEXT NOT NULL,
           version TEXT NOT NULL,
@@ -91,7 +91,7 @@ export async function runManagedNftsMigration(pool: Pool): Promise<void> {
       if (!columnExists) {
         console.log("Añadiendo columna 'status' a la tabla managed_nfts...");
         await db.execute(sql`
-          ALTER TABLE managed_nfts
+          ALTER TABLE public.managed_nfts
           ADD COLUMN status nft_status DEFAULT 'Active';
         `);
         console.log("Columna 'status' añadida exitosamente.");

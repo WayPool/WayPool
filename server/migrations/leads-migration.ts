@@ -56,59 +56,59 @@ export async function runLeadsMigration(pool: Pool) {
       
       const columnNames = columns.rows.map(row => row.column_name);
       
-      // Verificar y añadir columnas que faltan
+      // Verificar y añadir columnas que faltan - use explicit public schema
       if (!columnNames.includes('status')) {
         console.log('Añadiendo columna status...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN status lead_status DEFAULT 'nuevo';
         `);
       }
-      
+
       if (!columnNames.includes('follow_up_date')) {
         console.log('Añadiendo columna follow_up_date...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN follow_up_date TIMESTAMP;
         `);
       }
-      
+
       if (!columnNames.includes('last_contact')) {
         console.log('Añadiendo columna last_contact...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN last_contact TIMESTAMP;
         `);
       }
-      
+
       if (!columnNames.includes('language_preference')) {
         console.log('Añadiendo columna language_preference...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN language_preference TEXT DEFAULT 'es';
         `);
       }
-      
+
       if (!columnNames.includes('original_referrer')) {
         console.log('Añadiendo columna original_referrer...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN original_referrer TEXT;
         `);
       }
-      
+
       if (!columnNames.includes('additional_data')) {
         console.log('Añadiendo columna additional_data...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN additional_data JSONB;
         `);
       }
-      
+
       if (!columnNames.includes('updated_at')) {
         console.log('Añadiendo columna updated_at...');
         await pool.query(`
-          ALTER TABLE leads 
+          ALTER TABLE public.leads
           ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
         `);
       }
@@ -142,10 +142,10 @@ export async function runLeadsMigration(pool: Pool) {
       console.log('Enum lead_status creado exitosamente');
     }
     
-    // Crear tabla leads
+    // Crear tabla leads - use explicit public schema
     console.log('Creando tabla leads...');
     await pool.query(`
-      CREATE TABLE leads (
+      CREATE TABLE public.leads (
         id SERIAL PRIMARY KEY,
         full_name TEXT NOT NULL,
         email TEXT NOT NULL,

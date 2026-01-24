@@ -17,36 +17,36 @@ export async function migrateLandingVideosTable() {
       return true;
     }
     
-    // Crear la tabla si no existe
+    // Crear la tabla si no existe - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS "landing_videos" (
-        "id" SERIAL PRIMARY KEY,
-        "language" TEXT NOT NULL,
-        "main_video_url" TEXT NOT NULL,
-        "full_video_url" TEXT,
-        "video_type" TEXT DEFAULT 'video/mp4',
-        "active" BOOLEAN DEFAULT true,
-        "created_at" TIMESTAMP DEFAULT NOW(),
-        "updated_at" TIMESTAMP DEFAULT NOW(),
-        "created_by" TEXT
+      CREATE TABLE IF NOT EXISTS public.landing_videos (
+        id SERIAL PRIMARY KEY,
+        language TEXT NOT NULL,
+        main_video_url TEXT NOT NULL,
+        full_video_url TEXT,
+        video_type TEXT DEFAULT 'video/mp4',
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        created_by TEXT
       );
     `);
-    
+
     console.log('[Migración] Tabla landing_videos creada exitosamente');
-    
+
     // Añadir video por defecto para español
     await db.execute(sql`
-      INSERT INTO "landing_videos" 
-        ("language", "main_video_url", "full_video_url", "active", "created_by") 
-      VALUES 
+      INSERT INTO public.landing_videos
+        (language, main_video_url, full_video_url, active, created_by)
+      VALUES
         ('es', 'https://waybank.info/videos/welcome-es.mp4', 'https://www.youtube.com/watch?v=example_es', true, 'system_migration');
     `);
-    
+
     // Añadir video por defecto para inglés
     await db.execute(sql`
-      INSERT INTO "landing_videos" 
-        ("language", "main_video_url", "full_video_url", "active", "created_by") 
-      VALUES 
+      INSERT INTO public.landing_videos
+        (language, main_video_url, full_video_url, active, created_by)
+      VALUES
         ('en', 'https://waybank.info/videos/welcome-en.mp4', 'https://www.youtube.com/watch?v=example_en', true, 'system_migration');
     `);
     

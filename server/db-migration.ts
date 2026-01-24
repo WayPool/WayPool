@@ -109,16 +109,32 @@ export async function updateTimeframeAdjustment(
 export async function addNetworkColumnMigration() {
   try {
     console.log('Adding network column to custom_pools table...');
-    
-    // Add network column and update existing records
+
+    // First check if table exists
+    const tableExists = await db.execute(sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'custom_pools'
+      );
+    `);
+
+    if (!tableExists.rows || !tableExists.rows[0]?.exists) {
+      console.log('custom_pools table does not exist yet, will be created in main migration');
+      return true;
+    }
+
+    // Add network column and update existing records - use explicit public schema
     await db.execute(sql`
       -- Añadir columna network a la tabla custom_pools
-      ALTER TABLE custom_pools ADD COLUMN IF NOT EXISTS network TEXT DEFAULT 'ethereum';
+      ALTER TABLE public.custom_pools ADD COLUMN IF NOT EXISTS network TEXT DEFAULT 'ethereum';
+    `);
 
+    await db.execute(sql`
       -- Actualizar columna network basado en network_name para registros existentes
-      UPDATE custom_pools 
-      SET network = 
-        CASE 
+      UPDATE public.custom_pools
+      SET network =
+        CASE
           WHEN LOWER(network_name) LIKE '%ethereum%' THEN 'ethereum'
           WHEN LOWER(network_name) LIKE '%polygon%' THEN 'polygon'
           WHEN LOWER(network_name) LIKE '%optimism%' THEN 'optimism'
@@ -128,7 +144,7 @@ export async function addNetworkColumnMigration() {
         END
       WHERE network IS NULL OR network = '';
     `);
-    
+
     console.log('Network column added and updated successfully');
     return true;
   } catch (error) {
@@ -142,26 +158,26 @@ export async function addNetworkColumnMigration() {
  */
 export async function addInvoicesTableMigration() {
   console.log('Running invoices table migration...');
-  
+
   try {
     // Verificar si la tabla de facturas ya existe
     const result = await db.execute(sql`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
         AND table_name = 'invoices'
       );
     `);
-    
+
     // Si la tabla ya existe, omitir la migración
     if (result.rows && result.rows.length > 0 && result.rows[0].exists) {
       console.log('Invoices table already exists, skipping migration');
       return true;
     }
-    
-    // Crear la tabla de facturas
+
+    // Crear la tabla de facturas - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS invoices (
+      CREATE TABLE IF NOT EXISTS public.invoices (
         id SERIAL PRIMARY KEY,
         invoice_number TEXT NOT NULL UNIQUE,
         wallet_address TEXT NOT NULL,
@@ -185,7 +201,7 @@ export async function addInvoicesTableMigration() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
+
     console.log('Invoices table created successfully');
     return true;
   } catch (error) {
@@ -199,37 +215,38 @@ export async function addInvoicesTableMigration() {
  */
 export async function addLegalAcceptanceColumnsMigration() {
   console.log('Running legal acceptance columns migration...');
-  
+
   try {
     // Check if the columns already exist to prevent errors
     const result = await db.execute(sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'users'
       AND column_name = 'has_accepted_legal_terms';
     `);
-    
+
     // If the column already exists, skip this migration
     if (result.rows && result.rows.length > 0) {
       console.log('Legal acceptance columns already exist, skipping migration');
       return true;
     }
-    
-    // Add new columns to the users table
+
+    // Add new columns to the users table - use explicit public schema
     await db.execute(sql`
-      ALTER TABLE users 
+      ALTER TABLE public.users
       ADD COLUMN IF NOT EXISTS has_accepted_legal_terms BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS legal_terms_accepted_at TIMESTAMP,
       ADD COLUMN IF NOT EXISTS terms_of_use_accepted BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS privacy_policy_accepted BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS disclaimer_accepted BOOLEAN DEFAULT FALSE;
     `);
-    
+
     console.log('Added legal acceptance columns to users table');
-    
-    // Create the legal_signatures table if it doesn't exist
+
+    // Create the legal_signatures table if it doesn't exist - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS legal_signatures (
+      CREATE TABLE IF NOT EXISTS public.legal_signatures (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         wallet_address TEXT NOT NULL,
@@ -245,10 +262,10 @@ export async function addLegalAcceptanceColumnsMigration() {
         additional_data JSONB
       );
     `);
-    
+
     console.log('Created legal_signatures table');
     return true;
-    
+
   } catch (error) {
     console.error('Error in legal acceptance columns migration:', error);
     return false;
@@ -261,13 +278,22 @@ export async function addLegalAcceptanceColumnsMigration() {
 export async function runMigration() {
   try {
     console.log('Starting database migration...');
-    
-    // Add network column to custom_pools if needed
-    await addNetworkColumnMigration();
-    
-    // Create users table if it doesn't exist
+
+    // CRITICAL: Set search_path first before any queries
+    // This is required for Neon serverless which doesn't honor pool.on('connect')
+    console.log('Setting search_path to public schema...');
+    try {
+      await pool.query('SET search_path TO public');
+      console.log('search_path set via pool.query');
+    } catch (e) {
+      console.log('pool.query failed, trying db.execute...');
+      await db.execute(sql`SET search_path TO public`);
+    }
+    console.log('search_path set successfully');
+
+    // Create users table if it doesn't exist - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS public.users (
         id SERIAL PRIMARY KEY,
         wallet_address TEXT NOT NULL UNIQUE,
         theme TEXT DEFAULT 'system',
@@ -277,10 +303,10 @@ export async function runMigration() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
+
     // Create custom pools table if it doesn't exist
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS custom_pools (
+      CREATE TABLE IF NOT EXISTS public.custom_pools (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         address TEXT NOT NULL UNIQUE,
@@ -301,10 +327,13 @@ export async function runMigration() {
         created_by TEXT NOT NULL
       );
     `);
-    
+
+    // Add network column to custom_pools if needed (after table exists)
+    await addNetworkColumnMigration();
+
     // Create timeframe adjustments table if it doesn't exist
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS timeframe_adjustments (
+      CREATE TABLE IF NOT EXISTS public.timeframe_adjustments (
         id SERIAL PRIMARY KEY,
         timeframe INTEGER NOT NULL UNIQUE,
         adjustment_percentage DECIMAL(10, 2) NOT NULL,
@@ -313,10 +342,10 @@ export async function runMigration() {
         updated_by TEXT
       );
     `);
-    
+
     // Create position preferences table if it doesn't exist
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS position_preferences (
+      CREATE TABLE IF NOT EXISTS public.position_preferences (
         id SERIAL PRIMARY KEY,
         wallet_address TEXT NOT NULL,
         default_slippage DECIMAL(5, 2) DEFAULT 0.5,
@@ -327,17 +356,17 @@ export async function runMigration() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
+
     // Create position history table if it doesn't exist
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS position_history (
+      CREATE TABLE IF NOT EXISTS public.position_history (
         id SERIAL PRIMARY KEY,
         wallet_address TEXT NOT NULL,
         token_id TEXT,
         pool_address TEXT NOT NULL,
         pool_name TEXT NOT NULL,
         token0 TEXT NOT NULL,
-        token1 TEXT NOT NULL, 
+        token1 TEXT NOT NULL,
         token0_decimals INTEGER NOT NULL,
         token1_decimals INTEGER NOT NULL,
         token0_amount TEXT NOT NULL,
@@ -364,10 +393,10 @@ export async function runMigration() {
         total_fees_collected DECIMAL(12, 2) DEFAULT 0
       );
     `);
-    
+
     // Create real positions table if it doesn't exist
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS real_positions (
+      CREATE TABLE IF NOT EXISTS public.real_positions (
         id SERIAL PRIMARY KEY,
         wallet_address TEXT NOT NULL,
         virtual_position_id TEXT NOT NULL,
@@ -392,29 +421,29 @@ export async function runMigration() {
     `);
     
     console.log('Table migration completed. Initializing data...');
-    
+
     // Create default admin if it doesn't exist
     const adminAddress = "0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F";
-    
+
     // Create default admin
     console.log('Creating default administrator...');
     try {
       await db.execute(sql`
-        INSERT INTO users (wallet_address, is_admin)
+        INSERT INTO public.users (wallet_address, is_admin)
         VALUES (${adminAddress}, TRUE)
-        ON CONFLICT (wallet_address) 
+        ON CONFLICT (wallet_address)
         DO UPDATE SET is_admin = TRUE;
       `);
     } catch (error) {
       console.error('Error creating administrator:', error);
     }
-    
+
     // Create default pools
     try {
       // ETH-DAI pool (0.05%)
       await db.execute(sql`
-        INSERT INTO custom_pools (
-          name, address, fee_tier, 
+        INSERT INTO public.custom_pools (
+          name, address, fee_tier,
           token0_address, token0_symbol, token0_name, token0_decimals,
           token1_address, token1_symbol, token1_name, token1_decimals,
           active, network_id, network_name, created_by
@@ -426,11 +455,11 @@ export async function runMigration() {
         )
         ON CONFLICT (address) DO NOTHING;
       `);
-      
+
       // USDT-ETH pool (0.30%)
       await db.execute(sql`
-        INSERT INTO custom_pools (
-          name, address, fee_tier, 
+        INSERT INTO public.custom_pools (
+          name, address, fee_tier,
           token0_address, token0_symbol, token0_name, token0_decimals,
           token1_address, token1_symbol, token1_name, token1_decimals,
           active, network_id, network_name, created_by

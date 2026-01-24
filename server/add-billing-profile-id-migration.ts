@@ -24,10 +24,10 @@ export async function addBillingProfileIdColumnMigration() {
       return true;
     }
     
-    // Añadir la columna billing_profile_id a la tabla invoices
+    // Añadir la columna billing_profile_id a la tabla invoices - use explicit public schema
     await db.execute(sql`
-      ALTER TABLE invoices 
-      ADD COLUMN billing_profile_id INTEGER REFERENCES billing_profiles(id) ON DELETE SET NULL;
+      ALTER TABLE public.invoices
+      ADD COLUMN billing_profile_id INTEGER REFERENCES public.billing_profiles(id) ON DELETE SET NULL;
     `);
     
     console.log('billing_profile_id column added to invoices table successfully');

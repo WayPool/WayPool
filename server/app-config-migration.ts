@@ -17,9 +17,9 @@ export async function migrateAppConfigTable() {
       return;
     }
     
-    // Crear la tabla si no existe
+    // Crear la tabla si no existe - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE app_config (
+      CREATE TABLE public.app_config (
         id SERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
         value TEXT NOT NULL,
@@ -28,12 +28,12 @@ export async function migrateAppConfigTable() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     console.log("app_config table created successfully");
-    
+
     // Inicializar con la versión por defecto
     await db.execute(sql`
-      INSERT INTO app_config (key, value, description)
+      INSERT INTO public.app_config (key, value, description)
       VALUES ('app_version', '1.0.0', 'Versión actual de la aplicación')
     `);
     

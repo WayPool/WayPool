@@ -10,17 +10,18 @@ export async function addFeeCollectionStatusMigration() {
 
     // Verificar si la columna ya existe (para evitar errores al re-ejecutar)
     const checkResult = await db.execute(sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'position_history' 
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'position_history'
       AND column_name = 'fee_collection_status'
     `);
 
-    // Si no existe la columna, añadirla
+    // Si no existe la columna, añadirla - use explicit public schema
     if (checkResult.rowCount === 0) {
       // Añadir la columna fee_collection_status
       await db.execute(sql`
-        ALTER TABLE position_history 
+        ALTER TABLE public.position_history
         ADD COLUMN fee_collection_status TEXT DEFAULT 'Pending',
         ADD COLUMN last_collection_date TIMESTAMP
       `);

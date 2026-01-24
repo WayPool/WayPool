@@ -23,9 +23,9 @@ export async function addReferralTablesMigration() {
       return true;
     }
     
-    // Crear la tabla referrals
+    // Crear la tabla referrals - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS referrals (
+      CREATE TABLE IF NOT EXISTS public.referrals (
         id SERIAL PRIMARY KEY,
         referral_code TEXT NOT NULL UNIQUE,
         wallet_address TEXT NOT NULL,
@@ -34,14 +34,14 @@ export async function addReferralTablesMigration() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
+
     console.log('Referrals table created successfully');
-    
-    // Crear la tabla referred_users
+
+    // Crear la tabla referred_users - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS referred_users (
+      CREATE TABLE IF NOT EXISTS public.referred_users (
         id SERIAL PRIMARY KEY,
-        referral_id INTEGER NOT NULL REFERENCES referrals(id),
+        referral_id INTEGER NOT NULL REFERENCES public.referrals(id),
         referred_wallet_address TEXT NOT NULL UNIQUE,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status TEXT NOT NULL DEFAULT 'active',
@@ -80,9 +80,9 @@ export async function addReferralSubscribersTableMigration() {
       return true;
     }
     
-    // Crear la tabla de suscriptores
+    // Crear la tabla de suscriptores - use explicit public schema
     await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS referral_subscribers (
+      CREATE TABLE IF NOT EXISTS public.referral_subscribers (
         id SERIAL PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
         language TEXT NOT NULL DEFAULT 'es',

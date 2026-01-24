@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayBank - Documentacion Tecnica y de Auditoria</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --success: #00d9a5;
+            --warning: #ffc107;
+            --text: #333;
+            --text-light: #666;
+            --border: #e0e0e0;
+            --bg-light: #f8f9fa;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: white;
+            font-size: 11pt;
+        }
+
+        @media print {
+            body { font-size: 10pt; }
+            .page-break { page-break-before: always; }
+            .no-print { display: none; }
+            h1, h2, h3 { page-break-after: avoid; }
+            table, pre { page-break-inside: avoid; }
+        }
+
+        .cover {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .cover-logo {
+            font-size: 72pt;
+            font-weight: 700;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #fff, var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cover-subtitle {
+            font-size: 18pt;
+            font-weight: 300;
+            margin-bottom: 60px;
+            opacity: 0.9;
+        }
+
+        .cover-title {
+            font-size: 28pt;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .cover-type {
+            font-size: 14pt;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-bottom: 80px;
+        }
+
+        .cover-info {
+            font-size: 11pt;
+            opacity: 0.7;
+        }
+
+        .cover-info p {
+            margin: 5px 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 24pt;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--highlight);
+        }
+
+        h2 {
+            font-size: 16pt;
+            font-weight: 600;
+            color: var(--secondary);
+            margin: 30px 0 15px 0;
+            padding-left: 15px;
+            border-left: 4px solid var(--success);
+        }
+
+        h3 {
+            font-size: 13pt;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 25px 0 12px 0;
+        }
+
+        h4 {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text);
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 10px 0 15px 25px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:nth-child(even) {
+            background: var(--bg-light);
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+
+        pre {
+            background: var(--primary);
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9pt;
+            line-height: 1.4;
+            margin: 15px 0;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left: 4px solid var(--success);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-left: 4px solid var(--warning);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .danger-box {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            border-left: 4px solid var(--highlight);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 4px solid #2196f3;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .contract-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .contract-card h4 {
+            color: var(--primary);
+            margin-top: 0;
+        }
+
+        .address {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-light);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 9pt;
+            word-break: break-all;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 9pt;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-primary {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .toc {
+            background: var(--bg-light);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+
+        .toc h2 {
+            border: none;
+            padding: 0;
+            margin-top: 0;
+        }
+
+        .toc ol {
+            list-style: none;
+            counter-reset: toc;
+            margin: 0;
+            padding: 0;
+        }
+
+        .toc > ol > li {
+            counter-increment: toc;
+            margin: 8px 0;
+        }
+
+        .toc > ol > li::before {
+            content: counter(toc) ". ";
+            font-weight: 600;
+            color: var(--highlight);
+        }
+
+        .diagram {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9pt;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 24pt;
+            font-weight: 700;
+        }
+
+        .stat-card .label {
+            font-size: 9pt;
+            opacity: 0.8;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+        }
+
+        .flow-number {
+            width: 30px;
+            height: 30px;
+            background: var(--highlight);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .flow-content {
+            flex: 1;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-light);
+            font-size: 9pt;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media print {
+            .two-col {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+    <div class="cover-logo">WayBank</div>
+    <div class="cover-subtitle">Concentrated Liquidity Management Protocol</div>
+    <div class="cover-title">Documentacion Tecnica y de Auditoria</div>
+    <div class="cover-type">Sistema Completo v5.0 + v6.0</div>
+    <div class="cover-info">
+        <p><strong>Red:</strong> Polygon Mainnet (Chain ID: 137)</p>
+        <p><strong>Fecha:</strong> 24 de Enero de 2026</p>
+        <p><strong>Version del Documento:</strong> 1.0.0</p>
+        <p><strong>Clasificacion:</strong> Confidencial - Solo para Auditoria</p>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- TABLA DE CONTENIDOS -->
+<div class="page-break"></div>
+<div class="toc">
+    <h2>Tabla de Contenidos</h2>
+    <ol>
+        <li>Resumen Ejecutivo</li>
+        <li>Modelo de Negocio y Estrategia Delta Neutral</li>
+        <li>Arquitectura del Sistema</li>
+        <li>Sistema Original - WayPoolPositionCreator</li>
+        <li>Sistema v6 - Gestion Automatizada</li>
+        <li>Sistema de Rendimientos y Repartos</li>
+        <li>Analisis de Riesgos y Perdidas Potenciales</li>
+        <li>Contratos Inteligentes</li>
+        <li>Infraestructura Backend</li>
+        <li>Base de Datos</li>
+        <li>Seguridad</li>
+        <li>Direcciones y Hashes de Contratos</li>
+        <li>Glosario Tecnico</li>
+    </ol>
+</div>
+
+<!-- SECCION 1: RESUMEN EJECUTIVO -->
+<div class="page-break"></div>
+<h1>1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Vision General</h2>
+<p>WayBank es un protocolo de gestion de liquidez concentrada construido sobre Uniswap V3 en la red Polygon. El sistema permite a usuarios de cualquier nivel de capital participar en la provision de liquidez de manera eficiente, automatizada y con estrategias de optimizacion de rendimientos.</p>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="value">5</div>
+        <div class="label">Anos de Desarrollo</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">4</div>
+        <div class="label">Contratos Desplegados</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">137</div>
+        <div class="label">Chain ID (Polygon)</div>
+    </div>
+</div>
+
+<h2>1.2 Proposito del Sistema</h2>
+<ul>
+    <li><strong>Democratizar el acceso:</strong> Permitir participacion con cantidades minimas de capital</li>
+    <li><strong>Automatizar la gestion:</strong> Rebalanceo automatico y recoleccion de fees</li>
+    <li><strong>Optimizar rendimientos:</strong> Estrategia Delta Neutral para minimizar riesgos</li>
+    <li><strong>Transparencia total:</strong> Todos los contratos verificados y codigo abierto</li>
+</ul>
+
+<h2>1.3 Componentes del Sistema</h2>
+<div class="diagram">
++------------------------------------------------------------------+
+|                        WAYBANK SYSTEM                             |
++------------------------------------------------------------------+
+|                                                                    |
+|  +------------------------+     +-----------------------------+   |
+|  |   SISTEMA ORIGINAL     |     |      SISTEMA V6             |   |
+|  |   (Creacion NFT)       |     |   (Gestion Automatizada)    |   |
+|  +------------------------+     +-----------------------------+   |
+|  | WayPoolPosition        |---->| WayBankVault                |   |
+|  | Creator.sol            |     | PoolAnalyzer.sol            |   |
+|  | v5.0                   |     | SwapExecutor.sol            |   |
+|  +------------------------+     +-----------------------------+   |
+|           |                              |                        |
+|           v                              v                        |
+|  +------------------------------------------------------------+  |
+|  |              UNISWAP V3 (Polygon Mainnet)                   |  |
+|  |  NonfungiblePositionManager | SwapRouter | Factory          |  |
+|  +------------------------------------------------------------+  |
+|                                                                    |
++------------------------------------------------------------------+
+</div>
+
+<!-- SECCION 2: MODELO DE NEGOCIO Y DELTA NEUTRAL -->
+<div class="page-break"></div>
+<h1>2. Modelo de Negocio y Estrategia Delta Neutral</h1>
+
+<h2>2.1 Que es la Liquidez Concentrada?</h2>
+<p>A diferencia de Uniswap V2 donde la liquidez se distribuye uniformemente en todo el rango de precios (0 a infinito), Uniswap V3 permite a los proveedores de liquidez <strong>concentrar su capital en rangos especificos de precios</strong>. Esto resulta en:</p>
+
+<div class="highlight-box">
+    <strong>Ventajas de la Liquidez Concentrada:</strong>
+    <ul>
+        <li>Eficiencia de capital hasta 4000x mayor</li>
+        <li>Mayores rendimientos por unidad de capital</li>
+        <li>Control preciso sobre el rango de exposicion</li>
+    </ul>
+</div>
+
+<h2>2.2 Estrategia Delta Neutral</h2>
+<p>La estrategia Delta Neutral es el nucleo del modelo de WayBank. Su objetivo es <strong>generar rendimientos de fees de trading mientras se minimiza la exposicion a cambios de precio</strong> de los activos subyacentes.</p>
+
+<h3>2.2.1 Concepto de Delta</h3>
+<p><strong>Delta</strong> mide la sensibilidad del valor de una posicion respecto a cambios en el precio del activo subyacente:</p>
+<ul>
+    <li><strong>Delta = 0:</strong> La posicion no cambia de valor cuando el precio se mueve (neutral)</li>
+    <li><strong>Delta > 0:</strong> La posicion gana valor si el precio sube (long)</li>
+    <li><strong>Delta < 0:</strong> La posicion gana valor si el precio baja (short)</li>
+</ul>
+
+<h3>2.2.2 Como Funciona en WayBank</h3>
+<div class="info-box">
+    <strong>Mecanismo Delta Neutral:</strong>
+    <ol>
+        <li>Se crea una posicion de liquidez en un rango estrecho alrededor del precio actual</li>
+        <li>Se monitorea continuamente el precio respecto al rango</li>
+        <li>Cuando el precio sale del rango, se rebalancea la posicion</li>
+        <li>Los fees de trading se acumulan mientras la posicion esta en rango</li>
+        <li>El rebalanceo frecuente mantiene la exposicion delta cercana a cero</li>
+    </ol>
+</div>
+
+<h3>2.2.3 Ejemplo Practico</h3>
+<table>
+    <tr>
+        <th>Escenario</th>
+        <th>Precio ETH</th>
+        <th>Accion</th>
+        <th>Resultado</th>
+    </tr>
+    <tr>
+        <td>Inicio</td>
+        <td>$2,000</td>
+        <td>Crear posicion rango $1,900-$2,100</td>
+        <td>50% USDC / 50% ETH</td>
+    </tr>
+    <tr>
+        <td>Precio sube</td>
+        <td>$2,100</td>
+        <td>Posicion ahora 100% USDC</td>
+        <td>Se rebalancea a nuevo rango</td>
+    </tr>
+    <tr>
+        <td>Post-rebalanceo</td>
+        <td>$2,100</td>
+        <td>Nuevo rango $2,000-$2,200</td>
+        <td>50% USDC / 50% ETH</td>
+    </tr>
+</table>
+
+<h2>2.3 Fuentes de Rendimiento</h2>
+
+<h3>2.3.1 Fees de Trading</h3>
+<p>La fuente principal de ingresos son los fees que los traders pagan al intercambiar tokens en el pool:</p>
+<table>
+    <tr>
+        <th>Fee Tier</th>
+        <th>Porcentaje</th>
+        <th>Uso Tipico</th>
+        <th>APR Estimado*</th>
+    </tr>
+    <tr>
+        <td>Low</td>
+        <td>0.05%</td>
+        <td>Stablecoins, pares muy liquidos</td>
+        <td>5-15%</td>
+    </tr>
+    <tr>
+        <td>Medium</td>
+        <td>0.30%</td>
+        <td>Pares estandar (ETH/USDC)</td>
+        <td>15-40%</td>
+    </tr>
+    <tr>
+        <td>High</td>
+        <td>1.00%</td>
+        <td>Pares volatiles, exoticos</td>
+        <td>25-100%+</td>
+    </tr>
+</table>
+<p><em>*Los APRs varian segun volumen de trading, liquidez total y condiciones de mercado</em></p>
+
+<h3>2.3.2 Formula de Calculo de Rendimientos</h3>
+<div class="diagram">
+APR = (Fees Generados en 24h * 365) / Valor de la Posicion * 100
+
+Donde:
+- Fees Generados = Volumen * Fee Tier * (Tu Liquidez / Liquidez Total en Rango)
+- Factor de Concentracion = Rango Total del Pool / Tu Rango
+- APR Efectivo = APR Base * Factor de Concentracion
+</div>
+
+<!-- SECCION 3: ARQUITECTURA -->
+<div class="page-break"></div>
+<h1>3. Arquitectura del Sistema</h1>
+
+<h2>3.1 Diagrama de Arquitectura Completa</h2>
+<div class="diagram">
++-------------------------------------------------------------------------+
+|                              FRONTEND                                    |
+|                         (React + TypeScript)                             |
+|  - Dashboard de usuario                                                  |
+|  - Creacion de posiciones                                                |
+|  - Monitoreo de rendimientos                                             |
++------------------------------------+------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                              BACKEND                                     |
+|                         (Node.js + Express)                              |
++-------------------------------------------------------------------------+
+|  +-------------------+  +-------------------+  +---------------------+   |
+|  | API Routes        |  | NFT Service       |  | WayBank v6 Services |   |
+|  | /api/*            |  | (Existente)       |  | /api/v6/*           |   |
+|  +-------------------+  +-------------------+  +---------------------+   |
+|           |                    |                       |                 |
+|           v                    v                       v                 |
+|  +-------------------------------------------------------------------+  |
+|  |                      PostgreSQL Database                           |  |
+|  |  +--------------------+  +-------------------------------------+   |  |
+|  |  | Tablas Existentes  |  | Tablas v6 (Prefijo v6_)             |   |  |
+|  |  | - users            |  | - v6_managed_positions              |   |  |
+|  |  | - positions        |  | - v6_fee_collections                |   |  |
+|  |  | - invoices         |  | - v6_rebalance_history              |   |  |
+|  |  | - yieldDistrib...  |  | - v6_pool_analytics                 |   |  |
+|  |  +--------------------+  +-------------------------------------+   |  |
+|  +-------------------------------------------------------------------+  |
++-------------------------------------------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                         POLYGON BLOCKCHAIN                               |
++-------------------------------------------------------------------------+
+|  +-------------------------------+  +-------------------------------+   |
+|  |   CONTRATOS WAYBANK           |  |   CONTRATOS UNISWAP V3        |   |
+|  +-------------------------------+  +-------------------------------+   |
+|  | WayPoolPositionCreator (v5)   |  | NonfungiblePositionManager    |   |
+|  | WayBankVault (v6)             |  | SwapRouter                    |   |
+|  | PoolAnalyzer (v6)             |  | Factory                       |   |
+|  | SwapExecutor (v6)             |  | Quoter                        |   |
+|  +-------------------------------+  +-------------------------------+   |
++-------------------------------------------------------------------------+
+</div>
+
+<h2>3.2 Stack Tecnologico</h2>
+<table>
+    <tr>
+        <th>Capa</th>
+        <th>Tecnologia</th>
+        <th>Version</th>
+        <th>Proposito</th>
+    </tr>
+    <tr>
+        <td>Smart Contracts</td>
+        <td>Solidity</td>
+        <td>0.8.20</td>
+        <td>Logica on-chain</td>
+    </tr>
+    <tr>
+        <td>Framework</td>
+        <td>Hardhat</td>
+        <td>2.x</td>
+        <td>Desarrollo y deploy</td>
+    </tr>
+    <tr>
+        <td>Seguridad</td>
+        <td>OpenZeppelin</td>
+        <td>5.x</td>
+        <td>Contratos auditados</td>
+    </tr>
+    <tr>
+        <td>Backend</td>
+        <td>Node.js + Express</td>
+        <td>18.x</td>
+        <td>API y servicios</td>
+    </tr>
+    <tr>
+        <td>Base de Datos</td>
+        <td>PostgreSQL + Drizzle</td>
+        <td>15.x</td>
+        <td>Persistencia</td>
+    </tr>
+    <tr>
+        <td>Frontend</td>
+        <td>React + TypeScript</td>
+        <td>18.x</td>
+        <td>Interfaz usuario</td>
+    </tr>
+    <tr>
+        <td>Blockchain</td>
+        <td>Polygon (EVM)</td>
+        <td>-</td>
+        <td>Red principal</td>
+    </tr>
+</table>
+
+<!-- SECCION 4: SISTEMA ORIGINAL -->
+<div class="page-break"></div>
+<h1>4. Sistema Original - WayPoolPositionCreator</h1>
+
+<h2>4.1 Informacion del Contrato</h2>
+<div class="contract-card">
+    <h4>WayPoolPositionCreator <span class="badge badge-success">v5.0</span> <span class="badge badge-primary">Verificado</span></h4>
+    <table>
+        <tr><td><strong>Direccion</strong></td><td class="address">0xf81938F926714f114D07b68dfc3b0E3bC501167B</td></tr>
+        <tr><td><strong>Red</strong></td><td>Polygon Mainnet (137)</td></tr>
+        <tr><td><strong>TX Despliegue</strong></td><td class="address">0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7</td></tr>
+        <tr><td><strong>Bloque</strong></td><td>81779977</td></tr>
+        <tr><td><strong>Fecha</strong></td><td>17 de Enero de 2026</td></tr>
+        <tr><td><strong>Deployer</strong></td><td class="address">0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F</td></tr>
+    </table>
+</div>
+
+<h2>4.2 Historial de Versiones</h2>
+<table>
+    <tr>
+        <th>Version</th>
+        <th>Fecha</th>
+        <th>Cambios Principales</th>
+    </tr>
+    <tr>
+        <td><strong>1.0</strong></td>
+        <td>12 Feb 2021</td>
+        <td>Lanzamiento inicial del protocolo</td>
+    </tr>
+    <tr>
+        <td><strong>2.0</strong></td>
+        <td>Ago 2021</td>
+        <td>Integracion con Uniswap V3</td>
+    </tr>
+    <tr>
+        <td><strong>3.0</strong></td>
+        <td>Mar 2023</td>
+        <td>Migracion a Polygon, optimizacion gas</td>
+    </tr>
+    <tr>
+        <td><strong>3.5</strong></td>
+        <td>Nov 2023</td>
+        <td>Soporte multi-pool</td>
+    </tr>
+    <tr>
+        <td><strong>4.0</strong></td>
+        <td>Jun 2024</td>
+        <td>Refactorizacion completa</td>
+    </tr>
+    <tr>
+        <td><strong>4.5</strong></td>
+        <td>Oct 2025</td>
+        <td>OpenZeppelin 5.x</td>
+    </tr>
+    <tr>
+        <td><strong>5.0</strong></td>
+        <td>17 Ene 2026</td>
+        <td>Version actual - Posiciones minimas</td>
+    </tr>
+</table>
+
+<h2>4.3 Funciones Principales</h2>
+
+<h3>createMinimalPosition()</h3>
+<pre>
+function createMinimalPosition(
+    int24 tickLower,
+    int24 tickUpper
+) external nonReentrant returns (uint256 tokenId, uint128 liquidity)
+</pre>
+<p>Crea una posicion con cantidades minimas (1 wei) en el pool por defecto USDC/WETH 0.05%.</p>
+
+<h3>createPosition()</h3>
+<pre>
+function createPosition(
+    address token0,
+    address token1,
+    uint24 fee,
+    int24 tickLower,
+    int24 tickUpper,
+    uint256 amount0Desired,
+    uint256 amount1Desired
+) external nonReentrant returns (uint256 tokenId, uint128 liquidity)
+</pre>
+<p>Crea una posicion con parametros personalizados.</p>
+
+<h2>4.4 Configuracion por Defecto</h2>
+<table>
+    <tr>
+        <th>Parametro</th>
+        <th>Valor</th>
+        <th>Descripcion</th>
+    </tr>
+    <tr>
+        <td>Token0</td>
+        <td class="address">0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359</td>
+        <td>USDC (Native)</td>
+    </tr>
+    <tr>
+        <td>Token1</td>
+        <td class="address">0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619</td>
+        <td>WETH</td>
+    </tr>
+    <tr>
+        <td>Fee Tier</td>
+        <td>500 (0.05%)</td>
+        <td>Tier de baja volatilidad</td>
+    </tr>
+    <tr>
+        <td>Min Amount</td>
+        <td>1 wei</td>
+        <td>Minimo para ambos tokens</td>
+    </tr>
+</table>
+
+<!-- SECCION 5: SISTEMA V6 -->
+<div class="page-break"></div>
+<h1>5. Sistema v6 - Gestion Automatizada</h1>
+
+<h2>5.1 Vision General</h2>
+<p>El sistema WayBank v6 es un <strong>sistema paralelo</strong> que gestiona las posiciones NFT creadas por el sistema original. <strong>No modifica ni interfiere</strong> con el sistema de creacion existente.</p>
+
+<div class="highlight-box">
+    <strong>Caracteristicas Principales v6:</strong>
+    <ul>
+        <li>Registro de posiciones existentes para gestion automatizada</li>
+        <li>Recoleccion automatica de fees</li>
+        <li>Rebalanceo inteligente cuando posiciones salen de rango</li>
+        <li>Analisis de APR en tiempo real</li>
+    </ul>
+</div>
+
+<h2>5.2 Contratos v6 Desplegados</h2>
+
+<div class="contract-card">
+    <h4>WayBankVault <span class="badge badge-success">v6.0</span> <span class="badge badge-primary">Verificado</span></h4>
+    <p><strong>Proposito:</strong> Vault principal para gestion de posiciones</p>
+    <div class="address">0x375D8808BDfB7D57D40524f0802bbc49008dEe79</div>
+    <p style="margin-top:10px"><strong>Funciones:</strong> registerPosition, collectFees, batchCollectFees, decreaseLiquidity</p>
+</div>
+
+<div class="contract-card">
+    <h4>PoolAnalyzer <span class="badge badge-success">v6.0</span> <span class="badge badge-primary">Verificado</span></h4>
+    <p><strong>Proposito:</strong> Analisis de pools y recomendaciones de rango</p>
+    <div class="address">0xcf54688ad1db461C2D22BC24C0f20Adbeba76504</div>
+    <p style="margin-top:10px"><strong>Funciones:</strong> getPoolInfo, analyzePool, isPositionInRange, getBestPool</p>
+</div>
+
+<div class="contract-card">
+    <h4>SwapExecutor <span class="badge badge-success">v6.0</span> <span class="badge badge-primary">Verificado</span></h4>
+    <p><strong>Proposito:</strong> Ejecucion de swaps para rebalanceo</p>
+    <div class="address">0x4933132E86E4132dAe5Ca30ecEE59fD684c48349</div>
+    <p style="margin-top:10px"><strong>Funciones:</strong> executeSwap, executeSwapWithAutoSlippage, getQuote</p>
+</div>
+
+<h2>5.3 Configuracion del Vault</h2>
+<table>
+    <tr>
+        <th>Parametro</th>
+        <th>Valor</th>
+        <th>Descripcion</th>
+    </tr>
+    <tr>
+        <td>Vault Fee</td>
+        <td>100 bps (1%)</td>
+        <td>Comision sobre fees recolectados</td>
+    </tr>
+    <tr>
+        <td>Treasury</td>
+        <td class="address">0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F</td>
+        <td>Receptor de comisiones</td>
+    </tr>
+    <tr>
+        <td>Max Fee</td>
+        <td>1000 bps (10%)</td>
+        <td>Maximo permitido</td>
+    </tr>
+    <tr>
+        <td>Default Slippage</td>
+        <td>50 bps (0.5%)</td>
+        <td>Tolerancia en swaps</td>
+    </tr>
+</table>
+
+<!-- SECCION 6: SISTEMA DE RENDIMIENTOS -->
+<div class="page-break"></div>
+<h1>6. Sistema de Rendimientos y Repartos</h1>
+
+<h2>6.1 Flujo de Generacion de Rendimientos</h2>
+<div class="diagram">
++------------------+      +------------------+      +------------------+
+|   TRADERS        |      |   POOL UNISWAP   |      |   PROVEEDORES    |
+|                  |      |                  |      |   DE LIQUIDEZ    |
+|  Ejecutan swaps  |----->|  Cobra fees      |----->|  Reciben fees    |
+|  (0.05% - 1%)    |      |  por cada trade  |      |  proporcionales  |
++------------------+      +------------------+      +------------------+
+</div>
+
+<h2>6.2 Distribucion de Fees</h2>
+
+<div class="flow-step">
+    <div class="flow-number">1</div>
+    <div class="flow-content">
+        <strong>Generacion de Fees</strong>
+        <p>Cada vez que un trader intercambia tokens en el pool, paga una comision (0.05%, 0.3% o 1% segun el tier).</p>
+    </div>
+</div>
+
+<div class="flow-step">
+    <div class="flow-number">2</div>
+    <div class="flow-content">
+        <strong>Acumulacion</strong>
+        <p>Los fees se acumulan automaticamente en la posicion NFT del proveedor de liquidez.</p>
+    </div>
+</div>
+
+<div class="flow-step">
+    <div class="flow-number">3</div>
+    <div class="flow-content">
+        <strong>Recoleccion (v6)</strong>
+        <p>El sistema v6 recolecta los fees automaticamente mediante la funcion <code>collectFees()</code>.</p>
+    </div>
+</div>
+
+<div class="flow-step">
+    <div class="flow-number">4</div>
+    <div class="flow-content">
+        <strong>Distribucion</strong>
+        <p>Se descuenta la comision del vault (1%) y el resto se transfiere al propietario de la posicion.</p>
+    </div>
+</div>
+
+<h2>6.3 Calculo de Rendimientos</h2>
+
+<h3>6.3.1 Formula de APR</h3>
+<div class="info-box">
+<pre>
+APR = (Volume_24h * Fee_Tier * Position_Share * 365) / Position_Value * 100
+
+Donde:
+- Volume_24h = Volumen de trading en 24 horas
+- Fee_Tier = 0.0005 (0.05%), 0.003 (0.3%), o 0.01 (1%)
+- Position_Share = Tu_Liquidez / Total_Liquidez_En_Rango
+- Position_Value = Valor total de tu posicion en USD
+</pre>
+</div>
+
+<h3>6.3.2 Ejemplo de Calculo</h3>
+<table>
+    <tr>
+        <th>Variable</th>
+        <th>Valor</th>
+    </tr>
+    <tr>
+        <td>Volumen 24h del pool</td>
+        <td>$10,000,000</td>
+    </tr>
+    <tr>
+        <td>Fee Tier</td>
+        <td>0.05% (500)</td>
+    </tr>
+    <tr>
+        <td>Tu liquidez</td>
+        <td>$1,000</td>
+    </tr>
+    <tr>
+        <td>Liquidez total en tu rango</td>
+        <td>$100,000</td>
+    </tr>
+    <tr>
+        <td><strong>Fees diarios</strong></td>
+        <td>$10M * 0.0005 * ($1K/$100K) = <strong>$0.50/dia</strong></td>
+    </tr>
+    <tr>
+        <td><strong>APR</strong></td>
+        <td>($0.50 * 365) / $1,000 * 100 = <strong>18.25%</strong></td>
+    </tr>
+</table>
+
+<h2>6.4 Distribucion de Comisiones</h2>
+<table>
+    <tr>
+        <th>Concepto</th>
+        <th>Porcentaje</th>
+        <th>Receptor</th>
+    </tr>
+    <tr>
+        <td>Fees del pool</td>
+        <td>99%</td>
+        <td>Propietario de la posicion</td>
+    </tr>
+    <tr>
+        <td>Comision del vault</td>
+        <td>1%</td>
+        <td>Treasury de WayBank</td>
+    </tr>
+</table>
+
+<!-- SECCION 7: ANALISIS DE RIESGOS -->
+<div class="page-break"></div>
+<h1>7. Analisis de Riesgos y Perdidas Potenciales</h1>
+
+<div class="danger-box">
+    <strong>ADVERTENCIA IMPORTANTE:</strong> La provision de liquidez conlleva riesgos financieros significativos. Los usuarios pueden perder parte o la totalidad de su capital. Este documento no constituye asesoramiento financiero.
+</div>
+
+<h2>7.1 Impermanent Loss (Perdida Impermanente)</h2>
+
+<h3>7.1.1 Que es?</h3>
+<p>El Impermanent Loss (IL) es la diferencia entre mantener tokens en una posicion de liquidez vs. simplemente holdearlos. Ocurre cuando el precio relativo de los tokens cambia despues de depositarlos.</p>
+
+<h3>7.1.2 Como Funciona</h3>
+<div class="diagram">
+Escenario: Depositas $1,000 en un pool ETH/USDC (50/50)
+
+Precio Inicial: 1 ETH = $2,000
+- Depositas: 0.25 ETH ($500) + 500 USDC ($500) = $1,000
+
+Precio Final: 1 ETH = $4,000 (ETH sube 100%)
+
+Si hubieras HOLDEADO:
+- 0.25 ETH = $1,000
+- 500 USDC = $500
+- Total = $1,500
+
+En el POOL (despues de arbitraje):
+- ~0.177 ETH = $708
+- ~708 USDC = $708
+- Total = $1,416
+
+IMPERMANENT LOSS = $1,500 - $1,416 = $84 (5.6%)
+</div>
+
+<h3>7.1.3 Tabla de Impermanent Loss</h3>
+<table>
+    <tr>
+        <th>Cambio de Precio</th>
+        <th>IL (Uniswap V2)</th>
+        <th>IL (V3 Rango Estrecho)*</th>
+    </tr>
+    <tr>
+        <td>+/-25%</td>
+        <td>0.6%</td>
+        <td>2-5%</td>
+    </tr>
+    <tr>
+        <td>+/-50%</td>
+        <td>2.0%</td>
+        <td>5-15%</td>
+    </tr>
+    <tr>
+        <td>+/-100%</td>
+        <td>5.7%</td>
+        <td>15-40%</td>
+    </tr>
+    <tr>
+        <td>+/-200%</td>
+        <td>13.4%</td>
+        <td>40-70%</td>
+    </tr>
+    <tr>
+        <td>+/-500%</td>
+        <td>25.5%</td>
+        <td>70-95%</td>
+    </tr>
+</table>
+<p><em>*El IL en V3 depende del ancho del rango. Rangos mas estrechos = mayor IL potencial pero mayores fees.</em></p>
+
+<h2>7.2 Riesgo de Posicion Fuera de Rango</h2>
+
+<div class="warning-box">
+    <strong>Cuando tu posicion sale del rango:</strong>
+    <ul>
+        <li>Dejas de generar fees completamente</li>
+        <li>Tu posicion se convierte 100% en un solo token</li>
+        <li>Necesitas rebalancear para volver a generar rendimientos</li>
+    </ul>
+</div>
+
+<h3>7.2.1 Ejemplo</h3>
+<div class="diagram">
+Posicion: ETH/USDC, Rango $1,900 - $2,100
+
+Si ETH sube a $2,200:
+- Tu posicion = 100% USDC (vendiste todo el ETH)
+- Fees generados = $0/dia
+- Si ETH sigue subiendo, pierdes la ganancia potencial
+
+Si ETH baja a $1,800:
+- Tu posicion = 100% ETH (compraste todo el ETH)
+- Fees generados = $0/dia
+- Si ETH sigue bajando, tu posicion pierde valor
+</div>
+
+<h2>7.3 Otros Riesgos</h2>
+
+<table>
+    <tr>
+        <th>Riesgo</th>
+        <th>Descripcion</th>
+        <th>Mitigacion en WayBank</th>
+    </tr>
+    <tr>
+        <td><strong>Smart Contract</strong></td>
+        <td>Bugs o vulnerabilidades en el codigo</td>
+        <td>Contratos verificados, basados en OpenZeppelin auditado</td>
+    </tr>
+    <tr>
+        <td><strong>MEV/Sandwich</strong></td>
+        <td>Bots que extraen valor de transacciones</td>
+        <td>Deadline corto (10 min), proteccion de slippage</td>
+    </tr>
+    <tr>
+        <td><strong>Liquidez Insuficiente</strong></td>
+        <td>No poder salir de la posicion</td>
+        <td>Pools principales con alta liquidez</td>
+    </tr>
+    <tr>
+        <td><strong>Riesgo de Protocolo</strong></td>
+        <td>Fallo de Uniswap V3</td>
+        <td>Uniswap es el DEX mas grande y probado</td>
+    </tr>
+    <tr>
+        <td><strong>Riesgo de Red</strong></td>
+        <td>Problemas con Polygon</td>
+        <td>Polygon es una red establecida y confiable</td>
+    </tr>
+</table>
+
+<h2>7.4 Escenarios de Perdida</h2>
+
+<h3>7.4.1 Peor Escenario</h3>
+<div class="danger-box">
+    <strong>Perdida Maxima Teorica: 100% del capital</strong>
+    <p>Puede ocurrir si:</p>
+    <ul>
+        <li>Uno de los tokens pierde todo su valor (rug pull, hack)</li>
+        <li>El precio se mueve drasticamente fuera del rango sin rebalanceo</li>
+        <li>Bug critico en los smart contracts</li>
+    </ul>
+</div>
+
+<h3>7.4.2 Escenario Realista</h3>
+<div class="warning-box">
+    <strong>Perdida Tipica en Condiciones Adversas: 5-30%</strong>
+    <p>En mercados volatiles:</p>
+    <ul>
+        <li>IL de 5-15% en movimientos de precio normales</li>
+        <li>Costos de gas por rebalanceos frecuentes</li>
+        <li>Periodos sin generar fees (fuera de rango)</li>
+    </ul>
+</div>
+
+<h2>7.5 Estrategias de Mitigacion</h2>
+
+<ol>
+    <li><strong>Rangos mas amplios:</strong> Menor IL pero menores fees</li>
+    <li><strong>Pares estables:</strong> USDC/USDT tienen IL minimo</li>
+    <li><strong>Rebalanceo automatico (v6):</strong> Mantiene posiciones en rango</li>
+    <li><strong>Diversificacion:</strong> Multiples posiciones en diferentes pools</li>
+    <li><strong>Monitoreo activo:</strong> Alertas cuando posiciones salen de rango</li>
+</ol>
+
+<!-- SECCION 8: CONTRATOS INTELIGENTES -->
+<div class="page-break"></div>
+<h1>8. Contratos Inteligentes</h1>
+
+<h2>8.1 Resumen de Contratos</h2>
+<table>
+    <tr>
+        <th>Contrato</th>
+        <th>Direccion</th>
+        <th>Verificado</th>
+        <th>Tipo</th>
+    </tr>
+    <tr>
+        <td>WayPoolPositionCreator</td>
+        <td class="address">0xf81938F926714f114D07b68dfc3b0E3bC501167B</td>
+        <td><span class="badge badge-success">Si</span></td>
+        <td>Original (v5)</td>
+    </tr>
+    <tr>
+        <td>WayBankVault</td>
+        <td class="address">0x375D8808BDfB7D57D40524f0802bbc49008dEe79</td>
+        <td><span class="badge badge-success">Si</span></td>
+        <td>v6</td>
+    </tr>
+    <tr>
+        <td>PoolAnalyzer</td>
+        <td class="address">0xcf54688ad1db461C2D22BC24C0f20Adbeba76504</td>
+        <td><span class="badge badge-success">Si</span></td>
+        <td>v6</td>
+    </tr>
+    <tr>
+        <td>SwapExecutor</td>
+        <td class="address">0x4933132E86E4132dAe5Ca30ecEE59fD684c48349</td>
+        <td><span class="badge badge-success">Si</span></td>
+        <td>v6</td>
+    </tr>
+</table>
+
+<h2>8.2 Dependencias Externas (Uniswap V3)</h2>
+<table>
+    <tr>
+        <th>Contrato</th>
+        <th>Direccion</th>
+        <th>Proveedor</th>
+    </tr>
+    <tr>
+        <td>NonfungiblePositionManager</td>
+        <td class="address">0xC36442b4a4522E871399CD717aBDD847Ab11FE88</td>
+        <td>Uniswap</td>
+    </tr>
+    <tr>
+        <td>SwapRouter</td>
+        <td class="address">0xE592427A0AEce92De3Edee1F18E0157C05861564</td>
+        <td>Uniswap</td>
+    </tr>
+    <tr>
+        <td>Factory</td>
+        <td class="address">0x1F98431c8aD98523631AE4a59f267346ea31F984</td>
+        <td>Uniswap</td>
+    </tr>
+    <tr>
+        <td>Quoter</td>
+        <td class="address">0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6</td>
+        <td>Uniswap</td>
+    </tr>
+</table>
+
+<h2>8.3 Tokens Soportados</h2>
+<table>
+    <tr>
+        <th>Token</th>
+        <th>Direccion</th>
+        <th>Decimales</th>
+    </tr>
+    <tr>
+        <td>USDC (Native)</td>
+        <td class="address">0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359</td>
+        <td>6</td>
+    </tr>
+    <tr>
+        <td>WETH</td>
+        <td class="address">0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619</td>
+        <td>18</td>
+    </tr>
+    <tr>
+        <td>WMATIC</td>
+        <td class="address">0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270</td>
+        <td>18</td>
+    </tr>
+    <tr>
+        <td>WBTC</td>
+        <td class="address">0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6</td>
+        <td>8</td>
+    </tr>
+</table>
+
+<h2>8.4 Medidas de Seguridad</h2>
+<ul>
+    <li><strong>ReentrancyGuard:</strong> Proteccion contra ataques de reentrancia (OpenZeppelin)</li>
+    <li><strong>SafeERC20:</strong> Transferencias seguras de tokens</li>
+    <li><strong>Ownable:</strong> Control de acceso para funciones administrativas</li>
+    <li><strong>Validacion de inputs:</strong> Todos los parametros son validados</li>
+    <li><strong>Limites maximos:</strong> Fees (10% max) y slippage (5% max) limitados</li>
+</ul>
+
+<!-- SECCION 9: INFRAESTRUCTURA BACKEND -->
+<div class="page-break"></div>
+<h1>9. Infraestructura Backend</h1>
+
+<h2>9.1 Servicios del Sistema</h2>
+<table>
+    <tr>
+        <th>Servicio</th>
+        <th>Archivo</th>
+        <th>Descripcion</th>
+    </tr>
+    <tr>
+        <td>NFT Service</td>
+        <td>server/nft-service.ts</td>
+        <td>Gestion de NFTs y posiciones</td>
+    </tr>
+    <tr>
+        <td>V6 Config</td>
+        <td>server/waybank-v6/v6-config.ts</td>
+        <td>Configuracion v6</td>
+    </tr>
+    <tr>
+        <td>Position Manager</td>
+        <td>server/waybank-v6/v6-position-manager.ts</td>
+        <td>Lee posiciones del blockchain</td>
+    </tr>
+    <tr>
+        <td>APR Service</td>
+        <td>server/waybank-v6/v6-apr-service.ts</td>
+        <td>Analisis de APR</td>
+    </tr>
+    <tr>
+        <td>NFT Manager</td>
+        <td>server/waybank-v6/v6-nft-manager.ts</td>
+        <td>Gestion de NFTs registrados</td>
+    </tr>
+</table>
+
+<h2>9.2 API Endpoints v6</h2>
+<pre>
+Base URL: /api/v6
+
+HEALTH
+  GET  /health                             Estado del sistema
+
+POSICIONES
+  POST /positions/register                 Registrar NFT
+  POST /positions/unregister               Desregistrar NFT
+  GET  /positions/:ownerAddress            Listar posiciones
+  GET  /position/:tokenId                  Obtener posicion
+  GET  /position/:tokenId/status           Estado en tiempo real
+
+HISTORIAL
+  GET  /position/:tokenId/fees             Historial de fees
+  GET  /position/:tokenId/rebalances       Historial de rebalanceos
+
+APR
+  GET  /apr/top-pools                      Top pools por APR
+  GET  /apr/usdc-weth                      Pools USDC/WETH
+
+ESTADISTICAS
+  GET  /stats                              Estadisticas del vault
+</pre>
+
+<!-- SECCION 10: BASE DE DATOS -->
+<h1>10. Base de Datos</h1>
+
+<h2>10.1 Tablas v6</h2>
+
+<h3>v6_managed_positions</h3>
+<p>Almacena las posiciones registradas para gestion automatizada.</p>
+<table>
+    <tr><th>Campo</th><th>Tipo</th><th>Descripcion</th></tr>
+    <tr><td>id</td><td>SERIAL</td><td>ID unico</td></tr>
+    <tr><td>token_id</td><td>TEXT</td><td>ID del NFT</td></tr>
+    <tr><td>owner_address</td><td>TEXT</td><td>Propietario</td></tr>
+    <tr><td>pool_address</td><td>TEXT</td><td>Direccion del pool</td></tr>
+    <tr><td>is_auto_rebalance</td><td>BOOLEAN</td><td>Rebalanceo automatico</td></tr>
+    <tr><td>rebalance_threshold_bps</td><td>INTEGER</td><td>Umbral de rebalanceo</td></tr>
+</table>
+
+<h3>v6_fee_collections</h3>
+<p>Historial de fees recolectados.</p>
+
+<h3>v6_rebalance_history</h3>
+<p>Historial de rebalanceos ejecutados.</p>
+
+<!-- SECCION 11: SEGURIDAD -->
+<div class="page-break"></div>
+<h1>11. Seguridad</h1>
+
+<h2>11.1 Medidas Implementadas</h2>
+
+<h3>Smart Contracts</h3>
+<ul>
+    <li>Contratos basados en OpenZeppelin (auditado)</li>
+    <li>ReentrancyGuard en todas las funciones criticas</li>
+    <li>SafeERC20 para transferencias</li>
+    <li>Validacion exhaustiva de parametros</li>
+    <li>Limites maximos en fees y slippage</li>
+</ul>
+
+<h3>Backend</h3>
+<ul>
+    <li>Rate limiting por IP</li>
+    <li>Sanitizacion de inputs</li>
+    <li>HTTPS obligatorio</li>
+    <li>Variables de entorno para secrets</li>
+    <li>Logging de operaciones</li>
+</ul>
+
+<h2>11.2 Matriz de Riesgos</h2>
+<table>
+    <tr>
+        <th>Riesgo</th>
+        <th>Probabilidad</th>
+        <th>Impacto</th>
+        <th>Mitigacion</th>
+    </tr>
+    <tr>
+        <td>Smart contract exploit</td>
+        <td>Baja</td>
+        <td>Alto</td>
+        <td>Codigo verificado, OpenZeppelin</td>
+    </tr>
+    <tr>
+        <td>MEV/Sandwich</td>
+        <td>Media</td>
+        <td>Medio</td>
+        <td>Deadline corto, slippage protection</td>
+    </tr>
+    <tr>
+        <td>Private key compromise</td>
+        <td>Baja</td>
+        <td>Alto</td>
+        <td>Hardware wallet recomendado</td>
+    </tr>
+    <tr>
+        <td>Impermanent loss</td>
+        <td>Alta</td>
+        <td>Medio</td>
+        <td>Rebalanceo automatico, alertas</td>
+    </tr>
+</table>
+
+<!-- SECCION 12: DIRECCIONES -->
+<div class="page-break"></div>
+<h1>12. Direcciones y Hashes de Contratos</h1>
+
+<h2>12.1 Contratos WayBank</h2>
+<pre>
+SISTEMA ORIGINAL (v5)
+=====================
+WayPoolPositionCreator: 0xf81938F926714f114D07b68dfc3b0E3bC501167B
+  - TX Deploy: 0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7
+  - Block: 81779977
+  - Verified: SI
+
+SISTEMA V6
+==========
+WayBankVault:   0x375D8808BDfB7D57D40524f0802bbc49008dEe79    [Verified]
+PoolAnalyzer:   0xcf54688ad1db461C2D22BC24C0f20Adbeba76504    [Verified]
+SwapExecutor:   0x4933132E86E4132dAe5Ca30ecEE59fD684c48349    [Verified]
+</pre>
+
+<h2>12.2 Direcciones Administrativas</h2>
+<pre>
+Deployer/Owner: 0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F
+Treasury:       0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F
+</pre>
+
+<h2>12.3 Contratos Externos (Uniswap V3 - Polygon)</h2>
+<pre>
+NonfungiblePositionManager: 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
+SwapRouter:                 0xE592427A0AEce92De3Edee1F18E0157C05861564
+Factory:                    0x1F98431c8aD98523631AE4a59f267346ea31F984
+Quoter:                     0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+</pre>
+
+<h2>12.4 Tokens</h2>
+<pre>
+USDC (Native):  0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359 (6 decimals)
+WETH:           0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619 (18 decimals)
+WMATIC:         0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270 (18 decimals)
+WBTC:           0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6 (8 decimals)
+</pre>
+
+<!-- SECCION 13: GLOSARIO -->
+<div class="page-break"></div>
+<h1>13. Glosario Tecnico</h1>
+
+<table>
+    <tr>
+        <th>Termino</th>
+        <th>Definicion</th>
+    </tr>
+    <tr>
+        <td><strong>APR</strong></td>
+        <td>Annual Percentage Rate - Tasa de rendimiento anualizada</td>
+    </tr>
+    <tr>
+        <td><strong>Concentrated Liquidity</strong></td>
+        <td>Liquidez concentrada en un rango especifico de precios</td>
+    </tr>
+    <tr>
+        <td><strong>Delta Neutral</strong></td>
+        <td>Estrategia que minimiza exposicion a cambios de precio</td>
+    </tr>
+    <tr>
+        <td><strong>Fee Tier</strong></td>
+        <td>Nivel de comision del pool (0.05%, 0.3%, 1%)</td>
+    </tr>
+    <tr>
+        <td><strong>Impermanent Loss</strong></td>
+        <td>Perdida temporal por divergencia de precios</td>
+    </tr>
+    <tr>
+        <td><strong>Liquidity</strong></td>
+        <td>Capital depositado en el pool</td>
+    </tr>
+    <tr>
+        <td><strong>NFT Position</strong></td>
+        <td>Token ERC-721 que representa una posicion de liquidez</td>
+    </tr>
+    <tr>
+        <td><strong>Pool</strong></td>
+        <td>Par de trading en Uniswap V3</td>
+    </tr>
+    <tr>
+        <td><strong>Rebalancing</strong></td>
+        <td>Ajustar la posicion para mantenerla en rango optimo</td>
+    </tr>
+    <tr>
+        <td><strong>Slippage</strong></td>
+        <td>Diferencia entre precio esperado y ejecutado</td>
+    </tr>
+    <tr>
+        <td><strong>Tick</strong></td>
+        <td>Unidad minima de precio en Uniswap V3</td>
+    </tr>
+    <tr>
+        <td><strong>Treasury</strong></td>
+        <td>Direccion que recibe comisiones del protocolo</td>
+    </tr>
+    <tr>
+        <td><strong>TVL</strong></td>
+        <td>Total Value Locked - Valor total depositado</td>
+    </tr>
+    <tr>
+        <td><strong>Vault</strong></td>
+        <td>Contrato que gestiona multiples posiciones</td>
+    </tr>
+</table>
+
+<footer>
+    <p><strong>WayBank - Documentacion de Auditoria</strong></p>
+    <p>Version 1.0.0 | 24 de Enero de 2026</p>
+    <p>Red: Polygon Mainnet (Chain ID: 137)</p>
+    <p>Todos los contratos verificados en PolygonScan</p>
+</footer>
+
+</div>
+
+</body>
+</html>

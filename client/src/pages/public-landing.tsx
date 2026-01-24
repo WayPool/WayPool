@@ -108,6 +108,7 @@ const enTranslations = {
   analytics: "Analytics",
   resources: "Resources",
   documentation: "Documentation",
+  auditDocs: "Audit Documentation",
   support: "Support",
   community: "Community",
   legal: "Legal",
@@ -195,6 +196,7 @@ const esTranslations = {
   analytics: "Analíticas",
   resources: "Recursos",
   documentation: "Documentación",
+  auditDocs: "Documentación de Auditoría",
   support: "Soporte",
   community: "Comunidad",
   legal: "Legal",
@@ -287,6 +289,7 @@ const frTranslations = {
   analytics: "Analytiques",
   resources: "Ressources",
   documentation: "Documentation",
+  auditDocs: "Documentation d'Audit",
   support: "Support",
   community: "Communauté",
   legal: "Mentions légales",
@@ -375,6 +378,7 @@ const deTranslations = {
   analytics: "Analytik",
   resources: "Ressourcen",
   documentation: "Dokumentation",
+  auditDocs: "Audit-Dokumentation",
   support: "Support",
   community: "Community",
   legal: "Rechtliches",
@@ -463,6 +467,7 @@ const itTranslations = {
   analytics: "Analisi",
   resources: "Risorse",
   documentation: "Documentazione",
+  auditDocs: "Documentazione di Audit",
   support: "Supporto",
   community: "Comunità",
   legal: "Legale",
@@ -551,6 +556,7 @@ const ptTranslations = {
   analytics: "Análises",
   resources: "Recursos",
   documentation: "Documentação",
+  auditDocs: "Documentação de Auditoria",
   support: "Suporte",
   community: "Comunidade",
   legal: "Legal",
@@ -639,6 +645,7 @@ const arTranslations = {
   analytics: "التحليلات",
   resources: "الموارد",
   documentation: "التوثيق",
+  auditDocs: "وثائق التدقيق",
   support: "الدعم",
   community: "المجتمع",
   legal: "قانوني",
@@ -727,6 +734,7 @@ const zhTranslations = {
   analytics: "分析",
   resources: "资源",
   documentation: "文档",
+  auditDocs: "审计文档",
   support: "支持",
   community: "社区",
   legal: "法律",
@@ -815,6 +823,7 @@ const hiTranslations = {
   analytics: "एनालिटिक्स",
   resources: "संसाधन",
   documentation: "दस्तावेज़ीकरण",
+  auditDocs: "ऑडिट दस्तावेज़ीकरण",
   support: "सहायता",
   community: "समुदाय",
   legal: "कानूनी",
@@ -1424,6 +1433,7 @@ export default function PublicLanding() {
               </h4>
               <ul className="space-y-2">
                 <li><Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">{t.documentation}</Link></li>
+                <li><a href="/docs/audit-report.html" className="text-muted-foreground hover:text-foreground transition-colors">{t.auditDocs}</a></li>
                 <li><Link href="/support" className="text-muted-foreground hover:text-foreground transition-colors">{t.support}</Link></li>
                 <li><Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">{t.community}</Link></li>
               </ul>

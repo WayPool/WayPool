@@ -1,0 +1,2404 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayBank - Technical Audit Documentation</title>
+    <meta name="description" content="Complete technical and audit documentation for WayBank concentrated liquidity management protocol on Polygon.">
+    <link rel="icon" type="image/svg+xml" href="/dollar-favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #a855f7;
+            --primary-dark: #9333ea;
+            --primary-light: #c084fc;
+            --background: #030014;
+            --background-secondary: #0a0520;
+            --card: #0f0a1e;
+            --card-hover: #150d2e;
+            --border: #2d1f4e;
+            --text: #f5f5f5;
+            --text-muted: #a1a1aa;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(3, 0, 20, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .nav-brand svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+        }
+
+        /* Language Selector */
+        .language-selector {
+            position: relative;
+        }
+
+        .lang-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .lang-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-width: 180px;
+            max-height: 320px;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 200;
+        }
+
+        .lang-dropdown.open {
+            display: block;
+        }
+
+        .lang-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: background 0.2s;
+        }
+
+        .lang-item:hover {
+            background: var(--card-hover);
+        }
+
+        .lang-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 140px 1.5rem 80px;
+            text-align: center;
+            background: linear-gradient(180deg, var(--background-secondary) 0%, var(--background) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            color: var(--primary-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--text) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.125rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .hero-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .hero-info-item strong {
+            color: var(--text);
+        }
+
+        /* Stats Section */
+        .stats-section {
+            padding: 0 1.5rem 60px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--card) 0%, var(--background-secondary) 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Tab Navigation */
+        .tabs-container {
+            position: sticky;
+            top: 64px;
+            z-index: 50;
+            background: rgba(3, 0, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            overflow-x: auto;
+        }
+
+        .tabs-list {
+            display: flex;
+            gap: 0.25rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.25rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* Content Sections */
+        .content-section {
+            padding: 60px 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 10px;
+        }
+
+        .section-title-icon svg {
+            width: 20px;
+            height: 20px;
+            color: white;
+        }
+
+        .section-description {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            max-width: 800px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: rgba(168, 85, 247, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        .badge-primary {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--primary);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        /* Contract Cards */
+        .contract-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .contract-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .contract-card-header {
+            padding: 1.25rem 1.5rem;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .contract-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .contract-card-body {
+            padding: 1.5rem;
+        }
+
+        .contract-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .contract-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .contract-info-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .contract-info-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--primary-light);
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .address-link {
+            color: var(--primary-light);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .address-link:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin: 1.5rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--card);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 1rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(168, 85, 247, 0.03);
+        }
+
+        /* Alert Boxes */
+        .alert {
+            padding: 1.25rem 1.5rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .alert-success .alert-icon {
+            color: var(--success);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .alert-warning .alert-icon {
+            color: var(--warning);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .alert-danger .alert-icon {
+            color: var(--danger);
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .alert-info .alert-icon {
+            color: var(--info);
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: #e0e0e0;
+            margin: 1.5rem 0;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(168, 85, 247, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--primary-light);
+        }
+
+        /* Diagrams */
+        .diagram {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            white-space: pre;
+            color: var(--primary-light);
+            margin: 1.5rem 0;
+        }
+
+        /* Flow Steps */
+        .flow-steps {
+            margin: 1.5rem 0;
+        }
+
+        .flow-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .flow-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .flow-content {
+            flex: 1;
+            padding-top: 0.35rem;
+        }
+
+        .flow-content h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .flow-content p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Two Columns */
+        .two-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* List Styles */
+        ul, ol {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        li strong {
+            color: var(--text);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--background-secondary);
+            border-top: 1px solid var(--border);
+            padding: 60px 1.5rem 30px;
+            margin-top: 60px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-col h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+        }
+
+        .footer-col ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-col li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-col a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--primary);
+        }
+
+        .footer-bottom {
+            max-width: 1200px;
+            margin: 3rem auto 0;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* RTL Support */
+        html[dir="rtl"] {
+            direction: rtl;
+        }
+
+        html[dir="rtl"] .nav-links {
+            flex-direction: row-reverse;
+        }
+
+        html[dir="rtl"] .lang-dropdown {
+            left: 0;
+            right: auto;
+        }
+
+        html[dir="rtl"] .contract-info-value {
+            text-align: left;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 1rem;
+            }
+
+            .nav-links {
+                gap: 0.75rem;
+            }
+
+            .nav-link {
+                display: none;
+            }
+
+            .hero {
+                padding: 120px 1rem 60px;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero-info {
+                gap: 1rem;
+            }
+
+            .tabs-container {
+                padding: 0 1rem;
+            }
+
+            .tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .contract-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-grid {
+                gap: 2rem;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v12M8 10h8M8 14h8"/>
+            </svg>
+            <span>WayBank</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link" data-i18n="nav_home">Home</a>
+            <a href="/how-it-works" class="nav-link" data-i18n="nav_how">How It Works</a>
+            <a href="/dashboard" class="nav-link" data-i18n="nav_dashboard">Dashboard</a>
+            <div class="language-selector">
+                <button class="lang-btn" id="langBtn">
+                    <span id="currentLang">English</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </button>
+                <div class="lang-dropdown" id="langDropdown">
+                    <div class="lang-item active" data-lang="en">English</div>
+                    <div class="lang-item" data-lang="es">Espanol</div>
+                    <div class="lang-item" data-lang="fr">Francais</div>
+                    <div class="lang-item" data-lang="de">Deutsch</div>
+                    <div class="lang-item" data-lang="pt">Portugues</div>
+                    <div class="lang-item" data-lang="it">Italiano</div>
+                    <div class="lang-item" data-lang="zh">Chinese</div>
+                    <div class="lang-item" data-lang="hi">Hindi</div>
+                    <div class="lang-item" data-lang="ar">Arabic</div>
+                    <div class="lang-item" data-lang="ru">Russian</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span data-i18n="hero_badge">Technical Audit Documentation</span>
+        </div>
+        <h1 data-i18n="hero_title">WayBank Protocol Documentation</h1>
+        <p class="hero-subtitle" data-i18n="hero_subtitle">Complete technical and security documentation for the concentrated liquidity management protocol on Polygon Mainnet.</p>
+        <div class="hero-info">
+            <div class="hero-info-item">
+                <strong data-i18n="hero_network">Network:</strong>
+                <span>Polygon (137)</span>
+            </div>
+            <div class="hero-info-item">
+                <strong data-i18n="hero_version">Version:</strong>
+                <span>v5.0 + v6.0</span>
+            </div>
+            <div class="hero-info-item">
+                <strong data-i18n="hero_date">Date:</strong>
+                <span>January 24, 2026</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">5</div>
+                <div class="stat-label" data-i18n="stat_years">Years of Development</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label" data-i18n="stat_contracts">Deployed Contracts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">137</div>
+                <div class="stat-label" data-i18n="stat_chain">Chain ID (Polygon)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">100%</div>
+                <div class="stat-label" data-i18n="stat_verified">Verified on PolygonScan</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+        <div class="tabs-list">
+            <button class="tab-btn active" data-tab="overview" data-i18n="tab_overview">Overview</button>
+            <button class="tab-btn" data-tab="delta" data-i18n="tab_delta">Delta Neutral</button>
+            <button class="tab-btn" data-tab="contracts" data-i18n="tab_contracts">Contracts</button>
+            <button class="tab-btn" data-tab="yields" data-i18n="tab_yields">Yields</button>
+            <button class="tab-btn" data-tab="risks" data-i18n="tab_risks">Risks</button>
+            <button class="tab-btn" data-tab="security" data-i18n="tab_security">Security</button>
+            <button class="tab-btn" data-tab="addresses" data-i18n="tab_addresses">Addresses</button>
+        </div>
+    </div>
+
+    <!-- Tab Contents -->
+    <main class="container">
+        <!-- OVERVIEW TAB -->
+        <div class="tab-content active" id="tab-overview">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="overview_title">System Overview</span>
+                </div>
+                <p class="section-description" data-i18n="overview_desc">WayBank is a concentrated liquidity management protocol built on Uniswap V3 on the Polygon network. The system enables users of any capital level to participate in efficient, automated liquidity provision with yield optimization strategies.</p>
+
+                <div class="two-col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="overview_purpose">Purpose</h3>
+                        </div>
+                        <ul>
+                            <li><strong data-i18n="purpose_1_title">Democratize access:</strong> <span data-i18n="purpose_1_desc">Allow participation with minimal capital amounts</span></li>
+                            <li><strong data-i18n="purpose_2_title">Automate management:</strong> <span data-i18n="purpose_2_desc">Automatic rebalancing and fee collection</span></li>
+                            <li><strong data-i18n="purpose_3_title">Optimize yields:</strong> <span data-i18n="purpose_3_desc">Delta Neutral strategy to minimize risks</span></li>
+                            <li><strong data-i18n="purpose_4_title">Total transparency:</strong> <span data-i18n="purpose_4_desc">All contracts verified and open source</span></li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="overview_components">System Components</h3>
+                        </div>
+                        <ul>
+                            <li><strong>WayPoolPositionCreator (v5):</strong> <span data-i18n="comp_1_desc">Original NFT creation system</span></li>
+                            <li><strong>WayBankVault (v6):</strong> <span data-i18n="comp_2_desc">Automated position management</span></li>
+                            <li><strong>PoolAnalyzer (v6):</strong> <span data-i18n="comp_3_desc">Pool analysis and APR calculation</span></li>
+                            <li><strong>SwapExecutor (v6):</strong> <span data-i18n="comp_4_desc">Swap execution for rebalancing</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem;" data-i18n="overview_arch">Architecture Diagram</h3>
+                <div class="diagram">+------------------------------------------------------------------+
+|                        WAYBANK SYSTEM                             |
++------------------------------------------------------------------+
+|                                                                    |
+|  +------------------------+     +-----------------------------+   |
+|  |   ORIGINAL SYSTEM      |     |      V6 SYSTEM              |   |
+|  |   (NFT Creation)       |     |   (Automated Management)    |   |
+|  +------------------------+     +-----------------------------+   |
+|  | WayPoolPosition        |---->| WayBankVault                |   |
+|  | Creator.sol            |     | PoolAnalyzer.sol            |   |
+|  | v5.0                   |     | SwapExecutor.sol            |   |
+|  +------------------------+     +-----------------------------+   |
+|           |                              |                        |
+|           v                              v                        |
+|  +------------------------------------------------------------+  |
+|  |              UNISWAP V3 (Polygon Mainnet)                   |  |
+|  |  NonfungiblePositionManager | SwapRouter | Factory          |  |
+|  +------------------------------------------------------------+  |
+|                                                                    |
++------------------------------------------------------------------+</div>
+
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem;" data-i18n="overview_history">Version History</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_version">Version</th>
+                                <th data-i18n="th_date">Date</th>
+                                <th data-i18n="th_changes">Main Changes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-primary">1.0</span></td>
+                                <td>Feb 12, 2021</td>
+                                <td data-i18n="v1_desc">Initial protocol launch</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-primary">2.0</span></td>
+                                <td>Aug 2021</td>
+                                <td data-i18n="v2_desc">Uniswap V3 integration</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-primary">3.0</span></td>
+                                <td>Mar 2023</td>
+                                <td data-i18n="v3_desc">Migration to Polygon, gas optimization</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-primary">3.5</span></td>
+                                <td>Nov 2023</td>
+                                <td data-i18n="v35_desc">Multi-pool support</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-primary">4.0</span></td>
+                                <td>Jun 2024</td>
+                                <td data-i18n="v4_desc">Complete refactoring</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-primary">4.5</span></td>
+                                <td>Oct 2025</td>
+                                <td data-i18n="v45_desc">OpenZeppelin 5.x integration</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-success">5.0</span></td>
+                                <td>Jan 17, 2026</td>
+                                <td data-i18n="v5_desc">Current version - Minimal positions</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-success">6.0</span></td>
+                                <td>Jan 24, 2026</td>
+                                <td data-i18n="v6_desc">Automated management system (parallel)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- DELTA NEUTRAL TAB -->
+        <div class="tab-content" id="tab-delta">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="delta_title">Delta Neutral Strategy</span>
+                </div>
+                <p class="section-description" data-i18n="delta_desc">The Delta Neutral strategy is the core of WayBank's model. Its goal is to generate yields from trading fees while minimizing exposure to price changes of the underlying assets.</p>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="delta_what">What is Concentrated Liquidity?</h3>
+                    <p style="color: var(--text-muted); margin-top: 1rem;" data-i18n="delta_what_desc">Unlike Uniswap V2 where liquidity is distributed uniformly across the entire price range (0 to infinity), Uniswap V3 allows liquidity providers to concentrate their capital in specific price ranges.</p>
+
+                    <div class="alert alert-success" style="margin-top: 1.5rem;">
+                        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                            <path d="M22 4L12 14.01l-3-3"/>
+                        </svg>
+                        <div>
+                            <strong data-i18n="delta_benefits">Benefits of Concentrated Liquidity:</strong>
+                            <ul style="margin-top: 0.5rem;">
+                                <li data-i18n="delta_benefit_1">Capital efficiency up to 4000x higher</li>
+                                <li data-i18n="delta_benefit_2">Higher yields per unit of capital</li>
+                                <li data-i18n="delta_benefit_3">Precise control over exposure range</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="delta_concept">Concept of Delta</h3>
+                    <p style="color: var(--text-muted); margin-top: 1rem;" data-i18n="delta_concept_desc">Delta measures the sensitivity of a position's value to changes in the underlying asset's price:</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>Delta = 0:</strong> <span data-i18n="delta_0">Position doesn't change value when price moves (neutral)</span></li>
+                        <li><strong>Delta > 0:</strong> <span data-i18n="delta_pos">Position gains value if price rises (long)</span></li>
+                        <li><strong>Delta < 0:</strong> <span data-i18n="delta_neg">Position gains value if price falls (short)</span></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="delta_how">How It Works in WayBank</h3>
+                    <div class="flow-steps" style="margin-top: 1rem;">
+                        <div class="flow-step">
+                            <div class="flow-number">1</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="delta_step_1_title">Create Position</h4>
+                                <p data-i18n="delta_step_1_desc">A liquidity position is created in a narrow range around the current price</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">2</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="delta_step_2_title">Monitor</h4>
+                                <p data-i18n="delta_step_2_desc">The price is continuously monitored relative to the range</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">3</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="delta_step_3_title">Rebalance</h4>
+                                <p data-i18n="delta_step_3_desc">When price exits the range, the position is rebalanced</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">4</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="delta_step_4_title">Collect Fees</h4>
+                                <p data-i18n="delta_step_4_desc">Trading fees accumulate while the position is in range</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">5</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="delta_step_5_title">Maintain Neutrality</h4>
+                                <p data-i18n="delta_step_5_desc">Frequent rebalancing keeps delta exposure close to zero</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem;" data-i18n="delta_example">Practical Example</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_scenario">Scenario</th>
+                                <th data-i18n="th_eth_price">ETH Price</th>
+                                <th data-i18n="th_action">Action</th>
+                                <th data-i18n="th_result">Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="ex_start">Start</td>
+                                <td>$2,000</td>
+                                <td data-i18n="ex_start_action">Create position range $1,900-$2,100</td>
+                                <td>50% USDC / 50% ETH</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="ex_up">Price rises</td>
+                                <td>$2,100</td>
+                                <td data-i18n="ex_up_action">Position now 100% USDC</td>
+                                <td data-i18n="ex_up_result">Rebalance to new range</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="ex_post">Post-rebalance</td>
+                                <td>$2,100</td>
+                                <td data-i18n="ex_post_action">New range $2,000-$2,200</td>
+                                <td>50% USDC / 50% ETH</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- CONTRACTS TAB -->
+        <div class="tab-content" id="tab-contracts">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 21h8M12 17v4"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="contracts_title">Smart Contracts</span>
+                </div>
+                <p class="section-description" data-i18n="contracts_desc">All WayBank smart contracts are verified on PolygonScan and use battle-tested OpenZeppelin libraries for maximum security.</p>
+
+                <h3 style="margin-bottom: 1.5rem;" data-i18n="contracts_original">Original System (v5)</h3>
+                <div class="contract-card">
+                    <div class="contract-card-header">
+                        <div class="contract-name">
+                            WayPoolPositionCreator
+                            <span class="badge badge-success">v5.0</span>
+                            <span class="badge badge-primary" data-i18n="badge_verified">Verified</span>
+                        </div>
+                    </div>
+                    <div class="contract-card-body">
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_address">Address</span>
+                            <a href="https://polygonscan.com/address/0xf81938F926714f114D07b68dfc3b0E3bC501167B" target="_blank" class="contract-info-value address-link">0xf81938F926714f114D07b68dfc3b0E3bC501167B</a>
+                        </div>
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_network">Network</span>
+                            <span class="contract-info-value">Polygon Mainnet (137)</span>
+                        </div>
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_tx">Deploy TX</span>
+                            <a href="https://polygonscan.com/tx/0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7" target="_blank" class="contract-info-value address-link">0x2f876d...01a7</a>
+                        </div>
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_block">Block</span>
+                            <span class="contract-info-value">81779977</span>
+                        </div>
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_date">Date</span>
+                            <span class="contract-info-value">January 17, 2026</span>
+                        </div>
+                        <div class="contract-info-row">
+                            <span class="contract-info-label" data-i18n="label_deployer">Deployer</span>
+                            <span class="contract-info-value">0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin: 2rem 0 1.5rem;" data-i18n="contracts_v6">V6 System - Automated Management</h3>
+                <div class="contract-grid">
+                    <div class="contract-card">
+                        <div class="contract-card-header">
+                            <div class="contract-name">
+                                WayBankVault
+                                <span class="badge badge-success">v6.0</span>
+                            </div>
+                        </div>
+                        <div class="contract-card-body">
+                            <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.875rem;" data-i18n="vault_purpose">Main vault for position management</p>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_address">Address</span>
+                                <a href="https://polygonscan.com/address/0x375D8808BDfB7D57D40524f0802bbc49008dEe79" target="_blank" class="contract-info-value address-link">0x375D88...Ee79</a>
+                            </div>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_functions">Functions</span>
+                                <span class="contract-info-value">registerPosition, collectFees, batchCollectFees</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contract-card">
+                        <div class="contract-card-header">
+                            <div class="contract-name">
+                                PoolAnalyzer
+                                <span class="badge badge-success">v6.0</span>
+                            </div>
+                        </div>
+                        <div class="contract-card-body">
+                            <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.875rem;" data-i18n="analyzer_purpose">Pool analysis and range recommendations</p>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_address">Address</span>
+                                <a href="https://polygonscan.com/address/0xcf54688ad1db461C2D22BC24C0f20Adbeba76504" target="_blank" class="contract-info-value address-link">0xcf5468...6504</a>
+                            </div>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_functions">Functions</span>
+                                <span class="contract-info-value">getPoolInfo, analyzePool, isPositionInRange</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contract-card">
+                        <div class="contract-card-header">
+                            <div class="contract-name">
+                                SwapExecutor
+                                <span class="badge badge-success">v6.0</span>
+                            </div>
+                        </div>
+                        <div class="contract-card-body">
+                            <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.875rem;" data-i18n="executor_purpose">Swap execution for rebalancing</p>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_address">Address</span>
+                                <a href="https://polygonscan.com/address/0x4933132E86E4132dAe5Ca30ecEE59fD684c48349" target="_blank" class="contract-info-value address-link">0x493313...8349</a>
+                            </div>
+                            <div class="contract-info-row">
+                                <span class="contract-info-label" data-i18n="label_functions">Functions</span>
+                                <span class="contract-info-value">executeSwap, getQuote</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin: 2rem 0 1.5rem;" data-i18n="contracts_config">Vault Configuration</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_param">Parameter</th>
+                                <th data-i18n="th_value">Value</th>
+                                <th data-i18n="th_description">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Vault Fee</td>
+                                <td>100 bps (1%)</td>
+                                <td data-i18n="config_fee">Commission on collected fees</td>
+                            </tr>
+                            <tr>
+                                <td>Treasury</td>
+                                <td><code>0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F</code></td>
+                                <td data-i18n="config_treasury">Commission receiver</td>
+                            </tr>
+                            <tr>
+                                <td>Max Fee</td>
+                                <td>1000 bps (10%)</td>
+                                <td data-i18n="config_max">Maximum allowed fee</td>
+                            </tr>
+                            <tr>
+                                <td>Default Slippage</td>
+                                <td>50 bps (0.5%)</td>
+                                <td data-i18n="config_slippage">Swap tolerance</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- YIELDS TAB -->
+        <div class="tab-content" id="tab-yields">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="yields_title">Yield System</span>
+                </div>
+                <p class="section-description" data-i18n="yields_desc">The primary source of income is trading fees that traders pay when swapping tokens in the pool.</p>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="yields_tiers">Fee Tiers</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="th_tier">Fee Tier</th>
+                                    <th data-i18n="th_percentage">Percentage</th>
+                                    <th data-i18n="th_typical_use">Typical Use</th>
+                                    <th data-i18n="th_est_apr">Estimated APR*</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Low</td>
+                                    <td>0.05%</td>
+                                    <td data-i18n="tier_low_use">Stablecoins, very liquid pairs</td>
+                                    <td>5-15%</td>
+                                </tr>
+                                <tr>
+                                    <td>Medium</td>
+                                    <td>0.30%</td>
+                                    <td data-i18n="tier_med_use">Standard pairs (ETH/USDC)</td>
+                                    <td>15-40%</td>
+                                </tr>
+                                <tr>
+                                    <td>High</td>
+                                    <td>1.00%</td>
+                                    <td data-i18n="tier_high_use">Volatile, exotic pairs</td>
+                                    <td>25-100%+</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 1rem;" data-i18n="yields_note">*APRs vary based on trading volume, total liquidity, and market conditions</p>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="yields_formula">APR Calculation Formula</h3>
+                    <div class="code-block">APR = (Volume_24h * Fee_Tier * Position_Share * 365) / Position_Value * 100
+
+Where:
+- Volume_24h = Trading volume in 24 hours
+- Fee_Tier = 0.0005 (0.05%), 0.003 (0.3%), or 0.01 (1%)
+- Position_Share = Your_Liquidity / Total_Liquidity_In_Range
+- Position_Value = Total value of your position in USD</div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="yields_example">Calculation Example</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="th_variable">Variable</th>
+                                    <th data-i18n="th_value">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td data-i18n="ex_vol">Pool 24h volume</td>
+                                    <td>$10,000,000</td>
+                                </tr>
+                                <tr>
+                                    <td>Fee Tier</td>
+                                    <td>0.05% (500)</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="ex_liq">Your liquidity</td>
+                                    <td>$1,000</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="ex_total">Total liquidity in your range</td>
+                                    <td>$100,000</td>
+                                </tr>
+                                <tr>
+                                    <td><strong data-i18n="ex_daily">Daily fees</strong></td>
+                                    <td><strong>$10M * 0.0005 * ($1K/$100K) = $0.50/day</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>APR</strong></td>
+                                    <td><strong>($0.50 * 365) / $1,000 * 100 = 18.25%</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="yields_dist">Fee Distribution Flow</h3>
+                    <div class="flow-steps" style="margin-top: 1rem;">
+                        <div class="flow-step">
+                            <div class="flow-number">1</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="dist_1_title">Fee Generation</h4>
+                                <p data-i18n="dist_1_desc">Each time a trader swaps tokens, they pay a fee (0.05%, 0.3% or 1% depending on tier).</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">2</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="dist_2_title">Accumulation</h4>
+                                <p data-i18n="dist_2_desc">Fees automatically accumulate in the liquidity provider's NFT position.</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">3</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="dist_3_title">Collection (v6)</h4>
+                                <p data-i18n="dist_3_desc">The v6 system automatically collects fees via the collectFees() function.</p>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-number">4</div>
+                            <div class="flow-content">
+                                <h4 data-i18n="dist_4_title">Distribution</h4>
+                                <p data-i18n="dist_4_desc">Vault commission (1%) is deducted and the rest is transferred to the position owner.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- RISKS TAB -->
+        <div class="tab-content" id="tab-risks">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            <path d="M12 9v4M12 17h.01"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="risks_title">Risk Analysis</span>
+                </div>
+
+                <div class="alert alert-danger">
+                    <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 8v4M12 16h.01"/>
+                    </svg>
+                    <div>
+                        <strong data-i18n="risks_warning">IMPORTANT WARNING:</strong>
+                        <p style="margin-top: 0.5rem;" data-i18n="risks_warning_desc">Liquidity provision carries significant financial risks. Users may lose part or all of their capital. This document does not constitute financial advice.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="risks_il">Impermanent Loss (IL)</h3>
+                    <p style="color: var(--text-muted); margin-top: 1rem;" data-i18n="risks_il_desc">Impermanent Loss is the difference between holding tokens in a liquidity position vs. simply holding them. It occurs when the relative price of tokens changes after depositing.</p>
+
+                    <div class="diagram" style="margin-top: 1.5rem;">Scenario: You deposit $1,000 in an ETH/USDC pool (50/50)
+
+Initial Price: 1 ETH = $2,000
+- You deposit: 0.25 ETH ($500) + 500 USDC ($500) = $1,000
+
+Final Price: 1 ETH = $4,000 (ETH rises 100%)
+
+If you had HELD:
+- 0.25 ETH = $1,000
+- 500 USDC = $500
+- Total = $1,500
+
+In the POOL (after arbitrage):
+- ~0.177 ETH = $708
+- ~708 USDC = $708
+- Total = $1,416
+
+IMPERMANENT LOSS = $1,500 - $1,416 = $84 (5.6%)</div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="risks_il_table">Impermanent Loss Table</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="th_price_change">Price Change</th>
+                                    <th>IL (Uniswap V2)</th>
+                                    <th data-i18n="th_il_v3">IL (V3 Narrow Range)*</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>+/-25%</td><td>0.6%</td><td>2-5%</td></tr>
+                                <tr><td>+/-50%</td><td>2.0%</td><td>5-15%</td></tr>
+                                <tr><td>+/-100%</td><td>5.7%</td><td>15-40%</td></tr>
+                                <tr><td>+/-200%</td><td>13.4%</td><td>40-70%</td></tr>
+                                <tr><td>+/-500%</td><td>25.5%</td><td>70-95%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 1rem;" data-i18n="risks_il_note">*IL in V3 depends on range width. Narrower ranges = higher potential IL but higher fees.</p>
+                </div>
+
+                <div class="alert alert-warning">
+                    <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        <path d="M12 9v4M12 17h.01"/>
+                    </svg>
+                    <div>
+                        <strong data-i18n="risks_oor">When your position goes out of range:</strong>
+                        <ul style="margin-top: 0.5rem;">
+                            <li data-i18n="risks_oor_1">You stop generating fees completely</li>
+                            <li data-i18n="risks_oor_2">Your position becomes 100% in one token</li>
+                            <li data-i18n="risks_oor_3">You need to rebalance to generate yields again</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="risks_other">Other Risks</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="th_risk">Risk</th>
+                                    <th data-i18n="th_desc">Description</th>
+                                    <th data-i18n="th_mitigation">Mitigation in WayBank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Smart Contract</strong></td>
+                                    <td data-i18n="risk_sc_desc">Bugs or vulnerabilities in code</td>
+                                    <td data-i18n="risk_sc_mit">Verified contracts, based on audited OpenZeppelin</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>MEV/Sandwich</strong></td>
+                                    <td data-i18n="risk_mev_desc">Bots extracting value from transactions</td>
+                                    <td data-i18n="risk_mev_mit">Short deadline (10 min), slippage protection</td>
+                                </tr>
+                                <tr>
+                                    <td><strong data-i18n="risk_liq">Insufficient Liquidity</strong></td>
+                                    <td data-i18n="risk_liq_desc">Unable to exit position</td>
+                                    <td data-i18n="risk_liq_mit">Main pools with high liquidity</td>
+                                </tr>
+                                <tr>
+                                    <td><strong data-i18n="risk_protocol">Protocol Risk</strong></td>
+                                    <td data-i18n="risk_protocol_desc">Uniswap V3 failure</td>
+                                    <td data-i18n="risk_protocol_mit">Uniswap is the largest and most proven DEX</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="two-col" style="margin-top: 2rem;">
+                    <div class="alert alert-danger" style="margin: 0;">
+                        <div>
+                            <strong data-i18n="risks_worst">Worst Case Scenario</strong>
+                            <p style="margin: 0.5rem 0; font-size: 1.25rem; font-weight: 700;" data-i18n="risks_worst_loss">Maximum Theoretical Loss: 100% of capital</p>
+                            <p style="color: var(--text-muted);" data-i18n="risks_worst_when">Can occur if one token loses all value, price moves drastically, or critical smart contract bug</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning" style="margin: 0;">
+                        <div>
+                            <strong data-i18n="risks_realistic">Realistic Scenario</strong>
+                            <p style="margin: 0.5rem 0; font-size: 1.25rem; font-weight: 700;" data-i18n="risks_realistic_loss">Typical Loss in Adverse Conditions: 5-30%</p>
+                            <p style="color: var(--text-muted);" data-i18n="risks_realistic_when">IL of 5-15% in normal price movements, gas costs for frequent rebalancing</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- SECURITY TAB -->
+        <div class="tab-content" id="tab-security">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="security_title">Security Measures</span>
+                </div>
+
+                <div class="two-col">
+                    <div class="card">
+                        <h3 class="card-title" data-i18n="security_contracts">Smart Contracts</h3>
+                        <ul style="margin-top: 1rem;">
+                            <li data-i18n="sec_1">Contracts based on OpenZeppelin (audited)</li>
+                            <li data-i18n="sec_2">ReentrancyGuard in all critical functions</li>
+                            <li data-i18n="sec_3">SafeERC20 for token transfers</li>
+                            <li data-i18n="sec_4">Exhaustive parameter validation</li>
+                            <li data-i18n="sec_5">Maximum limits on fees (10%) and slippage (5%)</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title">Backend</h3>
+                        <ul style="margin-top: 1rem;">
+                            <li data-i18n="sec_6">Rate limiting per IP</li>
+                            <li data-i18n="sec_7">Input sanitization</li>
+                            <li data-i18n="sec_8">Mandatory HTTPS</li>
+                            <li data-i18n="sec_9">Environment variables for secrets</li>
+                            <li data-i18n="sec_10">Operation logging</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1.5rem;">
+                    <h3 class="card-title" data-i18n="security_matrix">Risk Matrix</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="th_risk">Risk</th>
+                                    <th data-i18n="th_probability">Probability</th>
+                                    <th data-i18n="th_impact">Impact</th>
+                                    <th data-i18n="th_mitigation">Mitigation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td data-i18n="matrix_1_risk">Smart contract exploit</td>
+                                    <td><span class="badge badge-success" data-i18n="prob_low">Low</span></td>
+                                    <td><span class="badge badge-danger" data-i18n="impact_high">High</span></td>
+                                    <td data-i18n="matrix_1_mit">Verified code, OpenZeppelin</td>
+                                </tr>
+                                <tr>
+                                    <td>MEV/Sandwich</td>
+                                    <td><span class="badge badge-warning" data-i18n="prob_med">Medium</span></td>
+                                    <td><span class="badge badge-warning" data-i18n="impact_med">Medium</span></td>
+                                    <td data-i18n="matrix_2_mit">Short deadline, slippage protection</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="matrix_3_risk">Private key compromise</td>
+                                    <td><span class="badge badge-success" data-i18n="prob_low">Low</span></td>
+                                    <td><span class="badge badge-danger" data-i18n="impact_high">High</span></td>
+                                    <td data-i18n="matrix_3_mit">Hardware wallet recommended</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="matrix_4_risk">Impermanent loss</td>
+                                    <td><span class="badge badge-danger" data-i18n="prob_high">High</span></td>
+                                    <td><span class="badge badge-warning" data-i18n="impact_med">Medium</span></td>
+                                    <td data-i18n="matrix_4_mit">Automatic rebalancing, alerts</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="alert alert-success" style="margin-top: 1.5rem;">
+                    <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                        <path d="M22 4L12 14.01l-3-3"/>
+                    </svg>
+                    <div>
+                        <strong data-i18n="security_verified">All Contracts Verified</strong>
+                        <p style="margin-top: 0.5rem;" data-i18n="security_verified_desc">All WayBank smart contracts have been verified on PolygonScan, allowing anyone to review the source code and verify that the deployed bytecode matches the published source code.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ADDRESSES TAB -->
+        <div class="tab-content" id="tab-addresses">
+            <section class="content-section">
+                <div class="section-title">
+                    <div class="section-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                            <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>
+                        </svg>
+                    </div>
+                    <span data-i18n="addresses_title">Contract Addresses & Hashes</span>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="addresses_waybank">WayBank Contracts</h3>
+                    <div class="code-block">ORIGINAL SYSTEM (v5)
+=====================
+WayPoolPositionCreator: 0xf81938F926714f114D07b68dfc3b0E3bC501167B
+  - TX Deploy: 0x2f876d0bcacb64577f77929e1c6638ac89d5522176209105cd6a275ced3d01a7
+  - Block: 81779977
+  - Verified: YES
+
+V6 SYSTEM
+==========
+WayBankVault:   0x375D8808BDfB7D57D40524f0802bbc49008dEe79    [Verified]
+PoolAnalyzer:   0xcf54688ad1db461C2D22BC24C0f20Adbeba76504    [Verified]
+SwapExecutor:   0x4933132E86E4132dAe5Ca30ecEE59fD684c48349    [Verified]</div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="addresses_admin">Administrative Addresses</h3>
+                    <div class="code-block">Deployer/Owner: 0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F
+Treasury:       0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F</div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="addresses_uniswap">External Contracts (Uniswap V3 - Polygon)</h3>
+                    <div class="code-block">NonfungiblePositionManager: 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
+SwapRouter:                 0xE592427A0AEce92De3Edee1F18E0157C05861564
+Factory:                    0x1F98431c8aD98523631AE4a59f267346ea31F984
+Quoter:                     0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6</div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Tokens</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Token</th>
+                                    <th data-i18n="th_address">Address</th>
+                                    <th>Decimals</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>USDC (Native)</td>
+                                    <td><code>0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359</code></td>
+                                    <td>6</td>
+                                </tr>
+                                <tr>
+                                    <td>WETH</td>
+                                    <td><code>0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619</code></td>
+                                    <td>18</td>
+                                </tr>
+                                <tr>
+                                    <td>WMATIC</td>
+                                    <td><code>0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270</code></td>
+                                    <td>18</td>
+                                </tr>
+                                <tr>
+                                    <td>WBTC</td>
+                                    <td><code>0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6</code></td>
+                                    <td>8</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" data-i18n="addresses_links">Useful Links</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><a href="https://polygonscan.com/address/0xf81938F926714f114D07b68dfc3b0E3bC501167B" target="_blank" class="address-link">WayPoolPositionCreator on PolygonScan</a></li>
+                        <li><a href="https://polygonscan.com/address/0x375D8808BDfB7D57D40524f0802bbc49008dEe79" target="_blank" class="address-link">WayBankVault on PolygonScan</a></li>
+                        <li><a href="https://polygonscan.com/address/0xcf54688ad1db461C2D22BC24C0f20Adbeba76504" target="_blank" class="address-link">PoolAnalyzer on PolygonScan</a></li>
+                        <li><a href="https://polygonscan.com/address/0x4933132E86E4132dAe5Ca30ecEE59fD684c48349" target="_blank" class="address-link">SwapExecutor on PolygonScan</a></li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>WayBank</h4>
+                <p style="color: var(--text-muted); font-size: 0.875rem;" data-i18n="footer_desc">Advanced liquidity management platform for DeFi.</p>
+            </div>
+            <div class="footer-col">
+                <h4 data-i18n="footer_platform">Platform</h4>
+                <ul>
+                    <li><a href="/dashboard" data-i18n="footer_dashboard">Dashboard</a></li>
+                    <li><a href="/positions" data-i18n="footer_positions">Positions</a></li>
+                    <li><a href="/analytics" data-i18n="footer_analytics">Analytics</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4 data-i18n="footer_resources">Resources</h4>
+                <ul>
+                    <li><a href="/docs/audit-report.html" data-i18n="footer_audit">Audit Documentation</a></li>
+                    <li><a href="/support" data-i18n="footer_support">Support</a></li>
+                    <li><a href="https://discord.gg/waybank" data-i18n="footer_community">Community</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4 data-i18n="footer_legal">Legal</h4>
+                <ul>
+                    <li><a href="/terms-of-use" data-i18n="footer_terms">Terms of Use</a></li>
+                    <li><a href="/privacy-policy" data-i18n="footer_privacy">Privacy Policy</a></li>
+                    <li><a href="/disclaimer" data-i18n="footer_disclaimer">Disclaimer</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p data-i18n="footer_copyright">&copy; 2026 WayBank. All rights reserved.</p>
+            <p style="margin-top: 0.5rem;">Network: Polygon Mainnet (Chain ID: 137)</p>
+        </div>
+    </footer>
+
+    <script>
+        // Translations
+        const translations = {
+            en: {
+                // Navigation
+                nav_home: "Home",
+                nav_how: "How It Works",
+                nav_dashboard: "Dashboard",
+
+                // Hero
+                hero_badge: "Technical Audit Documentation",
+                hero_title: "WayBank Protocol Documentation",
+                hero_subtitle: "Complete technical and security documentation for the concentrated liquidity management protocol on Polygon Mainnet.",
+                hero_network: "Network:",
+                hero_version: "Version:",
+                hero_date: "Date:",
+
+                // Stats
+                stat_years: "Years of Development",
+                stat_contracts: "Deployed Contracts",
+                stat_chain: "Chain ID (Polygon)",
+                stat_verified: "Verified on PolygonScan",
+
+                // Tabs
+                tab_overview: "Overview",
+                tab_delta: "Delta Neutral",
+                tab_contracts: "Contracts",
+                tab_yields: "Yields",
+                tab_risks: "Risks",
+                tab_security: "Security",
+                tab_addresses: "Addresses",
+
+                // Overview Section
+                overview_title: "System Overview",
+                overview_desc: "WayBank is a concentrated liquidity management protocol built on Uniswap V3 on the Polygon network. The system enables users of any capital level to participate in efficient, automated liquidity provision with yield optimization strategies.",
+                overview_purpose: "Purpose",
+                purpose_1_title: "Democratize access:",
+                purpose_1_desc: "Allow participation with minimal capital amounts",
+                purpose_2_title: "Automate management:",
+                purpose_2_desc: "Automatic rebalancing and fee collection",
+                purpose_3_title: "Optimize yields:",
+                purpose_3_desc: "Delta Neutral strategy to minimize risks",
+                purpose_4_title: "Total transparency:",
+                purpose_4_desc: "All contracts verified and open source",
+                overview_components: "System Components",
+                comp_1_desc: "Original NFT creation system",
+                comp_2_desc: "Automated position management",
+                comp_3_desc: "Pool analysis and APR calculation",
+                comp_4_desc: "Swap execution for rebalancing",
+                overview_arch: "Architecture Diagram",
+                overview_history: "Version History",
+
+                // Table Headers
+                th_version: "Version",
+                th_date: "Date",
+                th_changes: "Main Changes",
+                th_param: "Parameter",
+                th_value: "Value",
+                th_description: "Description",
+                th_scenario: "Scenario",
+                th_eth_price: "ETH Price",
+                th_action: "Action",
+                th_result: "Result",
+                th_tier: "Fee Tier",
+                th_percentage: "Percentage",
+                th_typical_use: "Typical Use",
+                th_est_apr: "Estimated APR*",
+                th_variable: "Variable",
+                th_price_change: "Price Change",
+                th_il_v3: "IL (V3 Narrow Range)*",
+                th_risk: "Risk",
+                th_desc: "Description",
+                th_mitigation: "Mitigation",
+                th_probability: "Probability",
+                th_impact: "Impact",
+                th_address: "Address",
+
+                // Version History
+                v1_desc: "Initial protocol launch",
+                v2_desc: "Uniswap V3 integration",
+                v3_desc: "Migration to Polygon, gas optimization",
+                v35_desc: "Multi-pool support",
+                v4_desc: "Complete refactoring",
+                v45_desc: "OpenZeppelin 5.x integration",
+                v5_desc: "Current version - Minimal positions",
+                v6_desc: "Automated management system (parallel)",
+
+                // Delta Neutral
+                delta_title: "Delta Neutral Strategy",
+                delta_desc: "The Delta Neutral strategy is the core of WayBank's model. Its goal is to generate yields from trading fees while minimizing exposure to price changes of the underlying assets.",
+                delta_what: "What is Concentrated Liquidity?",
+                delta_what_desc: "Unlike Uniswap V2 where liquidity is distributed uniformly across the entire price range (0 to infinity), Uniswap V3 allows liquidity providers to concentrate their capital in specific price ranges.",
+                delta_benefits: "Benefits of Concentrated Liquidity:",
+                delta_benefit_1: "Capital efficiency up to 4000x higher",
+                delta_benefit_2: "Higher yields per unit of capital",
+                delta_benefit_3: "Precise control over exposure range",
+                delta_concept: "Concept of Delta",
+                delta_concept_desc: "Delta measures the sensitivity of a position's value to changes in the underlying asset's price:",
+                delta_0: "Position doesn't change value when price moves (neutral)",
+                delta_pos: "Position gains value if price rises (long)",
+                delta_neg: "Position gains value if price falls (short)",
+                delta_how: "How It Works in WayBank",
+                delta_step_1_title: "Create Position",
+                delta_step_1_desc: "A liquidity position is created in a narrow range around the current price",
+                delta_step_2_title: "Monitor",
+                delta_step_2_desc: "The price is continuously monitored relative to the range",
+                delta_step_3_title: "Rebalance",
+                delta_step_3_desc: "When price exits the range, the position is rebalanced",
+                delta_step_4_title: "Collect Fees",
+                delta_step_4_desc: "Trading fees accumulate while the position is in range",
+                delta_step_5_title: "Maintain Neutrality",
+                delta_step_5_desc: "Frequent rebalancing keeps delta exposure close to zero",
+                delta_example: "Practical Example",
+                ex_start: "Start",
+                ex_start_action: "Create position range $1,900-$2,100",
+                ex_up: "Price rises",
+                ex_up_action: "Position now 100% USDC",
+                ex_up_result: "Rebalance to new range",
+                ex_post: "Post-rebalance",
+                ex_post_action: "New range $2,000-$2,200",
+
+                // Contracts
+                contracts_title: "Smart Contracts",
+                contracts_desc: "All WayBank smart contracts are verified on PolygonScan and use battle-tested OpenZeppelin libraries for maximum security.",
+                contracts_original: "Original System (v5)",
+                contracts_v6: "V6 System - Automated Management",
+                contracts_config: "Vault Configuration",
+                badge_verified: "Verified",
+                label_address: "Address",
+                label_network: "Network",
+                label_tx: "Deploy TX",
+                label_block: "Block",
+                label_date: "Date",
+                label_deployer: "Deployer",
+                label_functions: "Functions",
+                vault_purpose: "Main vault for position management",
+                analyzer_purpose: "Pool analysis and range recommendations",
+                executor_purpose: "Swap execution for rebalancing",
+                config_fee: "Commission on collected fees",
+                config_treasury: "Commission receiver",
+                config_max: "Maximum allowed fee",
+                config_slippage: "Swap tolerance",
+
+                // Yields
+                yields_title: "Yield System",
+                yields_desc: "The primary source of income is trading fees that traders pay when swapping tokens in the pool.",
+                yields_tiers: "Fee Tiers",
+                tier_low_use: "Stablecoins, very liquid pairs",
+                tier_med_use: "Standard pairs (ETH/USDC)",
+                tier_high_use: "Volatile, exotic pairs",
+                yields_note: "*APRs vary based on trading volume, total liquidity, and market conditions",
+                yields_formula: "APR Calculation Formula",
+                yields_example: "Calculation Example",
+                ex_vol: "Pool 24h volume",
+                ex_liq: "Your liquidity",
+                ex_total: "Total liquidity in your range",
+                ex_daily: "Daily fees",
+                yields_dist: "Fee Distribution Flow",
+                dist_1_title: "Fee Generation",
+                dist_1_desc: "Each time a trader swaps tokens, they pay a fee (0.05%, 0.3% or 1% depending on tier).",
+                dist_2_title: "Accumulation",
+                dist_2_desc: "Fees automatically accumulate in the liquidity provider's NFT position.",
+                dist_3_title: "Collection (v6)",
+                dist_3_desc: "The v6 system automatically collects fees via the collectFees() function.",
+                dist_4_title: "Distribution",
+                dist_4_desc: "Vault commission (1%) is deducted and the rest is transferred to the position owner.",
+
+                // Risks
+                risks_title: "Risk Analysis",
+                risks_warning: "IMPORTANT WARNING:",
+                risks_warning_desc: "Liquidity provision carries significant financial risks. Users may lose part or all of their capital. This document does not constitute financial advice.",
+                risks_il: "Impermanent Loss (IL)",
+                risks_il_desc: "Impermanent Loss is the difference between holding tokens in a liquidity position vs. simply holding them. It occurs when the relative price of tokens changes after depositing.",
+                risks_il_table: "Impermanent Loss Table",
+                risks_il_note: "*IL in V3 depends on range width. Narrower ranges = higher potential IL but higher fees.",
+                risks_oor: "When your position goes out of range:",
+                risks_oor_1: "You stop generating fees completely",
+                risks_oor_2: "Your position becomes 100% in one token",
+                risks_oor_3: "You need to rebalance to generate yields again",
+                risks_other: "Other Risks",
+                risk_sc_desc: "Bugs or vulnerabilities in code",
+                risk_sc_mit: "Verified contracts, based on audited OpenZeppelin",
+                risk_mev_desc: "Bots extracting value from transactions",
+                risk_mev_mit: "Short deadline (10 min), slippage protection",
+                risk_liq: "Insufficient Liquidity",
+                risk_liq_desc: "Unable to exit position",
+                risk_liq_mit: "Main pools with high liquidity",
+                risk_protocol: "Protocol Risk",
+                risk_protocol_desc: "Uniswap V3 failure",
+                risk_protocol_mit: "Uniswap is the largest and most proven DEX",
+                risks_worst: "Worst Case Scenario",
+                risks_worst_loss: "Maximum Theoretical Loss: 100% of capital",
+                risks_worst_when: "Can occur if one token loses all value, price moves drastically, or critical smart contract bug",
+                risks_realistic: "Realistic Scenario",
+                risks_realistic_loss: "Typical Loss in Adverse Conditions: 5-30%",
+                risks_realistic_when: "IL of 5-15% in normal price movements, gas costs for frequent rebalancing",
+
+                // Security
+                security_title: "Security Measures",
+                security_contracts: "Smart Contracts",
+                sec_1: "Contracts based on OpenZeppelin (audited)",
+                sec_2: "ReentrancyGuard in all critical functions",
+                sec_3: "SafeERC20 for token transfers",
+                sec_4: "Exhaustive parameter validation",
+                sec_5: "Maximum limits on fees (10%) and slippage (5%)",
+                sec_6: "Rate limiting per IP",
+                sec_7: "Input sanitization",
+                sec_8: "Mandatory HTTPS",
+                sec_9: "Environment variables for secrets",
+                sec_10: "Operation logging",
+                security_matrix: "Risk Matrix",
+                matrix_1_risk: "Smart contract exploit",
+                matrix_1_mit: "Verified code, OpenZeppelin",
+                matrix_2_mit: "Short deadline, slippage protection",
+                matrix_3_risk: "Private key compromise",
+                matrix_3_mit: "Hardware wallet recommended",
+                matrix_4_risk: "Impermanent loss",
+                matrix_4_mit: "Automatic rebalancing, alerts",
+                prob_low: "Low",
+                prob_med: "Medium",
+                prob_high: "High",
+                impact_low: "Low",
+                impact_med: "Medium",
+                impact_high: "High",
+                security_verified: "All Contracts Verified",
+                security_verified_desc: "All WayBank smart contracts have been verified on PolygonScan, allowing anyone to review the source code and verify that the deployed bytecode matches the published source code.",
+
+                // Addresses
+                addresses_title: "Contract Addresses & Hashes",
+                addresses_waybank: "WayBank Contracts",
+                addresses_admin: "Administrative Addresses",
+                addresses_uniswap: "External Contracts (Uniswap V3 - Polygon)",
+                addresses_links: "Useful Links",
+
+                // Footer
+                footer_desc: "Advanced liquidity management platform for DeFi.",
+                footer_platform: "Platform",
+                footer_dashboard: "Dashboard",
+                footer_positions: "Positions",
+                footer_analytics: "Analytics",
+                footer_resources: "Resources",
+                footer_audit: "Audit Documentation",
+                footer_support: "Support",
+                footer_community: "Community",
+                footer_legal: "Legal",
+                footer_terms: "Terms of Use",
+                footer_privacy: "Privacy Policy",
+                footer_disclaimer: "Disclaimer",
+                footer_copyright: "&copy; 2026 WayBank. All rights reserved."
+            },
+            es: {
+                nav_home: "Inicio",
+                nav_how: "Como Funciona",
+                nav_dashboard: "Dashboard",
+                hero_badge: "Documentacion Tecnica de Auditoria",
+                hero_title: "Documentacion del Protocolo WayBank",
+                hero_subtitle: "Documentacion tecnica y de seguridad completa para el protocolo de gestion de liquidez concentrada en Polygon Mainnet.",
+                hero_network: "Red:",
+                hero_version: "Version:",
+                hero_date: "Fecha:",
+                stat_years: "Anos de Desarrollo",
+                stat_contracts: "Contratos Desplegados",
+                stat_chain: "Chain ID (Polygon)",
+                stat_verified: "Verificados en PolygonScan",
+                tab_overview: "Vision General",
+                tab_delta: "Delta Neutral",
+                tab_contracts: "Contratos",
+                tab_yields: "Rendimientos",
+                tab_risks: "Riesgos",
+                tab_security: "Seguridad",
+                tab_addresses: "Direcciones",
+                overview_title: "Vision General del Sistema",
+                overview_desc: "WayBank es un protocolo de gestion de liquidez concentrada construido sobre Uniswap V3 en la red Polygon. El sistema permite a usuarios de cualquier nivel de capital participar en la provision de liquidez eficiente y automatizada con estrategias de optimizacion de rendimientos.",
+                overview_purpose: "Proposito",
+                purpose_1_title: "Democratizar el acceso:",
+                purpose_1_desc: "Permitir participacion con cantidades minimas de capital",
+                purpose_2_title: "Automatizar la gestion:",
+                purpose_2_desc: "Rebalanceo automatico y recoleccion de fees",
+                purpose_3_title: "Optimizar rendimientos:",
+                purpose_3_desc: "Estrategia Delta Neutral para minimizar riesgos",
+                purpose_4_title: "Transparencia total:",
+                purpose_4_desc: "Todos los contratos verificados y codigo abierto",
+                overview_components: "Componentes del Sistema",
+                comp_1_desc: "Sistema original de creacion de NFTs",
+                comp_2_desc: "Gestion automatizada de posiciones",
+                comp_3_desc: "Analisis de pools y calculo de APR",
+                comp_4_desc: "Ejecucion de swaps para rebalanceo",
+                overview_arch: "Diagrama de Arquitectura",
+                overview_history: "Historial de Versiones",
+                th_version: "Version",
+                th_date: "Fecha",
+                th_changes: "Cambios Principales",
+                v1_desc: "Lanzamiento inicial del protocolo",
+                v2_desc: "Integracion con Uniswap V3",
+                v3_desc: "Migracion a Polygon, optimizacion de gas",
+                v35_desc: "Soporte multi-pool",
+                v4_desc: "Refactorizacion completa",
+                v45_desc: "Integracion OpenZeppelin 5.x",
+                v5_desc: "Version actual - Posiciones minimas",
+                v6_desc: "Sistema de gestion automatizada (paralelo)",
+                delta_title: "Estrategia Delta Neutral",
+                delta_desc: "La estrategia Delta Neutral es el nucleo del modelo de WayBank. Su objetivo es generar rendimientos de fees de trading mientras se minimiza la exposicion a cambios de precio de los activos subyacentes.",
+                delta_what: "Que es la Liquidez Concentrada?",
+                delta_what_desc: "A diferencia de Uniswap V2 donde la liquidez se distribuye uniformemente en todo el rango de precios (0 a infinito), Uniswap V3 permite a los proveedores de liquidez concentrar su capital en rangos especificos de precios.",
+                delta_benefits: "Beneficios de la Liquidez Concentrada:",
+                delta_benefit_1: "Eficiencia de capital hasta 4000x mayor",
+                delta_benefit_2: "Mayores rendimientos por unidad de capital",
+                delta_benefit_3: "Control preciso sobre el rango de exposicion",
+                contracts_title: "Contratos Inteligentes",
+                contracts_desc: "Todos los contratos inteligentes de WayBank estan verificados en PolygonScan y utilizan bibliotecas OpenZeppelin probadas en batalla para maxima seguridad.",
+                contracts_original: "Sistema Original (v5)",
+                contracts_v6: "Sistema V6 - Gestion Automatizada",
+                contracts_config: "Configuracion del Vault",
+                badge_verified: "Verificado",
+                yields_title: "Sistema de Rendimientos",
+                yields_desc: "La fuente principal de ingresos son los fees de trading que los traders pagan al intercambiar tokens en el pool.",
+                yields_tiers: "Niveles de Fee",
+                risks_title: "Analisis de Riesgos",
+                risks_warning: "ADVERTENCIA IMPORTANTE:",
+                risks_warning_desc: "La provision de liquidez conlleva riesgos financieros significativos. Los usuarios pueden perder parte o la totalidad de su capital. Este documento no constituye asesoramiento financiero.",
+                risks_il: "Perdida Impermanente (IL)",
+                risks_il_desc: "La Perdida Impermanente es la diferencia entre mantener tokens en una posicion de liquidez vs. simplemente holdearlos. Ocurre cuando el precio relativo de los tokens cambia despues de depositarlos.",
+                security_title: "Medidas de Seguridad",
+                security_contracts: "Contratos Inteligentes",
+                addresses_title: "Direcciones y Hashes de Contratos",
+                addresses_waybank: "Contratos WayBank",
+                addresses_admin: "Direcciones Administrativas",
+                addresses_uniswap: "Contratos Externos (Uniswap V3 - Polygon)",
+                addresses_links: "Enlaces Utiles",
+                footer_desc: "Plataforma avanzada de gestion de liquidez para DeFi.",
+                footer_platform: "Plataforma",
+                footer_dashboard: "Dashboard",
+                footer_positions: "Posiciones",
+                footer_analytics: "Analiticas",
+                footer_resources: "Recursos",
+                footer_audit: "Documentacion de Auditoria",
+                footer_support: "Soporte",
+                footer_community: "Comunidad",
+                footer_legal: "Legal",
+                footer_terms: "Terminos de Uso",
+                footer_privacy: "Politica de Privacidad",
+                footer_disclaimer: "Aviso Legal",
+                footer_copyright: "&copy; 2026 WayBank. Todos los derechos reservados."
+            },
+            fr: {
+                nav_home: "Accueil",
+                nav_how: "Comment ca marche",
+                nav_dashboard: "Tableau de bord",
+                hero_badge: "Documentation d'Audit Technique",
+                hero_title: "Documentation du Protocole WayBank",
+                hero_subtitle: "Documentation technique et de securite complete pour le protocole de gestion de liquidite concentree sur Polygon Mainnet.",
+                stat_years: "Annees de Developpement",
+                stat_contracts: "Contrats Deployes",
+                stat_verified: "Verifies sur PolygonScan",
+                tab_overview: "Vue d'ensemble",
+                tab_delta: "Delta Neutre",
+                tab_contracts: "Contrats",
+                tab_yields: "Rendements",
+                tab_risks: "Risques",
+                tab_security: "Securite",
+                tab_addresses: "Adresses",
+                overview_title: "Vue d'ensemble du Systeme",
+                delta_title: "Strategie Delta Neutre",
+                contracts_title: "Contrats Intelligents",
+                yields_title: "Systeme de Rendements",
+                risks_title: "Analyse des Risques",
+                security_title: "Mesures de Securite",
+                addresses_title: "Adresses des Contrats",
+                footer_desc: "Plateforme avancee de gestion de liquidite pour DeFi.",
+                footer_platform: "Plateforme",
+                footer_resources: "Ressources",
+                footer_legal: "Legal",
+                footer_copyright: "&copy; 2026 WayBank. Tous droits reserves."
+            },
+            de: {
+                nav_home: "Startseite",
+                nav_how: "Wie es funktioniert",
+                nav_dashboard: "Dashboard",
+                hero_badge: "Technische Audit-Dokumentation",
+                hero_title: "WayBank Protokoll Dokumentation",
+                hero_subtitle: "Vollstandige technische und Sicherheitsdokumentation fur das konzentrierte Liquiditatsmanagement-Protokoll auf Polygon Mainnet.",
+                stat_years: "Jahre Entwicklung",
+                stat_contracts: "Bereitgestellte Vertrage",
+                stat_verified: "Auf PolygonScan verifiziert",
+                tab_overview: "Uberblick",
+                tab_delta: "Delta Neutral",
+                tab_contracts: "Vertrage",
+                tab_yields: "Ertrage",
+                tab_risks: "Risiken",
+                tab_security: "Sicherheit",
+                tab_addresses: "Adressen",
+                footer_desc: "Fortschrittliche Liquiditatsmanagement-Plattform fur DeFi.",
+                footer_copyright: "&copy; 2026 WayBank. Alle Rechte vorbehalten."
+            },
+            pt: {
+                nav_home: "Inicio",
+                nav_how: "Como Funciona",
+                nav_dashboard: "Painel",
+                hero_badge: "Documentacao Tecnica de Auditoria",
+                hero_title: "Documentacao do Protocolo WayBank",
+                hero_subtitle: "Documentacao tecnica e de seguranca completa para o protocolo de gestao de liquidez concentrada na Polygon Mainnet.",
+                stat_years: "Anos de Desenvolvimento",
+                stat_contracts: "Contratos Implantados",
+                stat_verified: "Verificados no PolygonScan",
+                tab_overview: "Visao Geral",
+                tab_delta: "Delta Neutro",
+                tab_contracts: "Contratos",
+                tab_yields: "Rendimentos",
+                tab_risks: "Riscos",
+                tab_security: "Seguranca",
+                tab_addresses: "Enderecos",
+                footer_desc: "Plataforma avancada de gestao de liquidez para DeFi.",
+                footer_copyright: "&copy; 2026 WayBank. Todos os direitos reservados."
+            },
+            it: {
+                nav_home: "Home",
+                nav_how: "Come Funziona",
+                nav_dashboard: "Dashboard",
+                hero_badge: "Documentazione Tecnica di Audit",
+                hero_title: "Documentazione del Protocollo WayBank",
+                hero_subtitle: "Documentazione tecnica e di sicurezza completa per il protocollo di gestione della liquidita concentrata su Polygon Mainnet.",
+                stat_years: "Anni di Sviluppo",
+                stat_contracts: "Contratti Distribuiti",
+                stat_verified: "Verificati su PolygonScan",
+                tab_overview: "Panoramica",
+                tab_delta: "Delta Neutrale",
+                tab_contracts: "Contratti",
+                tab_yields: "Rendimenti",
+                tab_risks: "Rischi",
+                tab_security: "Sicurezza",
+                tab_addresses: "Indirizzi",
+                footer_desc: "Piattaforma avanzata di gestione della liquidita per DeFi.",
+                footer_copyright: "&copy; 2026 WayBank. Tutti i diritti riservati."
+            },
+            zh: {
+                nav_home: "首页",
+                nav_how: "工作原理",
+                nav_dashboard: "仪表板",
+                hero_badge: "技术审计文档",
+                hero_title: "WayBank 协议文档",
+                hero_subtitle: "Polygon 主网上集中流动性管理协议的完整技术和安全文档。",
+                stat_years: "开发年限",
+                stat_contracts: "已部署合约",
+                stat_verified: "已在 PolygonScan 验证",
+                tab_overview: "概述",
+                tab_delta: "Delta 中性",
+                tab_contracts: "合约",
+                tab_yields: "收益",
+                tab_risks: "风险",
+                tab_security: "安全",
+                tab_addresses: "地址",
+                footer_desc: "DeFi 高级流动性管理平台。",
+                footer_copyright: "&copy; 2026 WayBank. 保留所有权利。"
+            },
+            hi: {
+                nav_home: "होम",
+                nav_how: "कैसे काम करता है",
+                nav_dashboard: "डैशबोर्ड",
+                hero_badge: "तकनीकी ऑडिट दस्तावेज",
+                hero_title: "WayBank प्रोटोकॉल दस्तावेज",
+                hero_subtitle: "Polygon Mainnet पर केंद्रित तरलता प्रबंधन प्रोटोकॉल के लिए पूर्ण तकनीकी और सुरक्षा दस्तावेज।",
+                stat_years: "विकास के वर्ष",
+                stat_contracts: "तैनात अनुबंध",
+                stat_verified: "PolygonScan पर सत्यापित",
+                tab_overview: "अवलोकन",
+                tab_delta: "डेल्टा न्यूट्रल",
+                tab_contracts: "अनुबंध",
+                tab_yields: "प्रतिफल",
+                tab_risks: "जोखिम",
+                tab_security: "सुरक्षा",
+                tab_addresses: "पते",
+                footer_desc: "DeFi के लिए उन्नत तरलता प्रबंधन प्लेटफॉर्म।",
+                footer_copyright: "&copy; 2026 WayBank. सर्वाधिकार सुरक्षित।"
+            },
+            ar: {
+                nav_home: "الرئيسية",
+                nav_how: "كيف يعمل",
+                nav_dashboard: "لوحة التحكم",
+                hero_badge: "وثائق التدقيق الفني",
+                hero_title: "وثائق بروتوكول WayBank",
+                hero_subtitle: "وثائق تقنية وأمنية كاملة لبروتوكول إدارة السيولة المركزة على Polygon Mainnet.",
+                stat_years: "سنوات التطوير",
+                stat_contracts: "العقود المنشورة",
+                stat_verified: "موثق على PolygonScan",
+                tab_overview: "نظرة عامة",
+                tab_delta: "دلتا محايد",
+                tab_contracts: "العقود",
+                tab_yields: "العوائد",
+                tab_risks: "المخاطر",
+                tab_security: "الأمان",
+                tab_addresses: "العناوين",
+                footer_desc: "منصة متقدمة لإدارة السيولة في DeFi.",
+                footer_copyright: "&copy; 2026 WayBank. جميع الحقوق محفوظة."
+            },
+            ru: {
+                nav_home: "Главная",
+                nav_how: "Как это работает",
+                nav_dashboard: "Панель управления",
+                hero_badge: "Техническая документация аудита",
+                hero_title: "Документация протокола WayBank",
+                hero_subtitle: "Полная техническая и защитная документация для протокола управления концентрированной ликвидностью на Polygon Mainnet.",
+                stat_years: "Лет разработки",
+                stat_contracts: "Развернутых контрактов",
+                stat_verified: "Проверено на PolygonScan",
+                tab_overview: "Обзор",
+                tab_delta: "Дельта Нейтраль",
+                tab_contracts: "Контракты",
+                tab_yields: "Доходность",
+                tab_risks: "Риски",
+                tab_security: "Безопасность",
+                tab_addresses: "Адреса",
+                footer_desc: "Продвинутая платформа управления ликвидностью для DeFi.",
+                footer_copyright: "&copy; 2026 WayBank. Все права защищены."
+            }
+        };
+
+        let currentLang = 'en';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            setupLanguageSelector();
+            detectBrowserLanguage();
+        });
+
+        function setupTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    document.getElementById(`tab-${tab}`).classList.add('active');
+                });
+            });
+        }
+
+        function setupLanguageSelector() {
+            const langBtn = document.getElementById('langBtn');
+            const langDropdown = document.getElementById('langDropdown');
+            const langItems = document.querySelectorAll('.lang-item');
+
+            langBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                langDropdown.classList.toggle('open');
+            });
+
+            document.addEventListener('click', () => {
+                langDropdown.classList.remove('open');
+            });
+
+            langItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const lang = item.dataset.lang;
+                    changeLanguage(lang);
+
+                    langItems.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+
+                    document.getElementById('currentLang').textContent = item.textContent;
+                    langDropdown.classList.remove('open');
+                });
+            });
+        }
+
+        function detectBrowserLanguage() {
+            const browserLang = (navigator.language || navigator.userLanguage).split('-')[0];
+            if (translations[browserLang]) {
+                changeLanguage(browserLang);
+                document.querySelectorAll('.lang-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.lang === browserLang) {
+                        item.classList.add('active');
+                        document.getElementById('currentLang').textContent = item.textContent;
+                    }
+                });
+            }
+        }
+
+        function changeLanguage(lang) {
+            if (!translations[lang]) return;
+
+            currentLang = lang;
+            const trans = translations[lang];
+
+            // Update all translatable elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (trans[key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = trans[key];
+                    } else {
+                        el.innerHTML = trans[key];
+                    }
+                }
+            });
+
+            // Update HTML lang attribute and direction
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        }
+    </script>
+</body>
+</html>

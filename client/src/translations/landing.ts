@@ -302,6 +302,7 @@ interface LandingTranslations {
   analytics: string;
   resources: string;
   documentation: string;
+  auditDocs: string;
   support: string;
   community: string;
   legal: string;
@@ -2436,6 +2437,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Analíticas",
     resources: "Recursos",
     documentation: "Documentación",
+    auditDocs: "Documentación de Auditoría",
     support: "Soporte",
     community: "Comunidad",
     legal: "Legal",
@@ -2563,6 +2565,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Analytics",
     resources: "Resources",
     documentation: "Documentation",
+    auditDocs: "Audit Documentation",
     support: "Support",
     community: "Community",
     legal: "Legal",
@@ -2690,6 +2693,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "التحليلات",
     resources: "الموارد",
     documentation: "التوثيق",
+    auditDocs: "وثائق التدقيق",
     support: "الدعم",
     community: "المجتمع",
     legal: "قانوني",
@@ -2817,6 +2821,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Análises",
     resources: "Recursos",
     documentation: "Documentação",
+    auditDocs: "Documentação de Auditoria",
     support: "Suporte",
     community: "Comunidade",
     legal: "Legal",
@@ -2943,6 +2948,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Analisi",
     resources: "Risorse",
     documentation: "Documentazione",
+    auditDocs: "Documentazione di Audit",
     support: "Supporto",
     community: "Comunità",
     legal: "Legale",
@@ -3070,6 +3076,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Analytique",
     resources: "Ressources",
     documentation: "Documentation",
+    auditDocs: "Documentation d'Audit",
     support: "Support",
     community: "Communauté",
     legal: "Juridique",
@@ -3197,6 +3204,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Analytik",
     resources: "Ressourcen",
     documentation: "Dokumentation",
+    auditDocs: "Audit-Dokumentation",
     support: "Support",
     community: "Gemeinschaft",
     legal: "Rechtliches",
@@ -3325,6 +3333,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "एनालिटिक्स",
     resources: "संसाधन",
     documentation: "प्रलेखन",
+    auditDocs: "ऑडिट दस्तावेज़ीकरण",
     support: "सहायता",
     community: "समुदाय",
     legal: "कानूनी",
@@ -3451,6 +3460,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "Аналитика",
     resources: "Ресурсы",
     documentation: "Документация",
+    auditDocs: "Документация по аудиту",
     support: "Поддержка",
     community: "Сообщество",
     legal: "Юридическая информация",
@@ -3578,6 +3588,7 @@ const translations: Record<Language, LandingTranslations> = {
     analytics: "分析",
     resources: "资源",
     documentation: "文档",
+    auditDocs: "审计文档",
     support: "支持",
     community: "社区",
     legal: "法律",

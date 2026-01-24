@@ -1,0 +1,18 @@
+{
+  "network": "polygon",
+  "chainId": "137",
+  "deployer": "0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F",
+  "treasury": "0x6b22cEB508db3C81d69ED6451d63B56a1fb7271F",
+  "timestamp": "2026-01-24T15:41:02.551Z",
+  "contracts": {
+    "PoolAnalyzer": "0xcf54688ad1db461C2D22BC24C0f20Adbeba76504",
+    "SwapExecutor": "0x4933132E86E4132dAe5Ca30ecEE59fD684c48349",
+    "WayBankVault": "0x375D8808BDfB7D57D40524f0802bbc49008dEe79"
+  },
+  "dependencies": {
+    "positionManager": "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    "swapRouter": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+    "quoter": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6",
+    "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+  }
+}

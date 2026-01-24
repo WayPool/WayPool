@@ -719,6 +719,7 @@ const MobileLanding: React.FC = () => {
               <h3 className="text-sm font-medium text-white mb-3">{t('landing.resources', 'Resources')}</h3>
               <ul className="space-y-2 text-sm">
                 <li><a href="/documentation" className="text-slate-400 hover:text-white">{t('landing.documentation', 'Documentation')}</a></li>
+                <li><a href="/docs/audit-report.html" className="text-slate-400 hover:text-white">{t('landing.auditDocs', 'Audit Documentation')}</a></li>
                 <li><a href="/support" className="text-slate-400 hover:text-white">{t('landing.support', 'Support')}</a></li>
                 <li><a href="/community" className="text-slate-400 hover:text-white">{t('landing.community', 'Community')}</a></li>
               </ul>

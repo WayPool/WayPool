@@ -1150,6 +1150,10 @@ export default function Landing() {
               <h3 className="text-sm font-medium mb-4 dark:text-current text-gray-800">{t.resources}</h3>
               <ul className="space-y-3 text-sm">
                 <li><Link href="/how-it-works" className="text-muted-foreground hover:text-primary transition-colors">{t.documentation}</Link></li>
+                <li><a href="/docs/audit-report.html" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  <span>{t.auditDocs}</span>
+                </a></li>
                 <li><Link href="/support" className="text-muted-foreground hover:text-primary transition-colors">{t.support}</Link></li>
                 <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">{t.community}</a></li>
                 <li><Link href="/podcast" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">

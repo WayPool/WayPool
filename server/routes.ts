@@ -36,6 +36,7 @@ import { sendNewSupportTicketEmail, sendTicketReplyEmail } from './support-email
 import { convertToNumber } from '../shared/utils';
 import * as nftPoolService from './nft-pool-creation-service';
 import * as yieldDistributionService from './yield-distribution-service';
+import { registerSystemRoutes } from './system-routes';
 
 // Rate limiting para endpoints de administración
 const adminAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -283,6 +284,11 @@ const isAdminExtended = async (req: Request, res: Response, next: NextFunction) 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Servir archivos estáticos desde la carpeta public
   app.use(express.static('public'));
+
+  // ============================================
+  // System Routes (Health checks, monitoring)
+  // ============================================
+  registerSystemRoutes(app);
 
   // ============================================
   // NFT Pool Creation Routes (Early registration)

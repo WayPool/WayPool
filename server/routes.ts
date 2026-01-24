@@ -6326,9 +6326,9 @@ SET standard_conforming_strings = on;
       }
 
       // Get total count
-      const countQuery = query.replace(/SELECT .* FROM/, 'SELECT COUNT(*) FROM');
+      const countQuery = query.replace(/SELECT .* FROM/, 'SELECT COUNT(*) as count FROM');
       const countResult = await pool.query(countQuery, params);
-      const totalCount = parseInt(countResult.rows[0].count);
+      const totalCount = countResult.rows && countResult.rows[0] ? parseInt(countResult.rows[0].count || '0') : 0;
 
       // Add sorting and pagination
       query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;

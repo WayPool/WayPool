@@ -140,6 +140,7 @@ const LazyLoadedRoute = ({ component: Component, ...rest }: any) => (
 
 // Carga dinámica de los componentes de admin
 const TransactionHistoryPage = React.lazy(() => import("@/pages/admin/transaction-history"));
+const WBCTransactionsPage = React.lazy(() => import("@/pages/admin/wbc-transactions"));
 
 // Componente que usa el contexto de términos legales y bloquea el acceso si no se han aceptado
 function LayoutWithLegalTerms({ children }: { children: React.ReactNode }) {
@@ -356,6 +357,7 @@ function Router() {
             <Route path="/admin" component={Admin} />
             <Route path="/admin/managed-nfts" component={ManagedNftsPage} />
             <Route path="/admin/transaction-history" component={() => <LazyLoadedRoute component={TransactionHistoryPage} />} />
+            <Route path="/admin/wbc-transactions" component={() => <LazyLoadedRoute component={WBCTransactionsPage} />} />
             <Route path="/backup-info" component={BackupInfo} />
             <Route path="/stripe-diagnostics" component={StripeDiagnosticsPage} />
             <Route path="/websocket-diagnostics" component={WebSocketDiagnostics} />
@@ -386,6 +388,7 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/admin/managed-nfts" component={ManagedNftsPage} />
         <Route path="/admin/transaction-history" component={() => <LazyLoadedRoute component={TransactionHistoryPage} />} />
+        <Route path="/admin/wbc-transactions" component={() => <LazyLoadedRoute component={WBCTransactionsPage} />} />
         <Route path="/backup-info" component={BackupInfo} />
         <Route path="/stripe-diagnostics" component={StripeDiagnosticsPage} />
         <Route path="/websocket-diagnostics" component={WebSocketDiagnostics} />

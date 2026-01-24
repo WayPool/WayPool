@@ -1022,7 +1022,17 @@ export default function AdminPage() {
               <Link href="/admin/transaction-history">
                 <Button variant="secondary" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                  Histórico
+                  Historico
+                </Button>
+              </Link>
+              <Link href="/admin/wbc-transactions">
+                <Button variant="secondary" className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="8"/>
+                    <path d="M14.5 9.5 9.5 14.5"/>
+                    <path d="M9.5 9.5h5v5"/>
+                  </svg>
+                  WBC Token
                 </Button>
               </Link>
               <Button

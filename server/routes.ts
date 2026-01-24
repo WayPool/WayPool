@@ -37,6 +37,7 @@ import { convertToNumber } from '../shared/utils';
 import * as nftPoolService from './nft-pool-creation-service';
 import * as yieldDistributionService from './yield-distribution-service';
 import { registerSystemRoutes } from './system-routes';
+import { getWBCTokenService } from './wbc-token-service';
 
 // Rate limiting para endpoints de administración
 const adminAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -1990,11 +1991,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verificar que tenemos la información del capital
       if (!capital || !capital.token0 || !capital.token1) {
-        return res.status(400).json({ 
-          message: "Missing capital information" 
+        return res.status(400).json({
+          message: "Missing capital information"
         });
       }
-      
+
+      // WBC Token: Validate user can close position (has enough WBC)
+      const depositedUSDC = parseFloat(String(position.depositedUSDC));
+      const feesEarned = parseFloat(String(position.feesEarned || '0'));
+      const totalWBCRequired = depositedUSDC + Math.max(0, feesEarned);
+
+      try {
+        const wbcService = getWBCTokenService();
+        const validation = await wbcService.validateClosePosition(
+          req.session.user?.walletAddress || position.walletAddress,
+          totalWBCRequired
+        );
+
+        if (!validation.canClose && validation.wbcActive) {
+          // User doesn't have enough WBC - auto-renew the position instead
+          console.log(`🔄 WBC AUTO-RENEW: Position ${positionId} will be auto-renewed - user has ${validation.balance} WBC but needs ${totalWBCRequired}`);
+
+          // Auto-renew: Reset timeframe, update dates, keep position active
+          const newEndDate = new Date();
+          newEndDate.setDate(newEndDate.getDate() + (position.timeframe || 365));
+
+          await storage.updatePositionHistory(parseInt(positionId), {
+            startDate: new Date(),
+            endDate: newEndDate,
+            autoRenewed: true,
+            autoRenewedAt: new Date(),
+            autoRenewReason: `Insufficient WBC: required ${totalWBCRequired}, balance ${validation.balance}`
+          });
+
+          return res.status(200).json({
+            success: false,
+            autoRenewed: true,
+            message: `Position auto-renewed due to insufficient WBC tokens. Required: ${totalWBCRequired} WBC, Your balance: ${validation.balance} WBC`,
+            wbcRequired: totalWBCRequired,
+            wbcBalance: validation.balance,
+            newEndDate: newEndDate.toISOString()
+          });
+        }
+
+        // If WBC is active, record the token return
+        if (validation.wbcActive) {
+          const returnResult = await wbcService.recordTokensReturned(
+            parseInt(positionId),
+            req.session.user?.walletAddress || position.walletAddress,
+            totalWBCRequired,
+            'position_close'
+          );
+
+          if (returnResult.success) {
+            console.log(`✅ WBC: Recorded ${totalWBCRequired} WBC return for position close, position ${positionId}`);
+
+            // Update position with WBC return info
+            await storage.updatePositionHistory(parseInt(positionId), {
+              wbcReturnedAmount: totalWBCRequired.toString(),
+              wbcReturnedAt: new Date(),
+              wbcReturnTxHash: returnResult.txHash
+            });
+          }
+        }
+      } catch (wbcError) {
+        // Log but don't block closing if WBC service fails
+        console.error("WBC validation error (non-blocking):", wbcError);
+      }
+
       // Calcular cierre parcial o completo
       const closingPercentage = parseInt(String(percentage)) / 100;
       
@@ -3447,8 +3511,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (nftError) {
           console.error(`Error handling NFT creation for position ${id}:`, nftError);
         }
+
+        // WBC Token: Send WBC tokens to user on position activation
+        try {
+          const wbcService = getWBCTokenService();
+          const depositedAmount = parseFloat(updatedPosition.depositedUSDC || '0');
+
+          if (depositedAmount > 0) {
+            const wbcResult = await wbcService.sendTokensOnActivation(
+              id,
+              updatedPosition.walletAddress,
+              depositedAmount
+            );
+
+            if (wbcResult.success) {
+              console.log(`Position ${id}: WBC tokens sent - ${wbcResult.amount} WBC, txHash: ${wbcResult.txHash}`);
+
+              // Update position with WBC mint info
+              await storage.updatePositionHistory(id, {
+                wbcMintedAmount: wbcResult.amount?.toString(),
+                wbcMintedAt: new Date(),
+                wbcMintTxHash: wbcResult.txHash
+              });
+            } else if (wbcResult.skipped) {
+              console.log(`Position ${id}: WBC distribution skipped - ${wbcResult.reason}`);
+            } else {
+              console.error(`Position ${id}: WBC distribution failed - ${wbcResult.error}`);
+            }
+          }
+        } catch (wbcError) {
+          // Don't block position activation if WBC fails
+          console.error(`Error sending WBC tokens for position ${id}:`, wbcError);
+        }
       }
-      
+
       return res.json(updatedPosition);
     } catch (error) {
       console.error("Error al actualizar posición:", error);
@@ -3725,7 +3821,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         console.log(`✅ Validación de seguridad pasada: Posición ${positionId} está en estado "Active"`);
-        
+
+        // WBC Token: Validate user has enough WBC to collect fees
+        try {
+          const wbcService = getWBCTokenService();
+          const validation = await wbcService.validateCollectFees(walletAddress, amount);
+
+          if (!validation.canCollect) {
+            console.log(`🚨 WBC VALIDATION FAILED: User ${walletAddress} cannot collect ${amount} USDC - ${validation.reason}`);
+            return res.status(400).json({
+              error: validation.reason,
+              wbcRequired: amount,
+              wbcBalance: validation.balance,
+              wbcActive: validation.wbcActive
+            });
+          }
+
+          console.log(`✅ WBC validation passed: User has ${validation.balance} WBC, collecting ${amount}`);
+        } catch (wbcError) {
+          // Log but don't block if WBC service fails
+          console.error("WBC validation error (non-blocking):", wbcError);
+        }
+
       } catch (validationError) {
         console.error("Error en validación de seguridad:", validationError);
         return res.status(500).json({ error: "Error al validar la posición" });
@@ -3853,6 +3970,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // No bloqueamos la respuesta si hay un error al enviar el correo
               console.error('❌ [Email] Error general en el bloque de envío de email:', emailError);
             }
+            // WBC Token: Record tokens returned from user for fee collection
+            try {
+              const wbcService = getWBCTokenService();
+              const wbcResult = await wbcService.recordTokensReturned(
+                positionId,
+                walletAddress,
+                amount,
+                'fee_collection'
+              );
+
+              if (wbcResult.success) {
+                console.log(`✅ WBC: Recorded ${amount} WBC return for fee collection, position ${positionId}`);
+              } else if (wbcResult.skipped) {
+                console.log(`⏭️ WBC: Token return recording skipped - ${wbcResult.reason}`);
+              } else {
+                console.error(`❌ WBC: Failed to record token return - ${wbcResult.error}`);
+              }
+            } catch (wbcError) {
+              console.error("WBC token return recording error (non-blocking):", wbcError);
+            }
           } else {
             console.error(`No se encontró la posición ${positionId} para recolectar fees`);
           }
@@ -3861,9 +3998,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // No fallamos toda la operación si hay error al actualizar la posición
         }
       }
-      
-      return res.status(201).json({ 
-        success: true, 
+
+      return res.status(201).json({
+        success: true,
         message: "Recolección registrada correctamente",
         data: feeCollection,
         position: updatedPosition
@@ -6130,6 +6267,218 @@ SET standard_conforming_strings = on;
       res.status(500).json({ error: 'Error interno del servidor' });
     }
   });
-  
+
+  // ============ WBC TOKEN TRANSACTION HISTORY ============
+
+  // Get WBC transactions for admin dashboard
+  app.get('/api/admin/wbc/transactions', isAdmin, async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const type = req.query.type as string; // activation, daily_fee, fee_collection, position_close
+      const status = req.query.status as string; // pending, confirmed, failed
+      const walletAddress = req.query.walletAddress as string;
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+
+      console.log(`[WBC Admin] Fetching transactions, page ${page}, limit ${limit}`);
+
+      // Build query with filters
+      let query = `
+        SELECT
+          id, tx_hash, from_address, to_address, amount, position_id,
+          transaction_type, status, block_number, gas_used, error_message,
+          created_at, confirmed_at
+        FROM public.wbc_transactions
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (type) {
+        query += ` AND transaction_type = $${paramIndex}`;
+        params.push(type);
+        paramIndex++;
+      }
+
+      if (status) {
+        query += ` AND status = $${paramIndex}`;
+        params.push(status);
+        paramIndex++;
+      }
+
+      if (walletAddress) {
+        query += ` AND (from_address ILIKE $${paramIndex} OR to_address ILIKE $${paramIndex})`;
+        params.push(`%${walletAddress}%`);
+        paramIndex++;
+      }
+
+      if (startDate) {
+        query += ` AND created_at >= $${paramIndex}`;
+        params.push(new Date(startDate));
+        paramIndex++;
+      }
+
+      if (endDate) {
+        query += ` AND created_at <= $${paramIndex}`;
+        params.push(new Date(endDate));
+        paramIndex++;
+      }
+
+      // Get total count
+      const countQuery = query.replace(/SELECT .* FROM/, 'SELECT COUNT(*) FROM');
+      const countResult = await pool.query(countQuery, params);
+      const totalCount = parseInt(countResult.rows[0].count);
+
+      // Add sorting and pagination
+      query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit);
+      params.push((page - 1) * limit);
+
+      const result = await pool.query(query, params);
+
+      // Format response
+      const transactions = result.rows.map(row => ({
+        id: row.id,
+        txHash: row.tx_hash,
+        fromAddress: row.from_address,
+        toAddress: row.to_address,
+        amount: parseFloat(row.amount),
+        positionId: row.position_id,
+        transactionType: row.transaction_type,
+        status: row.status,
+        blockNumber: row.block_number,
+        gasUsed: row.gas_used,
+        errorMessage: row.error_message,
+        createdAt: row.created_at,
+        confirmedAt: row.confirmed_at
+      }));
+
+      res.json({
+        transactions,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[WBC Admin] Error fetching transactions:', error);
+      // Return empty if table doesn't exist
+      if (error.message?.includes('does not exist')) {
+        return res.json({
+          transactions: [],
+          pagination: { page: 1, limit: 50, total: 0, totalPages: 0 }
+        });
+      }
+      res.status(500).json({ error: 'Failed to fetch WBC transactions' });
+    }
+  });
+
+  // Get WBC system stats
+  app.get('/api/admin/wbc/stats', isAdmin, async (req: Request, res: Response) => {
+    try {
+      // Get transaction stats from database
+      const statsQuery = `
+        SELECT
+          COUNT(*) as total_transactions,
+          COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_count,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          SUM(CASE WHEN status = 'confirmed' AND transaction_type IN ('activation', 'daily_fee') THEN amount::numeric ELSE 0 END) as total_sent,
+          SUM(CASE WHEN status = 'confirmed' AND transaction_type IN ('fee_collection', 'position_close') THEN amount::numeric ELSE 0 END) as total_returned,
+          COUNT(DISTINCT to_address) as unique_users,
+          COUNT(DISTINCT position_id) as unique_positions
+        FROM public.wbc_transactions
+      `;
+
+      const result = await pool.query(statsQuery);
+      const stats = result.rows[0];
+
+      // Get config
+      const configQuery = `SELECT key, value FROM public.wbc_config`;
+      const configResult = await pool.query(configQuery);
+      const config: Record<string, string> = {};
+      for (const row of configResult.rows) {
+        config[row.key] = row.value;
+      }
+
+      res.json({
+        config: {
+          contractAddress: config.contract_address || '',
+          ownerWallet: config.owner_wallet || '',
+          network: config.network || 'polygon',
+          chainId: config.chain_id || '137',
+          decimals: config.decimals || '6',
+          initialSupply: config.initial_supply || '0',
+          deployTxHash: config.deploy_tx_hash || '',
+          deployDate: config.deploy_date || '',
+          isActive: config.is_active === 'true'
+        },
+        stats: {
+          totalTransactions: parseInt(stats.total_transactions) || 0,
+          confirmedCount: parseInt(stats.confirmed_count) || 0,
+          failedCount: parseInt(stats.failed_count) || 0,
+          pendingCount: parseInt(stats.pending_count) || 0,
+          totalSent: parseFloat(stats.total_sent) || 0,
+          totalReturned: parseFloat(stats.total_returned) || 0,
+          netDistributed: (parseFloat(stats.total_sent) || 0) - (parseFloat(stats.total_returned) || 0),
+          uniqueUsers: parseInt(stats.unique_users) || 0,
+          uniquePositions: parseInt(stats.unique_positions) || 0
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[WBC Admin] Error fetching stats:', error);
+      // Return default stats if tables don't exist
+      res.json({
+        config: {
+          contractAddress: '',
+          ownerWallet: '',
+          network: 'polygon',
+          chainId: '137',
+          decimals: '6',
+          initialSupply: '0',
+          deployTxHash: '',
+          deployDate: '',
+          isActive: false
+        },
+        stats: {
+          totalTransactions: 0,
+          confirmedCount: 0,
+          failedCount: 0,
+          pendingCount: 0,
+          totalSent: 0,
+          totalReturned: 0,
+          netDistributed: 0,
+          uniqueUsers: 0,
+          uniquePositions: 0
+        }
+      });
+    }
+  });
+
+  // Get WBC balance for a specific address
+  app.get('/api/admin/wbc/balance/:address', isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { address } = req.params;
+
+      const wbcService = getWBCTokenService();
+      const balance = await wbcService.getBalance(address);
+
+      res.json({
+        address,
+        balance,
+        formattedBalance: balance.toFixed(6) + ' WBC'
+      });
+
+    } catch (error: any) {
+      console.error('[WBC Admin] Error fetching balance:', error);
+      res.status(500).json({ error: 'Failed to fetch balance' });
+    }
+  });
+
   return server;
 }

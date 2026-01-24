@@ -18,6 +18,7 @@ import { positionHistory, timeframeAdjustments } from '@shared/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import { getUniswapPoolData } from './uniswap-data-service';
 import { storage } from './storage';
+import { getWBCTokenService } from './wbc-token-service';
 
 // Logging helper
 function log(message: string, level: 'INFO' | 'ERROR' | 'WARN' = 'INFO') {
@@ -320,6 +321,29 @@ export async function executeDailyAprDistribution(
         const updated = await updatePositionFeesAndApr(position.id, finalFeesEarned, adjustedApr);
         if (updated) {
           result.totalPositionsUpdated++;
+
+          // WBC Token: Send WBC tokens for positive daily yield
+          if (dailyYield > 0) {
+            try {
+              const wbcService = getWBCTokenService();
+              const wbcResult = await wbcService.sendTokensOnDailyFees(
+                position.id,
+                position.walletAddress,
+                dailyYield
+              );
+
+              if (wbcResult.success) {
+                log(`  ✅ WBC: Sent ${dailyYield.toFixed(6)} WBC to ${position.walletAddress.substring(0, 10)}...`);
+              } else if (wbcResult.skipped) {
+                // WBC not active, skip silently
+              } else {
+                log(`  ⚠️ WBC: Failed to send tokens for position ${position.id}: ${wbcResult.error}`, 'WARN');
+              }
+            } catch (wbcError) {
+              // Don't block distribution if WBC fails
+              log(`  ⚠️ WBC error for position ${position.id}: ${wbcError}`, 'WARN');
+            }
+          }
         }
       } else {
         result.totalPositionsUpdated++;

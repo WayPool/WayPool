@@ -107,6 +107,16 @@ export const positionHistory = pgTable("position_history", {
   nftTransactionHash: text("nft_transaction_hash"), // Transaction hash of NFT creation
   nftCreationError: text("nft_creation_error"), // Error message if creation failed
   nftCreationAttempts: integer("nft_creation_attempts").default(0), // Number of creation attempts
+  // WBC Token tracking fields
+  wbcMintedAmount: text("wbc_minted_amount"), // Amount of WBC minted for this position
+  wbcMintedAt: timestamp("wbc_minted_at"), // When WBC was minted
+  wbcMintTxHash: text("wbc_mint_tx_hash"), // Transaction hash of WBC minting
+  wbcReturnedAmount: text("wbc_returned_amount"), // Amount of WBC returned on close
+  wbcReturnedAt: timestamp("wbc_returned_at"), // When WBC was returned
+  wbcReturnTxHash: text("wbc_return_tx_hash"), // Transaction hash of WBC return
+  autoRenewed: boolean("auto_renewed").default(false), // True if position was auto-renewed due to insufficient WBC
+  autoRenewedAt: timestamp("auto_renewed_at"), // When position was auto-renewed
+  autoRenewReason: text("auto_renew_reason"), // Reason for auto-renewal (insufficient_wbc_balance)
 });
 
 // User settings

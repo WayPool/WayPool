@@ -2,7 +2,9 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 // Load environment variables
-const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || "https://polygon-rpc.com";
+// Use Alchemy RPC for better rate limits
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "KaVqN2ssq8kWchnWv9pw0";
+const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL || `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 

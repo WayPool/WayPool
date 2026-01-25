@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "@/hooks/use-translation";
+import { WBCReturnDialog } from "@/components/wbc/wbc-return-dialog";
 
 
 export interface PositionCardProps {
@@ -49,6 +50,8 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [token0Amount, setToken0Amount] = useState<string>(position.token0Amount);
   const [token1Amount, setToken1Amount] = useState<string>(position.token1Amount);
+  const [showWBCDialog, setShowWBCDialog] = useState(false);
+  const [pendingWBCTxHash, setPendingWBCTxHash] = useState<string | null>(null);
   
   // Obtener datos del pool para calcular las proporciones correctas
   const { data: poolData, isLoading: isLoadingPool } = useQuery({
@@ -397,7 +400,7 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
     }
   };
   
-  // Manejar recolección de fees
+  // Manejar recolección de fees - primero muestra el diálogo WBC
   const handleCollectFees = async () => {
     if (position.status !== "Active") {
       toast({
@@ -407,30 +410,79 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
       });
       return;
     }
-    
+
+    if (feesEarned <= 0) {
+      toast({
+        title: t("positions.collectFees.noFees", "Sin fees disponibles"),
+        description: t("positions.collectFees.noFeesDescription", "No hay fees acumulados para recolectar"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Mostrar diálogo para devolver WBC primero
+    setShowWBCDialog(true);
+  };
+
+  // Ejecutar recolección después de devolver WBC
+  const executeCollectFees = async (wbcTxHash: string) => {
     try {
       setIsCollecting(true);
-      
-      // Simular recolección de fees
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      setPendingWBCTxHash(wbcTxHash);
+
+      // Llamar al API de recolección de fees con el hash de la transacción WBC
+      const response = await fetch('/api/fees/collect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: position.walletAddress,
+          positionId: position.id,
+          amount: feesEarned,
+          poolAddress: position.poolAddress,
+          token0: position.token0,
+          token1: position.token1,
+          wbcReturnTxHash: wbcTxHash, // Incluir el hash de la devolución WBC
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al recolectar fees');
+      }
+
+      const result = await response.json();
+
       toast({
         title: t("positions.collectFees.success", "Fees recolectados"),
         description: t("positions.collectFees.successDescription", "Se han recolectado {amount} en fees", { amount: formatCurrency(feesEarned) }),
         variant: "default",
       });
-      
+
       if (onRefresh) onRefresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al recolectar fees:", error);
       toast({
         title: t("positions.collectFees.errorTitle", "Error"),
-        description: t("positions.collectFees.errorDescription", "No se pudieron recolectar los fees. Inténtelo más tarde."),
+        description: error.message || t("positions.collectFees.errorDescription", "No se pudieron recolectar los fees. Inténtelo más tarde."),
         variant: "destructive",
       });
     } finally {
       setIsCollecting(false);
+      setPendingWBCTxHash(null);
     }
+  };
+
+  // Callback cuando WBC se devuelve exitosamente
+  const handleWBCReturnSuccess = (txHash: string) => {
+    setShowWBCDialog(false);
+    executeCollectFees(txHash);
+  };
+
+  // Callback cuando se cancela la devolución WBC
+  const handleWBCReturnCancel = () => {
+    setShowWBCDialog(false);
   };
   
   return (
@@ -631,8 +683,8 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
         
         {/* Actions */}
         <div className="flex space-x-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="flex-1"
             onClick={handleCollectFees}
             disabled={isCollecting || position.status !== "Active"}
@@ -644,6 +696,17 @@ const PositionCard = ({ position, onRefresh }: PositionCardProps) => {
           </Button>
         </div>
       </div>
+
+      {/* WBC Return Dialog */}
+      <WBCReturnDialog
+        open={showWBCDialog}
+        onOpenChange={setShowWBCDialog}
+        amount={feesEarned}
+        positionId={position.id}
+        reason="fee_collection"
+        onSuccess={handleWBCReturnSuccess}
+        onCancel={handleWBCReturnCancel}
+      />
     </Card>
   );
 };

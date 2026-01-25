@@ -226,6 +226,13 @@ export default function WBCTransactionsPage() {
             Cierre
           </Badge>
         );
+      case 'bulk_distribution':
+        return (
+          <Badge className="bg-cyan-100 text-cyan-800 border border-cyan-200">
+            <Coins className="w-3 h-3 mr-1" />
+            Distribución
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -390,6 +397,7 @@ export default function WBCTransactionsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="bulk_distribution">Distribucion Masiva</SelectItem>
                   <SelectItem value="activation">Activacion</SelectItem>
                   <SelectItem value="daily_fee">Fee Diario</SelectItem>
                   <SelectItem value="fee_collection">Cobro Fee</SelectItem>
@@ -530,9 +538,9 @@ export default function WBCTransactionsPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono font-medium">
-                            <span className={tx.transactionType === 'daily_fee' || tx.transactionType === 'activation' ? 'text-emerald-600' : 'text-amber-600'}>
-                              {tx.transactionType === 'daily_fee' || tx.transactionType === 'activation' ? '+' : '-'}
-                              {tx.amount.toLocaleString('es-ES', { minimumFractionDigits: 6 })}
+                            <span className={['daily_fee', 'activation', 'bulk_distribution'].includes(tx.transactionType) ? 'text-emerald-600' : 'text-amber-600'}>
+                              {['daily_fee', 'activation', 'bulk_distribution'].includes(tx.transactionType) ? '+' : '-'}
+                              {tx.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <span className="text-xs text-muted-foreground ml-1">WBC</span>
                           </TableCell>

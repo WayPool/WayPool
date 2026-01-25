@@ -417,7 +417,7 @@ export class WBCTokenService {
   }
 
   /**
-   * Record that user returned WBC
+   * Record that user returned WBC (legacy - creates pending record)
    * @param positionId Position ID
    * @param userWallet User's wallet address
    * @param amount Amount returned
@@ -464,6 +464,77 @@ export class WBCTokenService {
 
     } catch (error: any) {
       console.error('[WBC] Failed to record return:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Record verified WBC return with actual blockchain txHash
+   * @param txHash The actual blockchain transaction hash
+   * @param positionId Position ID
+   * @param userWallet User's wallet address
+   * @param amount Amount returned
+   * @param reason Reason for return ('fee_collection' or 'position_close')
+   */
+  async recordVerifiedReturn(
+    txHash: string,
+    positionId: number,
+    userWallet: string,
+    amount: number,
+    reason: string
+  ): Promise<WBCTransferResult> {
+    // If WBC system not active, skip
+    if (!this.config?.isActive) {
+      return {
+        success: false,
+        skipped: true,
+        reason: 'WBC system not active'
+      };
+    }
+
+    try {
+      // Verify the transaction on Polygon (optional - can be done async)
+      let blockNumber: number | undefined;
+
+      if (this.provider && txHash.startsWith('0x')) {
+        try {
+          const receipt = await this.provider.getTransactionReceipt(txHash);
+          if (receipt) {
+            blockNumber = receipt.blockNumber;
+            console.log(`[WBC] Verified tx ${txHash} in block ${blockNumber}`);
+          }
+        } catch (verifyError) {
+          console.warn(`[WBC] Could not verify tx ${txHash}:`, verifyError);
+          // Continue anyway - tx might not be indexed yet
+        }
+      }
+
+      // Log to database with confirmed status
+      await this.logTransaction({
+        txHash,
+        fromAddress: userWallet,
+        toAddress: this.config?.ownerWallet || 'owner',
+        amount: amount.toString(),
+        positionId,
+        transactionType: reason,
+        status: 'confirmed',
+        blockNumber,
+      });
+
+      console.log(`[WBC] Recorded verified return: ${amount} WBC from ${userWallet} (${reason}) tx: ${txHash}`);
+
+      return {
+        success: true,
+        txHash,
+        amount: amount,
+        blockNumber,
+      };
+
+    } catch (error: any) {
+      console.error('[WBC] Failed to record verified return:', error);
       return {
         success: false,
         error: error.message

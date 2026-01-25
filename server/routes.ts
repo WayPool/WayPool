@@ -3787,14 +3787,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint para registrar la recolección de fees
   app.post("/api/fees/collect", async (req: Request, res: Response) => {
     try {
-      const { walletAddress, positionId, amount, poolAddress, token0, token1 } = req.body;
-      
+      const { walletAddress, positionId, amount, poolAddress, token0, token1, wbcReturnTxHash } = req.body;
+
       if (!walletAddress || !amount || amount <= 0) {
         return res.status(400).json({ error: "Datos incompletos o inválidos" });
       }
 
       if (!positionId) {
         return res.status(400).json({ error: "ID de posición requerido" });
+      }
+
+      // Verificar que se proporcionó el hash de la transacción WBC
+      if (!wbcReturnTxHash) {
+        return res.status(400).json({
+          error: "Se requiere devolver WBC antes de cobrar fees",
+          wbcRequired: amount
+        });
       }
 
       // VALIDACIÓN CRÍTICA DE SEGURIDAD: Verificar estado de la posición ANTES de permitir recolección
@@ -3970,25 +3978,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // No bloqueamos la respuesta si hay un error al enviar el correo
               console.error('❌ [Email] Error general en el bloque de envío de email:', emailError);
             }
-            // WBC Token: Record tokens returned from user for fee collection
-            try {
-              const wbcService = getWBCTokenService();
-              const wbcResult = await wbcService.recordTokensReturned(
-                positionId,
-                walletAddress,
-                amount,
-                'fee_collection'
-              );
+            // WBC Token: Record verified return with actual blockchain txHash
+            if (wbcReturnTxHash) {
+              try {
+                const wbcService = getWBCTokenService();
+                const wbcResult = await wbcService.recordVerifiedReturn(
+                  wbcReturnTxHash,
+                  positionId,
+                  walletAddress,
+                  amount,
+                  'fee_collection'
+                );
 
-              if (wbcResult.success) {
-                console.log(`✅ WBC: Recorded ${amount} WBC return for fee collection, position ${positionId}`);
-              } else if (wbcResult.skipped) {
-                console.log(`⏭️ WBC: Token return recording skipped - ${wbcResult.reason}`);
-              } else {
-                console.error(`❌ WBC: Failed to record token return - ${wbcResult.error}`);
+                if (wbcResult.success) {
+                  console.log(`✅ WBC: Recorded verified return ${amount} WBC for fee collection, position ${positionId}, tx: ${wbcReturnTxHash}`);
+                } else if (wbcResult.skipped) {
+                  console.log(`⏭️ WBC: Token return recording skipped - ${wbcResult.reason}`);
+                } else {
+                  console.error(`❌ WBC: Failed to record verified return - ${wbcResult.error}`);
+                }
+              } catch (wbcError) {
+                console.error("WBC token return recording error (non-blocking):", wbcError);
               }
-            } catch (wbcError) {
-              console.error("WBC token return recording error (non-blocking):", wbcError);
             }
           } else {
             console.error(`No se encontró la posición ${positionId} para recolectar fees`);
@@ -6325,9 +6336,46 @@ SET standard_conforming_strings = on;
         paramIndex++;
       }
 
-      // Get total count
-      const countQuery = query.replace(/SELECT .* FROM/, 'SELECT COUNT(*) as count FROM');
-      const countResult = await pool.query(countQuery, params);
+      // Get total count using a proper subquery
+      let countQuery = `
+        SELECT COUNT(*) as count
+        FROM public.wbc_transactions
+        WHERE 1=1
+      `;
+      const countParams: any[] = [];
+      let countParamIndex = 1;
+
+      if (type) {
+        countQuery += ` AND transaction_type = $${countParamIndex}`;
+        countParams.push(type);
+        countParamIndex++;
+      }
+
+      if (status) {
+        countQuery += ` AND status = $${countParamIndex}`;
+        countParams.push(status);
+        countParamIndex++;
+      }
+
+      if (walletAddress) {
+        countQuery += ` AND (from_address ILIKE $${countParamIndex} OR to_address ILIKE $${countParamIndex})`;
+        countParams.push(`%${walletAddress}%`);
+        countParamIndex++;
+      }
+
+      if (startDate) {
+        countQuery += ` AND created_at >= $${countParamIndex}`;
+        countParams.push(new Date(startDate));
+        countParamIndex++;
+      }
+
+      if (endDate) {
+        countQuery += ` AND created_at <= $${countParamIndex}`;
+        countParams.push(new Date(endDate));
+        countParamIndex++;
+      }
+
+      const countResult = await pool.query(countQuery, countParams);
       const totalCount = countResult.rows && countResult.rows[0] ? parseInt(countResult.rows[0].count || '0') : 0;
 
       // Add sorting and pagination
@@ -6386,11 +6434,11 @@ SET standard_conforming_strings = on;
           COUNT(*) as total_transactions,
           COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_count,
           COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-          SUM(CASE WHEN status = 'confirmed' AND transaction_type IN ('activation', 'daily_fee') THEN amount::numeric ELSE 0 END) as total_sent,
+          COUNT(CASE WHEN status IN ('pending', 'pending_confirmation') THEN 1 END) as pending_count,
+          SUM(CASE WHEN status = 'confirmed' AND transaction_type IN ('activation', 'daily_fee', 'bulk_distribution') THEN amount::numeric ELSE 0 END) as total_sent,
           SUM(CASE WHEN status = 'confirmed' AND transaction_type IN ('fee_collection', 'position_close') THEN amount::numeric ELSE 0 END) as total_returned,
-          COUNT(DISTINCT to_address) as unique_users,
-          COUNT(DISTINCT position_id) as unique_positions
+          COUNT(DISTINCT CASE WHEN status = 'confirmed' THEN to_address END) as unique_users,
+          COUNT(DISTINCT CASE WHEN status = 'confirmed' AND position_id > 0 THEN position_id END) as unique_positions
         FROM public.wbc_transactions
       `;
 

@@ -304,7 +304,7 @@ Incorrect credentials. Verify your email and password.`,
                 <FormItem className="space-y-1.5">
                   <FormLabel className="text-xs sm:text-sm">Email</FormLabel>
                   <FormControl>
-                    <Input {...field} type="email" placeholder="your@email.com" className="h-8 sm:h-10 text-sm" />
+                    <Input {...field} type="email" placeholder="your@email.com" className="h-8 sm:h-10 text-sm" autoComplete="off" />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
@@ -318,11 +318,12 @@ Incorrect credentials. Verify your email and password.`,
                   <FormItem className="space-y-1.5">
                     <FormLabel className="text-xs sm:text-sm">Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        type="password" 
-                        placeholder="********" 
-                        className="h-8 sm:h-10 text-sm" 
+                      <Input
+                        {...field}
+                        type="password"
+                        placeholder="********"
+                        className="h-8 sm:h-10 text-sm"
+                        autoComplete="new-password"
                         onChange={e => {
                           field.onChange(e);
                           setPasswordStrength(evaluatePasswordStrength(e.target.value));
@@ -392,11 +393,12 @@ Incorrect credentials. Verify your email and password.`,
                     <FormLabel className="text-xs sm:text-sm">Confirmar Password</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input 
-                          {...field} 
-                          type="password" 
-                          placeholder="********" 
-                          className={`h-8 sm:h-10 text-sm pr-8 ${showMatchIndicator ? (isMatching ? 'border-green-500 focus-visible:ring-green-500' : 'border-red-500 focus-visible:ring-red-500') : ''}`} 
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder="********"
+                          autoComplete="new-password"
+                          className={`h-8 sm:h-10 text-sm pr-8 ${showMatchIndicator ? (isMatching ? 'border-green-500 focus-visible:ring-green-500' : 'border-red-500 focus-visible:ring-red-500') : ''}`}
                         />
                         {showMatchIndicator && (
                           <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -680,7 +682,7 @@ Incorrect credentials. Verify your email and password.`,
                         <FormItem className="space-y-1.5">
                           <FormLabel className="text-xs sm:text-sm">Email / Correo</FormLabel>
                           <FormControl>
-                            <Input {...field} type="email" placeholder="your@email.com" className="h-8 sm:h-10 text-sm" />
+                            <Input {...field} type="email" placeholder="your@email.com" className="h-8 sm:h-10 text-sm" autoComplete="off" />
                           </FormControl>
                           <FormMessage className="text-xs" />
                         </FormItem>

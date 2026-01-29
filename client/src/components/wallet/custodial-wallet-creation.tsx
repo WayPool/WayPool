@@ -592,10 +592,11 @@ Incorrect credentials. Verify your email and password.`,
               >
                 Atrás / Back
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="button"
                 className="flex-1 h-8 sm:h-10 text-xs bg-blue-600 hover:bg-blue-700"
                 disabled={isCreating}
+                onClick={createForm.handleSubmit(handleCreateWallet)}
               >
                 {isCreating ? (
                   <>
@@ -650,7 +651,7 @@ Incorrect credentials. Verify your email and password.`,
             <TabsContent value="create">
               <div className="space-y-3 sm:space-y-4">
                 <Form {...createForm}>
-                  <form onSubmit={step === 2 ? createForm.handleSubmit(handleCreateWallet) : (e) => e.preventDefault()} className="space-y-3 sm:space-y-4">
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-3 sm:space-y-4">
                     {renderStep()}
                   </form>
                 </Form>

@@ -596,7 +596,17 @@ Incorrect credentials. Verify your email and password.`,
                 type="button"
                 className="flex-1 h-8 sm:h-10 text-xs bg-blue-600 hover:bg-blue-700"
                 disabled={isCreating}
-                onClick={createForm.handleSubmit(handleCreateWallet)}
+                onClick={() => {
+                  console.log("Create Wallet button clicked");
+                  console.log("Form values:", createForm.getValues());
+                  console.log("Form errors:", createForm.formState.errors);
+                  createForm.handleSubmit(
+                    handleCreateWallet,
+                    (errors) => {
+                      console.error("Form validation errors:", errors);
+                    }
+                  )();
+                }}
               >
                 {isCreating ? (
                   <>

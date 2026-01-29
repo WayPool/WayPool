@@ -699,13 +699,93 @@ custodialWalletRouter.post('/change-password', async (req, res) => {
       console.error('Error al enviar email de notificación de cambio de contraseña:', emailError);
     }
     
-    res.status(200).json({ 
+    res.status(200).json({
       success: true,
       message: 'Contraseña actualizada correctamente'
     });
   } catch (error) {
     console.error('Error al cambiar contraseña:', error);
     res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
+// Schema para validar exportación de clave privada
+const exportPrivateKeySchema = z.object({
+  password: z.string().min(1, "Contraseña requerida"),
+});
+
+/**
+ * Ruta para exportar la clave privada de una wallet custodiada
+ * POST /api/custodial-wallet/export-private-key
+ *
+ * Requiere:
+ * - sessionToken: Token de sesión válido
+ * - password: Contraseña del usuario para verificación adicional
+ *
+ * Esta operación es sensible y requiere doble autenticación:
+ * 1. Sesión activa válida
+ * 2. Verificación de contraseña
+ */
+custodialWalletRouter.post('/export-private-key', async (req, res) => {
+  try {
+    // Obtener el token de sesión
+    const sessionToken = req.body?.sessionToken ||
+                         req.cookies?.custodialSession ||
+                         req.headers['x-custodial-session'];
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: 'No se proporcionó token de sesión',
+        code: 'NO_SESSION'
+      });
+    }
+
+    // Validar datos de entrada
+    const validation = exportPrivateKeySchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Contraseña requerida para exportar la clave privada',
+        code: 'PASSWORD_REQUIRED'
+      });
+    }
+
+    const { password } = validation.data;
+
+    // Verificar sesión y obtener la dirección de la wallet
+    const session = await custodialWalletService.verifySession(sessionToken);
+
+    if (!session || !session.valid) {
+      return res.status(401).json({
+        error: 'Sesión inválida o expirada. Por favor, inicia sesión nuevamente.',
+        code: 'INVALID_SESSION'
+      });
+    }
+
+    // Exportar la clave privada (verifica la contraseña internamente)
+    const result = await custodialWalletService.exportPrivateKey(session.address, password);
+
+    if (!result) {
+      return res.status(401).json({
+        error: 'Contraseña incorrecta. Verifica tu contraseña e inténtalo de nuevo.',
+        code: 'INVALID_PASSWORD'
+      });
+    }
+
+    console.log(`[export-private-key] Clave privada exportada exitosamente para: ${session.address}`);
+
+    res.status(200).json({
+      success: true,
+      privateKey: result.privateKey,
+      address: result.address,
+      warning: 'IMPORTANTE: Guarda esta clave privada de forma segura. Nunca la compartas con nadie. Cualquier persona con acceso a esta clave puede controlar tu wallet.'
+    });
+
+  } catch (error) {
+    console.error('Error al exportar clave privada:', error);
+    res.status(500).json({
+      error: 'Error al exportar la clave privada. Por favor, inténtalo de nuevo.',
+      code: 'EXPORT_ERROR'
+    });
   }
 });
 

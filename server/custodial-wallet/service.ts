@@ -1093,6 +1093,73 @@ export class CustodialWalletService {
       return false;
     }
   }
+
+  /**
+   * Exportar la clave privada de una billetera custodiada
+   * Requiere autenticación con contraseña para seguridad
+   *
+   * @param address Dirección de la billetera
+   * @param password Contraseña del usuario para verificación
+   * @returns La clave privada descifrada o null si falla
+   */
+  async exportPrivateKey(address: string, password: string): Promise<{ privateKey: string; address: string } | null> {
+    try {
+      console.log(`[exportPrivateKey] Solicitando exportación de clave privada para: ${address}`);
+
+      // Buscar la billetera en la base de datos
+      const walletResult = await pool.query(
+        `SELECT id, address, password_hash, salt, encrypted_private_key, encryption_iv
+         FROM custodial_wallets
+         WHERE LOWER(address) = LOWER($1) AND active = true`,
+        [address]
+      );
+
+      if (walletResult.rowCount === 0) {
+        console.error(`[exportPrivateKey] Billetera no encontrada: ${address}`);
+        return null;
+      }
+
+      const wallet = walletResult.rows[0];
+
+      // Verificar contraseña
+      const passwordMatch = await bcrypt.compare(password, wallet.password_hash);
+      if (!passwordMatch) {
+        console.error(`[exportPrivateKey] Contraseña incorrecta para: ${address}`);
+        return null;
+      }
+
+      // Descifrar la clave privada
+      const { encryptionKey, iv } = this.deriveEncryptionKey(password, wallet.salt);
+
+      const privateKey = this.decryptPrivateKey(
+        wallet.encrypted_private_key,
+        encryptionKey,
+        Buffer.from(wallet.encryption_iv, 'hex')
+      );
+
+      console.log(`[exportPrivateKey] Clave privada exportada exitosamente para: ${address}`);
+
+      // Registrar el evento de exportación para auditoría
+      try {
+        await pool.query(
+          `INSERT INTO custodial_wallet_audit_log (wallet_id, action, ip_address, created_at)
+           VALUES ($1, 'private_key_exported', 'system', NOW())`,
+          [wallet.id]
+        );
+      } catch (auditError) {
+        // La tabla de auditoría puede no existir, no es crítico
+        console.log('[exportPrivateKey] Audit log skipped (table may not exist)');
+      }
+
+      return {
+        privateKey,
+        address: wallet.address
+      };
+    } catch (error) {
+      console.error(`[exportPrivateKey] Error al exportar clave privada:`, error);
+      return null;
+    }
+  }
 }
 
 // Exportar instancia del servicio

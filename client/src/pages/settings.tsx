@@ -184,7 +184,16 @@ const Settings: React.FC = () => {
   });
   const [passwordsMatch, setPasswordsMatch] = useState(true);
   const [changingPassword, setChangingPassword] = useState(false);
-  
+
+  // Estados para exportación de clave privada
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportPassword, setExportPassword] = useState("");
+  const [showExportPassword, setShowExportPassword] = useState(false);
+  const [exportedPrivateKey, setExportedPrivateKey] = useState<string | null>(null);
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
+
   // Actualizar fortaleza de contraseña cuando cambia
   useEffect(() => {
     setPasswordStrength(evaluatePasswordStrength(newPassword, t));
@@ -474,7 +483,81 @@ const Settings: React.FC = () => {
       setChangingPassword(false);
     }
   });
-  
+
+  // Mutación para exportar clave privada
+  const exportPrivateKeyMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const sessionToken = localStorage.getItem('custodialSessionToken');
+
+      const response = await fetch('/api/custodial-wallet/export-private-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-custodial-session': sessionToken || ''
+        },
+        body: JSON.stringify({ password, sessionToken })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al exportar la clave privada');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExportedPrivateKey(data.privateKey);
+      setExportPassword("");
+      setExporting(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al exportar",
+        description: error.message || "No se pudo exportar la clave privada. Verifica tu contraseña.",
+        variant: "destructive",
+      });
+      setExporting(false);
+    }
+  });
+
+  // Manejar exportación de clave privada
+  const handleExportPrivateKey = () => {
+    if (!exportPassword) {
+      toast({
+        title: "Contraseña requerida",
+        description: "Por favor, ingresa tu contraseña para exportar la clave privada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExporting(true);
+    exportPrivateKeyMutation.mutate(exportPassword);
+  };
+
+  // Copiar clave privada al portapapeles
+  const copyPrivateKey = () => {
+    if (exportedPrivateKey) {
+      navigator.clipboard.writeText(exportedPrivateKey);
+      setKeyCopied(true);
+      toast({
+        title: "Copiado",
+        description: "La clave privada ha sido copiada al portapapeles.",
+      });
+      setTimeout(() => setKeyCopied(false), 3000);
+    }
+  };
+
+  // Cerrar modal de exportación
+  const closeExportModal = () => {
+    setShowExportModal(false);
+    setExportPassword("");
+    setExportedPrivateKey(null);
+    setShowPrivateKey(false);
+    setShowExportPassword(false);
+    setKeyCopied(false);
+  };
+
   // Manejar el envío del formulario
   const handleChangePassword = () => {
     // Validaciones
@@ -829,6 +912,145 @@ const Settings: React.FC = () => {
                           </div>
                         </div>
                         
+                        {/* Sección de exportar wallet */}
+                        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                          <div className="font-medium text-sm mb-2 flex items-center gap-2">
+                            <Download className="h-4 w-4" />
+                            Exportar Wallet / Export Wallet
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                            Exporta tu clave privada para usar tu wallet en MetaMask u otras aplicaciones.
+                            <br />
+                            <span className="text-slate-400">Export your private key to use your wallet in MetaMask or other apps.</span>
+                          </p>
+
+                          {!showExportModal ? (
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => setShowExportModal(true)}
+                            >
+                              <Lock className="h-4 w-4 mr-2" />
+                              Mostrar clave privada / Show Private Key
+                            </Button>
+                          ) : (
+                            <div className="space-y-3">
+                              {!exportedPrivateKey ? (
+                                <>
+                                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                                    <div className="flex">
+                                      <AlertTriangle className="h-4 w-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                                      <div className="text-xs text-red-700 dark:text-red-400">
+                                        <strong>ADVERTENCIA / WARNING:</strong> Nunca compartas tu clave privada. Cualquier persona con acceso a ella puede controlar tu wallet.
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label htmlFor="exportPassword" className="text-xs">Confirma tu contraseña / Confirm your password</Label>
+                                    <div className="relative">
+                                      <Input
+                                        id="exportPassword"
+                                        type={showExportPassword ? "text" : "password"}
+                                        placeholder="Ingresa tu contraseña"
+                                        className="pr-8"
+                                        value={exportPassword}
+                                        onChange={(e) => setExportPassword(e.target.value)}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                        onClick={() => setShowExportPassword(!showExportPassword)}
+                                      >
+                                        {showExportPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      className="flex-1"
+                                      onClick={closeExportModal}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      className="flex-1 bg-red-600 hover:bg-red-700"
+                                      onClick={handleExportPrivateKey}
+                                      disabled={exporting}
+                                    >
+                                      {exporting ? (
+                                        <>
+                                          <CircleLoader size={16} className="mr-2" />
+                                          Verificando...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Lock className="h-4 w-4 mr-2" />
+                                          Exportar
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Check className="h-4 w-4 text-green-500" />
+                                      <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                                        Clave privada exportada / Private key exported
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Tu clave privada / Your Private Key:</Label>
+                                    <div className="relative">
+                                      <Input
+                                        type={showPrivateKey ? "text" : "password"}
+                                        value={exportedPrivateKey}
+                                        readOnly
+                                        className="pr-20 font-mono text-xs"
+                                      />
+                                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                                        <button
+                                          type="button"
+                                          className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                                          onClick={() => setShowPrivateKey(!showPrivateKey)}
+                                          title={showPrivateKey ? "Ocultar" : "Mostrar"}
+                                        >
+                                          {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                                          onClick={copyPrivateKey}
+                                          title="Copiar"
+                                        >
+                                          {keyCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                      Puedes importar esta clave en MetaMask: Configuración → Importar cuenta → Clave privada
+                                    </p>
+                                  </div>
+
+                                  <Button
+                                    variant="outline"
+                                    className="w-full mt-2"
+                                    onClick={closeExportModal}
+                                  >
+                                    Cerrar / Close
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                           <div className="flex">
                             <ShieldCheck className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />

@@ -20,6 +20,16 @@ import { getUniswapPoolData } from './uniswap-data-service';
 import { storage } from './storage';
 import { getWBCTokenService } from './wbc-token-service';
 
+// Delay between WBC token sends to avoid RPC rate limiting (15 seconds)
+const WBC_SEND_DELAY_MS = 15000;
+
+/**
+ * Helper function to wait for a specified time
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Logging helper
 function log(message: string, level: 'INFO' | 'ERROR' | 'WARN' = 'INFO') {
   const timestamp = new Date().toISOString();
@@ -326,6 +336,13 @@ export async function executeDailyAprDistribution(
           if (dailyYield > 0) {
             try {
               const wbcService = getWBCTokenService();
+
+              // Check if WBC is active before adding delay
+              if (wbcService.isActive()) {
+                log(`  ⏳ WBC: Waiting ${WBC_SEND_DELAY_MS / 1000}s before sending to avoid rate limiting...`);
+                await delay(WBC_SEND_DELAY_MS);
+              }
+
               const wbcResult = await wbcService.sendTokensOnDailyFees(
                 position.id,
                 position.walletAddress,

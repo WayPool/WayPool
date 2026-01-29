@@ -432,46 +432,91 @@ Incorrect credentials. Verify your email and password.`,
               </div>
             )}
             
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               className="w-full mt-3 sm:mt-4 h-8 sm:h-10 text-xs sm:text-sm bg-blue-600 hover:bg-blue-700"
               onClick={() => {
                 const values = createForm.getValues();
                 const isPasswordMatch = values.password === values.confirmPassword;
-                
-                // Validate manually
+                const password = values.password || '';
+
+                // Clear previous errors first
+                createForm.clearErrors();
+
+                // Validate manually with specific error messages
                 if (!values.email) {
-                  createForm.setError("email", { message: "Email es requerido" });
+                  createForm.setError("email", { message: "Email es requerido / Email is required" });
+                  toast({
+                    title: "Campo requerido / Required field",
+                    description: "Por favor, introduce tu email / Please enter your email",
+                    variant: "destructive",
+                  });
                   return;
                 }
                 if (!values.password) {
-                  createForm.setError("password", { message: "Password es requerido" });
+                  createForm.setError("password", { message: "Password es requerido / Password is required" });
+                  toast({
+                    title: "Campo requerido / Required field",
+                    description: "Por favor, introduce una contraseña / Please enter a password",
+                    variant: "destructive",
+                  });
                   return;
                 }
+
+                // Validate specific password requirements with clear feedback
+                const missingRequirements: string[] = [];
+                if (password.length < 8) {
+                  missingRequirements.push("- Mínimo 8 caracteres / Minimum 8 characters");
+                }
+                if (!/[A-Z]/.test(password)) {
+                  missingRequirements.push("- Al menos una mayúscula (A-Z) / At least one uppercase");
+                }
+                if (!/[a-z]/.test(password)) {
+                  missingRequirements.push("- Al menos una minúscula (a-z) / At least one lowercase");
+                }
+                if (!/[0-9]/.test(password)) {
+                  missingRequirements.push("- Al menos un número (0-9) / At least one number");
+                }
+                if (!/[^A-Za-z0-9]/.test(password)) {
+                  missingRequirements.push("- Al menos un carácter especial (!@#$) / At least one special character");
+                }
+
+                if (missingRequirements.length > 0) {
+                  createForm.setError("password", {
+                    message: `La contraseña no cumple los requisitos / Password doesn't meet requirements`
+                  });
+                  toast({
+                    title: "Contraseña insegura / Insecure password",
+                    description: `Tu contraseña necesita:\n${missingRequirements.join('\n')}`,
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
                 if (!values.confirmPassword) {
-                  createForm.setError("confirmPassword", { message: "Confirma tu password" });
+                  createForm.setError("confirmPassword", { message: "Confirma tu password / Confirm your password" });
+                  toast({
+                    title: "Campo requerido / Required field",
+                    description: "Por favor, confirma tu contraseña / Please confirm your password",
+                    variant: "destructive",
+                  });
                   return;
                 }
                 if (!isPasswordMatch) {
-                  createForm.setError("confirmPassword", { message: "Las contraseñas no coinciden" });
-                  return;
-                }
-                
-                // Comprobar fortaleza de contraseña
-                if (passwordStrength.score < 4) {
-                  createForm.setError("password", { message: "La contraseña no es suficientemente segura" });
+                  createForm.setError("confirmPassword", { message: "Las contraseñas no coinciden / Passwords don't match" });
+                  toast({
+                    title: "Error de validación / Validation error",
+                    description: "Las contraseñas no coinciden / Passwords don't match",
+                    variant: "destructive",
+                  });
                   return;
                 }
 
                 // All validated, proceed to next step
                 setStep(2);
-                
-                // Clear errors
-                createForm.clearErrors();
               }}
-              disabled={!createForm.getValues().email || !createForm.getValues().password || !createForm.getValues().confirmPassword || passwordStrength.score < 4}
             >
-              Continuar
+              Continuar / Continue
             </Button>
           </div>
         );

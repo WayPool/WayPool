@@ -158,17 +158,6 @@ export class CustodialWalletService {
    */
   async createWallet(email: string, password: string) {
     try {
-      // Caso especial para la cuenta de prueba - simplifica el proceso
-      if (email === 'test@waybank.com') {
-        console.log('[createWallet] Detectada solicitud para crear billetera de prueba');
-        return {
-          id: 9999,
-          address: '0xc2dd65af9fed4a01fb8764d65c591077f02c6497',
-          createdAt: new Date().toISOString(),
-          testing: true
-        };
-      }
-      
       console.log('[createWallet] Iniciando creación de nueva billetera para email:', email);
       
       // Verificar si el email ya existe en la base de datos
@@ -349,24 +338,7 @@ export class CustodialWalletService {
    */
   async authenticate(email: string, password: string) {
     try {
-      // Caso especial para cuenta de prueba
-      if (email === 'test@waybank.com' && password === 'Test123456!') {
-        console.log('[authenticate] Autenticando cuenta de prueba');
-        
-        // Crear sesión de prueba
-        const sessionToken = 'test-session-token-123456789';
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 días de validez
-        
-        return {
-          address: '0xc2dD65Af9fEd4A01Fb8764D65c591077F02c6497',
-          sessionToken,
-          expiresAt,
-          testing: true
-        };
-      }
-      
-      // Flujo normal para cuentas reales
+      // Flujo normal para cuentas
       // Buscar billetera por email
       const walletResult = await pool.query(
         `SELECT id, address, password_hash, salt, encrypted_private_key, encryption_iv
@@ -449,26 +421,10 @@ export class CustodialWalletService {
       console.log('[verifySession] Análisis del token:', {
         tokenInput: sessionToken,
         tokenLength: sessionToken.length,
-        isUUID: isUUID,
-        isTestToken: sessionToken === 'test-session-token-123456789'
+        isUUID: isUUID
       });
-      
-      // Solo activamos el token de prueba cuando explícitamente se solicita
-      if (sessionToken === 'test-session-token-123456789') {
-        console.log('[verifySession] Token de prueba detectado');
-        // Devolvemos una sesión válida para la billetera de prueba
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 días de validez
-        
-        return {
-          walletId: 9999, // ID ficticio para la billetera de prueba
-          address: '0xc2dD65Af9fEd4A01Fb8764D65c591077F02c6497', // Dirección de la billetera de prueba
-          expiresAt: expiresAt,
-          testing: true
-        };
-      }
-      
-      // Buscar sesión activa en la base de datos para cuentas reales
+
+      // Buscar sesión activa en la base de datos
       const sessionResult = await pool.query(
         `SELECT s.id, s.wallet_id, s.expires_at, w.address
          FROM custodial_sessions s
@@ -533,11 +489,6 @@ export class CustodialWalletService {
       // Normalizar la dirección a minúsculas para consistencia
       const normalizedAddress = address.toLowerCase();
 
-      // Caso especial para billetera de prueba
-      if (normalizedAddress === '0xc2dd65af9fed4a01fb8764d65c591077f02c6497') {
-        return true;
-      }
-      
       // Consultar la base de datos para verificar si existe una wallet con esta dirección
       const result = await pool.query(
         'SELECT EXISTS(SELECT 1 FROM custodial_wallets WHERE LOWER(address) = $1)',
@@ -553,21 +504,7 @@ export class CustodialWalletService {
 
   async getWalletDetails(address: string) {
     try {
-      // Caso especial para billetera de prueba
-      if (address === '0xc2dD65Af9fEd4A01Fb8764D65c591077F02c6497') {
-        console.log('[getWalletDetails] Obteniendo detalles de billetera de prueba');
-        return {
-          id: 9999,
-          address: '0xc2dD65Af9fEd4A01Fb8764D65c591077F02c6497',
-          email: 'test@waybank.com',
-          balance: '2.5', // Balance ficticio para pruebas
-          createdAt: new Date('2025-01-01').toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          testing: true
-        };
-      }
-      
-      // Buscar billetera por dirección (para billeteras reales)
+      // Buscar billetera por dirección
       const walletResult = await pool.query(
         `SELECT id, address, email, created_at, last_login_at
          FROM custodial_wallets
@@ -762,21 +699,8 @@ export class CustodialWalletService {
         });
         throw new Error('La dirección no coincide con la sesión');
       }
-      
-      // Caso especial para billetera de prueba
-      if (address === '0xc2dD65Af9fEd4A01Fb8764D65c591077F02c6497') {
-        console.log('[signMessage] Firmando mensaje con billetera de prueba');
-        // Para la billetera de prueba, generamos una firma predecible
-        const mockSignature = `0x${crypto.createHash('sha256').update(message).digest('hex')}${'0'.repeat(6)}1b`;
-        
-        return {
-          message,
-          signature: mockSignature,
-          address,
-        };
-      }
 
-      // Para billeteras reales
+      // Para billeteras custodiadas
       // Obtener datos de la billetera
       const walletResult = await pool.query(
         `SELECT encrypted_private_key, encryption_iv, salt, password_hash
@@ -992,31 +916,19 @@ export class CustodialWalletService {
   async findWalletByEmail(email: string) {
     try {
       console.log(`[findWalletByEmail] Buscando billetera con email: ${email}`);
-      
-      // Caso especial para cuenta de prueba
-      if (email === 'test@waybank.com') {
-        console.log('[findWalletByEmail] Email de cuenta de prueba detectado');
-        return {
-          id: 9999,
-          address: '0xc2dd65af9fed4a01fb8764d65c591077f02c6497',
-          email: 'test@waybank.com',
-          created_at: new Date().toISOString(),
-          testing: true
-        };
-      }
-      
+
       const result = await pool.query(
         `SELECT id, address, email, created_at, salt, encryption_iv
          FROM custodial_wallets
          WHERE email = $1 AND active = true`,
         [email]
       );
-      
+
       if (result.rowCount === 0) {
         console.log(`[findWalletByEmail] No se encontró billetera con email: ${email}`);
         return null;
       }
-      
+
       console.log(`[findWalletByEmail] Billetera encontrada para email: ${email}`);
       return result.rows[0];
     } catch (error) {
@@ -1024,36 +936,58 @@ export class CustodialWalletService {
       return null;
     }
   }
-  
+
+  /**
+   * Buscar billetera por email de forma case-insensitive
+   * @param email Email a buscar (será normalizado a minúsculas)
+   * @returns Datos de la billetera o null si no existe
+   */
+  async findWalletByEmailCaseInsensitive(email: string) {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log(`[findWalletByEmailCaseInsensitive] Buscando billetera con email: ${normalizedEmail}`);
+
+      // Búsqueda case-insensitive usando LOWER()
+      const result = await pool.query(
+        `SELECT id, address, email, created_at, salt, encryption_iv
+         FROM custodial_wallets
+         WHERE LOWER(email) = $1 AND active = true`,
+        [normalizedEmail]
+      );
+
+      if (result.rowCount === 0) {
+        console.log(`[findWalletByEmailCaseInsensitive] No se encontró billetera con email: ${normalizedEmail}`);
+        return null;
+      }
+
+      console.log(`[findWalletByEmailCaseInsensitive] Billetera encontrada para email: ${normalizedEmail}`);
+      return result.rows[0];
+    } catch (error) {
+      console.error(`[findWalletByEmailCaseInsensitive] Error al buscar billetera por email: ${email}`, error);
+      return null;
+    }
+  }
+
   /**
    * Actualizar contraseña de una billetera usando email (para recuperación)
+   * Usa búsqueda case-insensitive
    * @param email Email de la billetera
    * @param newPassword Nueva contraseña
    * @returns true si la actualización fue exitosa, false en caso contrario
    */
   async updatePasswordByEmail(email: string, newPassword: string): Promise<boolean> {
     try {
-      console.log(`[updatePasswordByEmail] Actualizando contraseña para email: ${email}`);
-      
-      // Caso especial para cuenta de prueba
-      if (email === 'test@waybank.com') {
-        console.log('[updatePasswordByEmail] Simulando actualización para cuenta de prueba');
-        return true;
-      }
-      
-      // Buscar la billetera por email
-      const wallet = await this.findWalletByEmail(email);
-      
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log(`[updatePasswordByEmail] Actualizando contraseña para email: ${normalizedEmail}`);
+
+      // Buscar la billetera por email (case-insensitive)
+      const wallet = await this.findWalletByEmailCaseInsensitive(normalizedEmail);
+
       if (!wallet) {
-        console.error(`[updatePasswordByEmail] No se encontró billetera con email: ${email}`);
+        console.error(`[updatePasswordByEmail] No se encontró billetera con email: ${normalizedEmail}`);
         return false;
       }
-      
-      if (wallet.testing) {
-        console.log('[updatePasswordByEmail] Simulando actualización para cuenta de prueba encontrada en busqueda');
-        return true;
-      }
-      
+
       // Generar nuevo salt y hash de contraseña
       const newSalt = await bcrypt.genSalt(SALT_ROUNDS);
       const newPasswordHash = await bcrypt.hash(newPassword, newSalt);
@@ -1096,14 +1030,7 @@ export class CustodialWalletService {
    */
   async changePassword(address: string, currentPassword: string, newPassword: string): Promise<boolean> {
     try {
-      // Caso especial para billetera de prueba
-      if (address.toLowerCase() === '0xc2dd65af9fed4a01fb8764d65c591077f02c6497') {
-        console.log('[changePassword] Simulando cambio de contraseña para billetera de prueba');
-        // Siempre aceptar cualquier contraseña para la billetera de prueba
-        return true;
-      }
-      
-      // Buscar la billetera en la base de datos (para billeteras normales)
+      // Buscar la billetera en la base de datos
       const walletResult = await pool.query(
         `SELECT id, password_hash, salt, encrypted_private_key, encryption_iv
          FROM custodial_wallets

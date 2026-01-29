@@ -37,7 +37,7 @@ import { convertToNumber } from '../shared/utils';
 import * as nftPoolService from './nft-pool-creation-service';
 import * as yieldDistributionService from './yield-distribution-service';
 import { registerSystemRoutes } from './system-routes';
-import { getWBCTokenService } from './wbc-token-service';
+import { getWBCTokenService, retryFailedWBCTransactions } from './wbc-token-service';
 
 // Rate limiting para endpoints de administración
 const adminAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -6525,6 +6525,30 @@ SET standard_conforming_strings = on;
     } catch (error: any) {
       console.error('[WBC Admin] Error fetching balance:', error);
       res.status(500).json({ error: 'Failed to fetch balance' });
+    }
+  });
+
+  // Retry failed WBC transactions (admin only)
+  app.post('/api/admin/wbc/retry-failed', isAdmin, async (req: Request, res: Response) => {
+    try {
+      console.log('[WBC Admin] Starting retry of failed transactions...');
+
+      // Get optional delay parameter (default 15 seconds)
+      const delayMs = parseInt(req.body?.delayMs) || 15000;
+
+      const result = await retryFailedWBCTransactions(delayMs);
+
+      console.log(`[WBC Admin] Retry completed: ${result.succeeded}/${result.total} succeeded`);
+
+      res.json({
+        success: true,
+        message: `Retry completed: ${result.succeeded} succeeded, ${result.failed} failed, ${result.skipped} skipped`,
+        ...result
+      });
+
+    } catch (error: any) {
+      console.error('[WBC Admin] Error retrying failed transactions:', error);
+      res.status(500).json({ error: 'Failed to retry transactions', details: error.message });
     }
   });
 

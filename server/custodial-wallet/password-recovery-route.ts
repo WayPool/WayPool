@@ -1,28 +1,28 @@
 import { Request, Response, Router } from "express";
 import { storage } from "../storage";
 import { emailService } from "../email-service";
-import { hash } from 'bcrypt';
-import { 
+import {
   createOTPForUser,
   verifyOTP,
   generateOTPEmail,
   generateOTPEmailHtml
 } from './otp-recovery';
+import { custodialWalletService } from './service';
 
 const passwordRecoveryRouter = Router();
 
 /**
  * Endpoint para solicitar recuperación de contraseña
  * Utiliza un sistema OTP (One-Time Password) con códigos de un solo uso
- * NO requiere que el email exista en la base de datos
+ * VERIFICA que el email exista en la base de datos antes de generar el código
  */
 passwordRecoveryRouter.post("/recover", async (req: Request, res: Response) => {
   console.log('[password-recovery] ========== INICIO RECUPERACIÓN ==========');
   console.log('[password-recovery] Body recibido:', { email: req.body?.email });
-  
+
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       console.log('[password-recovery] ERROR: Email no proporcionado');
       return res.status(400).json({
@@ -30,15 +30,33 @@ passwordRecoveryRouter.post("/recover", async (req: Request, res: Response) => {
         error: "Se requiere un email para recuperar la contraseña"
       });
     }
-    
-    console.log('[password-recovery] Generando código OTP para:', email);
-    
-    // Para seguridad, siempre generamos un código sin verificar si el email existe
-    // Un identificador aleatorio para usar en vez de ID de usuario
-    const tempUserId = Math.floor(Math.random() * 10000) + 1;
-    
-    // Generar código OTP 
-    const otpCode = await createOTPForUser(tempUserId, email);
+
+    // Normalizar email a minúsculas para búsqueda consistente
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log('[password-recovery] Email normalizado:', normalizedEmail);
+
+    // VERIFICAR que el email existe en la base de datos ANTES de generar OTP
+    const existingWallet = await custodialWalletService.findWalletByEmailCaseInsensitive(normalizedEmail);
+
+    if (!existingWallet) {
+      console.log('[password-recovery] ERROR: No existe wallet con email:', normalizedEmail);
+      // Por seguridad, devolvemos el mismo mensaje que si existiera
+      // para no revelar si un email está registrado o no
+      return res.json({
+        success: true,
+        message: "Si el email está registrado, recibirás un código de recuperación",
+        recoveryInfo: {
+          email: normalizedEmail,
+          codeExpiration: "5 minutos",
+          emailSent: false
+        }
+      });
+    }
+
+    console.log('[password-recovery] Wallet encontrada, generando código OTP para:', normalizedEmail);
+
+    // Usar el ID real de la wallet para el OTP
+    const otpCode = await createOTPForUser(existingWallet.id, normalizedEmail);
     console.log('[password-recovery] Código OTP generado:', otpCode);
     
     // Generar email con contenido extremadamente simple (solo texto)

@@ -13,6 +13,18 @@
 import { ethers } from 'ethers';
 import { pool } from './db';
 
+// Retry configuration for RPC rate limiting
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 15000; // 15 seconds (as per RPC error message)
+const RETRY_BACKOFF_MULTIPLIER = 2; // Double the delay on each retry
+
+/**
+ * Helper function to wait for a specified time
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // WBC Token Contract ABI (simplified for our operations)
 const WBC_TOKEN_ABI = [
   // Read functions
@@ -112,8 +124,20 @@ export class WBCTokenService {
         return false;
       }
 
-      // Initialize provider
-      const rpcUrl = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
+      // Initialize provider - prefer Alchemy RPC for reliability
+      const alchemyKey = process.env.ALCHEMY_API_KEY;
+      let rpcUrl: string;
+
+      if (alchemyKey) {
+        // Use Alchemy for better reliability and gas estimation
+        rpcUrl = `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+        console.log('[WBC] Using Alchemy RPC for Polygon');
+      } else {
+        // Fallback to configured RPC or public RPC
+        rpcUrl = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
+        console.log('[WBC] Using fallback RPC:', rpcUrl);
+      }
+
       this.provider = new ethers.JsonRpcProvider(rpcUrl);
 
       // Initialize owner wallet
@@ -243,7 +267,7 @@ export class WBCTokenService {
   }
 
   /**
-   * Generic send tokens from owner to user
+   * Generic send tokens from owner to user with retry logic
    */
   private async sendToUser(
     positionId: number,
@@ -269,76 +293,103 @@ export class WBCTokenService {
       };
     }
 
-    try {
-      const wbcAmount = this.toWBCAmount(amount);
+    let lastError: any = null;
+    let retryDelay = INITIAL_RETRY_DELAY_MS;
 
-      console.log(`[WBC] Sending ${amount} WBC to ${userWallet} (${reason})`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const wbcAmount = this.toWBCAmount(amount);
 
-      // Check owner balance
-      const ownerBalance = await this.contract!.balanceOf(this.ownerWallet!.address);
-      if (ownerBalance < wbcAmount) {
+        console.log(`[WBC] Attempt ${attempt}/${MAX_RETRIES}: Sending ${amount} WBC to ${userWallet} (${reason})`);
+
+        // Check owner balance
+        const ownerBalance = await this.contract!.balanceOf(this.ownerWallet!.address);
+        if (ownerBalance < wbcAmount) {
+          return {
+            success: false,
+            error: `Insufficient owner balance. Has: ${this.formatWBC(ownerBalance)}, Needs: ${amount}`
+          };
+        }
+
+        // Send tokens using sendToUser function (with tracking)
+        const tx = await this.contract!.sendToUser(
+          userWallet,
+          wbcAmount,
+          positionId,
+          reason
+        );
+
+        console.log(`[WBC] Transaction sent: ${tx.hash}`);
+
+        // Wait for confirmation
+        const receipt = await tx.wait();
+
+        // Log to database
+        await this.logTransaction({
+          txHash: tx.hash,
+          fromAddress: this.ownerWallet!.address,
+          toAddress: userWallet,
+          amount: amount.toString(),
+          positionId,
+          transactionType: reason,
+          status: 'confirmed',
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed.toString()
+        });
+
+        console.log(`[WBC] Confirmed: ${amount} WBC sent to ${userWallet}`);
+
         return {
-          success: false,
-          error: `Insufficient owner balance. Has: ${this.formatWBC(ownerBalance)}, Needs: ${amount}`
+          success: true,
+          txHash: tx.hash,
+          amount: amount,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed.toString()
         };
+
+      } catch (error: any) {
+        lastError = error;
+        const errorMsg = error.message || 'Unknown error';
+
+        // Check if it's a rate limit error
+        const isRateLimitError = errorMsg.includes('Too many requests') ||
+                                  errorMsg.includes('rate limit') ||
+                                  errorMsg.includes('-32090');
+
+        console.error(`[WBC] Attempt ${attempt}/${MAX_RETRIES} failed:`, errorMsg);
+
+        if (isRateLimitError && attempt < MAX_RETRIES) {
+          console.log(`[WBC] Rate limit detected. Waiting ${retryDelay / 1000}s before retry...`);
+          await delay(retryDelay);
+          retryDelay *= RETRY_BACKOFF_MULTIPLIER; // Exponential backoff
+          continue;
+        }
+
+        // If not a rate limit error or max retries reached, break out
+        if (!isRateLimitError) {
+          break;
+        }
       }
-
-      // Send tokens using sendToUser function (with tracking)
-      const tx = await this.contract!.sendToUser(
-        userWallet,
-        wbcAmount,
-        positionId,
-        reason
-      );
-
-      console.log(`[WBC] Transaction sent: ${tx.hash}`);
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
-
-      // Log to database
-      await this.logTransaction({
-        txHash: tx.hash,
-        fromAddress: this.ownerWallet!.address,
-        toAddress: userWallet,
-        amount: amount.toString(),
-        positionId,
-        transactionType: reason,
-        status: 'confirmed',
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString()
-      });
-
-      console.log(`[WBC] Confirmed: ${amount} WBC sent to ${userWallet}`);
-
-      return {
-        success: true,
-        txHash: tx.hash,
-        amount: amount,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString()
-      };
-
-    } catch (error: any) {
-      console.error(`[WBC] Send failed:`, error);
-
-      // Log failed transaction
-      await this.logTransaction({
-        txHash: `failed_${Date.now()}`,
-        fromAddress: this.ownerWallet?.address || 'unknown',
-        toAddress: userWallet,
-        amount: amount.toString(),
-        positionId,
-        transactionType: reason,
-        status: 'failed',
-        errorMessage: error.message
-      });
-
-      return {
-        success: false,
-        error: error.message || 'Unknown error'
-      };
     }
+
+    // All retries exhausted, log failure
+    console.error(`[WBC] Send failed after ${MAX_RETRIES} attempts:`, lastError);
+
+    await this.logTransaction({
+      txHash: `failed_${Date.now()}`,
+      fromAddress: this.ownerWallet?.address || 'unknown',
+      toAddress: userWallet,
+      amount: amount.toString(),
+      positionId,
+      transactionType: reason,
+      status: 'failed',
+      errorMessage: lastError?.message || 'Unknown error after retries'
+    });
+
+    return {
+      success: false,
+      error: lastError?.message || 'Unknown error'
+    };
   }
 
   // ============ VALIDATION OPERATIONS ============
@@ -770,4 +821,116 @@ export function isWBCActive(): boolean {
     return false;
   }
   return wbcServiceInstance.isActive();
+}
+
+/**
+ * Retry failed WBC transactions
+ * @param delayBetweenRetries Delay in ms between each retry (default 15s)
+ * @returns Summary of retry results
+ */
+export async function retryFailedWBCTransactions(
+  delayBetweenRetries: number = 15000
+): Promise<{
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  results: Array<{ positionId: number; wallet: string; amount: string; status: string; error?: string }>;
+}> {
+  const service = getWBCTokenService();
+
+  if (!service.isActive()) {
+    return {
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      skipped: 0,
+      results: []
+    };
+  }
+
+  // Get all failed transactions that haven't been retried yet
+  const failedTxResult = await pool.query(`
+    SELECT DISTINCT ON (position_id)
+      id, position_id, to_address, amount, transaction_type, created_at
+    FROM wbc_transactions
+    WHERE status = 'failed'
+      AND tx_hash LIKE 'failed_%'
+      AND position_id NOT IN (
+        SELECT position_id FROM wbc_transactions
+        WHERE status = 'confirmed'
+          AND transaction_type = 'daily_fee'
+          AND created_at > (
+            SELECT MAX(created_at) FROM wbc_transactions
+            WHERE status = 'failed' AND position_id = wbc_transactions.position_id
+          )
+      )
+    ORDER BY position_id, created_at DESC
+  `);
+
+  const failedTx = failedTxResult.rows;
+  console.log(`[WBC Retry] Found ${failedTx.length} failed transactions to retry`);
+
+  const results: Array<{ positionId: number; wallet: string; amount: string; status: string; error?: string }> = [];
+  let succeeded = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < failedTx.length; i++) {
+    const tx = failedTx[i];
+    const positionId = tx.position_id;
+    const wallet = tx.to_address;
+    const amount = parseFloat(tx.amount);
+    const txType = tx.transaction_type;
+
+    console.log(`[WBC Retry] Processing ${i + 1}/${failedTx.length}: Position ${positionId}, ${amount} WBC to ${wallet.substring(0, 10)}...`);
+
+    // Wait before sending (except for the first one)
+    if (i > 0) {
+      console.log(`[WBC Retry] Waiting ${delayBetweenRetries / 1000}s before next retry...`);
+      await delay(delayBetweenRetries);
+    }
+
+    try {
+      let result;
+      if (txType === 'daily_fee') {
+        result = await service.sendTokensOnDailyFees(positionId, wallet, amount);
+      } else if (txType === 'activation') {
+        result = await service.sendTokensOnActivation(positionId, wallet, amount);
+      } else {
+        console.log(`[WBC Retry] Unknown transaction type: ${txType}, skipping`);
+        skipped++;
+        results.push({ positionId, wallet, amount: amount.toString(), status: 'skipped', error: `Unknown type: ${txType}` });
+        continue;
+      }
+
+      if (result.success) {
+        succeeded++;
+        results.push({ positionId, wallet, amount: amount.toString(), status: 'success' });
+        console.log(`[WBC Retry] ✅ Success: Position ${positionId}`);
+      } else if (result.skipped) {
+        skipped++;
+        results.push({ positionId, wallet, amount: amount.toString(), status: 'skipped', error: result.reason });
+        console.log(`[WBC Retry] ⏭️ Skipped: Position ${positionId} - ${result.reason}`);
+      } else {
+        failed++;
+        results.push({ positionId, wallet, amount: amount.toString(), status: 'failed', error: result.error });
+        console.log(`[WBC Retry] ❌ Failed: Position ${positionId} - ${result.error}`);
+      }
+    } catch (error: any) {
+      failed++;
+      results.push({ positionId, wallet, amount: amount.toString(), status: 'failed', error: error.message });
+      console.log(`[WBC Retry] ❌ Error: Position ${positionId} - ${error.message}`);
+    }
+  }
+
+  console.log(`[WBC Retry] Completed: ${succeeded} succeeded, ${failed} failed, ${skipped} skipped out of ${failedTx.length} total`);
+
+  return {
+    total: failedTx.length,
+    succeeded,
+    failed,
+    skipped,
+    results
+  };
 }
